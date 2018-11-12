@@ -4,13 +4,14 @@ setup(
   version = '0.0.1',
   description = 'The apprentice',
   url = 'https://xgitlab.cels.anl.gov/mkrishnamoorthy/apprentice',
-  author = 'Mohan Krishnamoorthy',
-  author_email = 'mkrishnamoorthy@anl.gov',
+  author = 'Mohan Krishnamoorthy, Holger Schulz',
+  author_email = 'mkrishnamoorthy@anl.gov, hschulz@fnal.gov',
   packages = find_packages(),
   include_package_data = True,
   install_requires = [
     'numpy',
     'scipy',
+    'sklearn'
     # 'sobol',
     # 'pyDOE'
   ],
