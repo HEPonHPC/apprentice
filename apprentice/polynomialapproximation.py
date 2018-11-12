@@ -39,7 +39,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             else:
                 self._m=kwargs["order"]
                 self._X   = np.array(args[0], dtype=np.float64)
-                self._dim = X[0].shape[0]
+                self._dim = self._X[0].shape[0]
                 self._Y   = np.array(args[1], dtype=np.float64)
                 self.fit()
 
@@ -85,7 +85,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Construct the Vandermonde matrix.
         """
         from apprentice import tools
-        PM = np.zeros((len(params), tools.numCoeffsPoly(self.dim, order)), dtype=np.float64)
+        PM = np.zeros((len(params), self.M), dtype=np.float64)
 
         from apprentice import monomial
         s = monomial.monomialStructure(self.dim, order)
@@ -111,8 +111,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         Do everything
         """
-        # Set M, N, K, polynomial structures
-        # n_required=self.numCoeffs(self.dim, m+n+1)
         from apprentice import tools
         n_required = tools.numCoeffsPoly(self.dim, self.m)
         if n_required > self._Y.shape[0]:
@@ -120,8 +118,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         self.setStructures()
 
-        VM = self.mkVandermonde(self._X, self._M)
-        self.coeffSolve( VM)
+        VM = self.mkVandermonde(self._X, self.m)
+        self.coeffSolve(VM)
 
     def predict(self, X):
         """
