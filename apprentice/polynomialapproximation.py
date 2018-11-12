@@ -57,8 +57,9 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
     def mkFromDict(self, pdict):
         self._acoeff     = np.array(pdict["acoeff"])
-        self.setStructures(pdict["m"])
+        self._m = int(pdict["m"])
         self._dim=int(pdict["dim"])
+        self.setStructures()
 
     def setStructures(self):
         from apprentice import monomial
@@ -92,7 +93,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         return PM
 
-
     def coeffSolve(self, VM):
         """
         SVD solve coefficients.
@@ -122,7 +122,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         VM = self.mkVandermonde(self._X, self._M)
         self.coeffSolve( VM)
-
 
     def predict(self, X):
         """
@@ -173,6 +172,9 @@ if __name__=="__main__":
 
 
     r=PolynomialApproximation(S.scaledPoints, Y, order=3)
+
+    r.save("testpoly.json")
+    r=PolynomialApproximation("testpoly.json")
 
     import pylab
     pylab.plot(S.scaledPoints, Y, marker="*", linestyle="none", label="Data")
