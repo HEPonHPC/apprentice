@@ -48,3 +48,6 @@ def monomialStructure(dim, order):
     if dim==1:
         return structure.ravel()
     return structure
+
+if __name__=="__main__":
+    print(monomialStructure(2,3))
