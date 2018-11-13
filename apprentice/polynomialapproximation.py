@@ -41,44 +41,23 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
                 self._X   = np.array(args[0], dtype=np.float64)
                 self._dim = self._X[0].shape[0]
                 self._Y   = np.array(args[1], dtype=np.float64)
+                self._trainingsize=len(args[0])
                 self.fit()
 
     @property
     def dim(self): return self._dim
     @property
+    def trainingsize(self): return self._trainingsize
+    @property
     def M(self): return self._M
     @property
     def m(self): return self._m
 
-    def mkFromJSON(self, fname):
-        import json
-        d = json.load(open(fname))
-        self.mkFromDict(d)
-
-    def mkFromDict(self, pdict):
-        self._acoeff     = np.array(pdict["acoeff"])
-        self._m = int(pdict["m"])
-        self._dim=int(pdict["dim"])
-        self.setStructures()
-
     def setStructures(self):
         from apprentice import monomial
-        self._struct_g = monomial.monomialStructure(self.dim, self.m)
+        self._struct_p = monomial.monomialStructure(self.dim, self.m)
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
-
-    def mkVandermonde(self, params, order):
-        """
-        Construct the Vandermonde matrix.
-        """
-        from apprentice import tools
-        PM = np.zeros((len(params), self.M), dtype=np.float64)
-
-        from apprentice import monomial
-        s = monomial.monomialStructure(self.dim, order)
-        for a, p in enumerate(params): PM[a]=monomial.recurrence(p, s)
-
-        return PM
 
     def coeffSolve(self, VM):
         """
@@ -89,8 +68,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         # SM dixit: manipulations to solve for the coefficients
         # Given A = U Sigma VT, for A x = b, x = V Sigma^-1 UT b
         temp = np.dot(U.T, self._Y.T)[0:S.size]
-        self._acoeff = np.dot(V.T, 1./S * temp)
-
+        self._pcoeff = np.dot(V.T, 1./S * temp)
 
     def fit(self):
         """
@@ -103,7 +81,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         self.setStructures()
 
-        VM = self.mkVandermonde(self._X, self.m)
+        from apprentice import monomial
+        VM = monomial.vandermonde(self._X, self.m)
         self.coeffSolve(VM)
 
     def predict(self, X):
@@ -111,9 +90,9 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Evaluation of the numer poly at X.
         """
         from apprentice import monomial
-        lv_g = np.array(monomial.recurrence(X, self._struct_g))
-        g=self._acoeff.dot(lv_g)
-        return g
+        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        p=self._pcoeff.dot(rec_p)
+        return p
 
     def __call__(self, X):
         """
@@ -127,15 +106,32 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Store all info in dict as basic python objects suitable for JSON
         """
         d={}
-        d["m"]      = self.m
         d["dim"]    = self.dim
-        d["acoeff"] = list(self._acoeff)
+        d["trainingsize"] = self.trainingsize
+        d["m"]      = self.m
+        d["pcoeff"] = list(self._pcoeff)
         return d
 
     def save(self, fname):
         import json
         with open(fname, "w") as f:
             json.dump(self.asDict, f)
+
+    def mkFromJSON(self, fname):
+        import json
+        d = json.load(open(fname))
+        self.mkFromDict(d)
+
+    def mkFromDict(self, pdict):
+        self._pcoeff     = np.array(pdict["pcoeff"])
+        self._m = int(pdict["m"])
+        self._dim=int(pdict["dim"])
+        try:
+            self._trainingsize = int(pdict["trainingsize"])
+        except:
+            pass
+        self.setStructures()
+
 
 if __name__=="__main__":
 
@@ -150,7 +146,7 @@ if __name__=="__main__":
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
-    X, Y = mkTestData(10)
+    X, Y = mkTestData(20)
     from apprentice import scaler
     S=scaler.Scaler(X)
 
