@@ -67,19 +67,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
 
-    def mkRecurrence(self, X, structure):
-        """
-        Create the parameter combination vector for a particular structure,
-        or in more mathy terms, the recurrence relation for X in a monomial basis
-        structure.
-        """
-        if self.dim==1:
-            return X**structure
-        try:
-            return np.prod(X**structure, axis=1)
-        except:
-            return np.prod(X**structure, axis=0) # this is for order 0 things
-
     def mkVandermonde(self, params, order):
         """
         Construct the Vandermonde matrix.
@@ -89,7 +76,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         from apprentice import monomial
         s = monomial.monomialStructure(self.dim, order)
-        for a, p in enumerate(params): PM[a]=self.mkRecurrence(p, s)
+        for a, p in enumerate(params): PM[a]=monomial.recurrence(p, s)
 
         return PM
 
@@ -125,7 +112,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the numer poly at X.
         """
-        lv_g = np.array(self.mkRecurrence(X, self._struct_g))
+        from apprentice import monomial
+        lv_g = np.array(monomial.recurrence(X, self._struct_g))
         g=self._acoeff.dot(lv_g)
         return g
 
@@ -185,4 +173,17 @@ if __name__=="__main__":
     pylab.ylabel("f(x)")
     pylab.savefig("demopoly.pdf")
 
+    r=PolynomialApproximation(X, Y, order=3)
+
+    import pylab
+    pylab.clf()
+    pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
+    TX = sorted(X)
+    YW = [r(p) for p in TX]
+
+    pylab.plot(TX, YW, label="Polynomial approx m={}".format(3))
+    pylab.legend()
+    pylab.xlabel("x")
+    pylab.ylabel("f(x)")
+    pylab.savefig("demopolynoscale.pdf")
     sys.exit(0)

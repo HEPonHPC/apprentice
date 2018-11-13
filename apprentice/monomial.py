@@ -49,5 +49,19 @@ def monomialStructure(dim, order):
         return structure.ravel()
     return structure
 
+def recurrence(X, structure):
+    """
+    Create the parameter combination vector for a particular structure,
+    or in more mathy terms, the recurrence relation for X in a monomial basis
+    structure.
+    """
+    import numpy as np
+    if X.shape[0]==1:
+        return X**structure
+    try:
+        return np.prod(X**structure, axis=1)
+    except:
+        return np.prod(X**structure, axis=0) # this is for order 0 things
+
 if __name__=="__main__":
     print(monomialStructure(2,3))

@@ -83,19 +83,6 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         self._n        = n
         self._K=m+n+1
 
-    def mkRecurrence(self, X, structure):
-        """
-        Create the parameter combination vector for a particular structure,
-        or in more mathy terms, the recurrence relation for X in a monomial basis
-        structure.
-        """
-        if self.dim==1:
-            return X**structure
-        try:
-            return np.prod(X**structure, axis=1)
-        except:
-            return np.prod(X**structure, axis=0) # this is for order 0 things
-
     def mkVandermonde(self, params, order):
         """
         Construct the Vandermonde matrix.
@@ -105,7 +92,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
 
         from apprentice import monomial
         s = monomial.monomialStructure(self.dim, order)
-        for a, p in enumerate(params): PM[a]=self.mkRecurrence(p, s)
+        for a, p in enumerate(params): PM[a]=monomial.recurrence(p, s)
 
         return PM
 
@@ -172,7 +159,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the denom poly at X.
         """
-        lv_h = np.array(self.mkRecurrence(X, self._struct_h))
+        from apprentice import monomial
+        lv_h = np.array(monomial.recurrence(X, self._struct_h))
         h=self._bcoeff.dot(lv_h)
         return h
 
@@ -180,7 +168,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the numer poly at X.
         """
-        lv_g = np.array(self.mkRecurrence(X, self._struct_g))
+        from apprentice import monomial
+        lv_g = np.array(monomial.recurrence(X, self._struct_g))
         g=self._acoeff.dot(lv_g)
         return g
 
