@@ -1,18 +1,23 @@
 import numpy as np
 
-def mkTestData(dim, N, order=(2,1), origin=0, noise=0, xmax=1):
-    X = np.random.rand(N, dim)*xmax
+def mkRationalTestData(dim, N, order=(2,1), origin=0, noise=0, xmin=-1, xmax=1):
+    """
+    Generate N random dim-dimensional point X in the open interval (xmin, xmax).
+    Then produce a monomial structure for polynials of order (m,n).
+    Then set all coefficients to 1 and evaluate the polynomials at the points X.
+    Optionally, origin can be used to put the pole away from 0. Also
+    optionally, random noise can be added by setting noise >0.
+    """
+    X = xmin + np.random.rand(N, dim)*(xmax-xmin)
     if dim==1:
         X=sorted(X)
-    import pyrapp.tools as prt
-    sg=prt.generateStructure(dim, order[0])
-    sh=prt.generateStructure(dim, order[1])
+    from apprentice import monomial
+    sg = monomial.monomialStructure(dim, order[0])
+    sh = monomial.monomialStructure(dim, order[1])
 
-    LVg = [prt.mkLongVector(x, sg) for x in X]
-    LVh = [prt.mkLongVector(x-origin, sh) for x in X]
+    LVg = [monomial.recurrence(x, sg)        for x in X]
+    LVh = [monomial.recurrence(x-origin, sh) for x in X]
 
-    # ac = 2*np.random.random(len(sg))-1
-    # bc = np.random.random(len(sh))
     ac = np.ones(len(sg))
     bc = np.ones(len(sh))
     G = np.array([np.dot(ac, lv)*(1+ np.random.normal(0,noise)) for lv in LVg])
