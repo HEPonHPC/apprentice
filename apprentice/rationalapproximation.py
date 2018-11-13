@@ -37,13 +37,18 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             elif type(args[0]) == str:
                 self.mkFromJSON(args[0])
             else:
+                self._m=kwargs["order"][0]
+                self._n=kwargs["order"][1]
                 self._X   = np.array(args[0], dtype=np.float64)
                 self._dim = X[0].shape[0]
                 self._Y   = np.array(args[1], dtype=np.float64)
-                self.mkFromData(kwargs=kwargs)
+                self._trainingsize=len(args[0])
+                self.fit(kwargs=kwargs)
 
     @property
     def dim(self): return self._dim
+    @property
+    def trainingsize(self): return self._trainingsize
     @property
     def M(self): return self._M
     @property
@@ -53,48 +58,14 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     @property
     def n(self): return self._n
 
-    def mkFromJSON(self, fname):
-        import json
-        d = json.load(open(fname))
-        self.mkFromDict(d)
-
-    def mkFromDict(self, pdict):
-        self._acoeff     = np.array(pdict["acoeff"])
-        self._bcoeff     = np.array(pdict["bcoeff"])
-        self.setStructures(pdict["m"], pdict["n"])
-
-    def mkFromData(self, kwargs):
-        """
-        Calculate the Pade approximation
-        """
-        order=kwargs["order"]
-        debug=kwargs["debug"] if kwargs.get("debug") is not None else False
-        strategy=int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 2
-        self.fit(order[0], order[1], debug=debug, strategy=strategy)
-
-    def setStructures(self, m, n):
+    def setStructures(self):
         from apprentice import monomial
-        self._struct_g = monomial.monomialStructure(self.dim, m)
-        self._struct_h = monomial.monomialStructure(self.dim, n)
+        self._struct_p = monomial.monomialStructure(self.dim, self.m)
+        self._struct_q = monomial.monomialStructure(self.dim, self.n)
         from apprentice import tools
-        self._M        = tools.numCoeffsPoly(self.dim, m)
-        self._N        = tools.numCoeffsPoly(self.dim, n)
-        self._m        = m
-        self._n        = n
-        self._K=m+n+1
-
-    def mkVandermonde(self, params, order):
-        """
-        Construct the Vandermonde matrix.
-        """
-        from apprentice import tools
-        PM = np.zeros((len(params), tools.numCoeffsPoly(self.dim, order)), dtype=np.float64)
-
-        from apprentice import monomial
-        s = monomial.monomialStructure(self.dim, order)
-        for a, p in enumerate(params): PM[a]=monomial.recurrence(p, s)
-
-        return PM
+        self._M        = tools.numCoeffsPoly(self.dim, self.m)
+        self._N        = tools.numCoeffsPoly(self.dim, self.n)
+        self._K = 1 + self._m + self._n
 
     # @timeit
     def coeffSolve(self, VM, VN):
@@ -108,8 +79,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         MM, res, rank, s  = np.linalg.lstsq(VM, Fmatrix, rcond=rcond)
         Zmatrix = MM.dot(VN)
         U, S, V = np.linalg.svd(VM.dot(Zmatrix) - Fmatrix.dot(VN))
-        self._bcoeff = V[-1]
-        self._acoeff = Zmatrix.dot(self._bcoeff)
+        self._qcoeff = V[-1]
+        self._pcoeff = Zmatrix.dot(self._qcoeff)
 
     # @timeit
     def coeffSolve2(self, VM, VN):
@@ -126,61 +97,54 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         tmp1 = np.transpose( U ).dot( np.transpose( self._Y ))[0:S.size]
         Sinv = np.linalg.inv( np.diag(S) )
         x = np.transpose(V).dot( Sinv.dot(tmp1) )
-        self._acoeff = x[0:self._M]
-        self._bcoeff = np.concatenate([np.array([1.00]),x[self._M:self._M+self._N+1]])
+        self._pcoeff = x[0:self._M]
+        self._qcoeff = np.concatenate([np.array([1.00]),x[self._M:self._M+self._N+1]])
 
-    def fit(self, m, n, debug=False, strategy=2):
+    def fit(self, **kwargs):
         """
         Do everything
         """
         # Set M, N, K, polynomial structures
         # n_required=self.numCoeffs(self.dim, m+n+1)
         from apprentice import tools
-        n_required = tools.numCoeffsRapp(self.dim, (m,n))
+        n_required = tools.numCoeffsRapp(self.dim, (self.m, self.n))
         if n_required > self._Y.shape[0]:
             raise Exception("Not enough inputs: got %i but require %i to do m=%i n=%i"%(n_required, Fmatrix.shape[0], m,n))
 
+        self.setStructures()
 
-        self.setStructures(m,n)
-        if debug:
-            print("structure setting took {} seconds".format(te-ts))
-
-        VanderMonde=self.mkVandermonde(self._X, self._K)
+        from apprentice import monomial
+        VanderMonde=monomial.vandermonde(self._X, self._K)
         VM = VanderMonde[:, 0:(self._M)]
         VN = VanderMonde[:, 0:(self._N)]
-        if debug:
-            print("VM took {} seconds".format(te-ts))
-
+        strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 2
         if   strategy==1: self.coeffSolve( VM, VN)
         elif strategy==2: self.coeffSolve2(VM, VN)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
-    def denom(self, X):
+    def Q(self, X):
         """
         Evaluation of the denom poly at X.
         """
         from apprentice import monomial
-        lv_h = np.array(monomial.recurrence(X, self._struct_h))
-        h=self._bcoeff.dot(lv_h)
-        return h
+        rec_q = np.array(monomial.recurrence(X, self._struct_q))
+        q = self._qcoeff.dot(rec_q)
+        return q
 
-    def numer(self, X):
+    def P(self, X):
         """
         Evaluation of the numer poly at X.
         """
         from apprentice import monomial
-        lv_g = np.array(monomial.recurrence(X, self._struct_g))
-        g=self._acoeff.dot(lv_g)
-        return g
+        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        p = self._pcoeff.dot(rec_p)
+        return p
 
     def predict(self, X):
         """
         Return the prediction of the RationalApproximation at X.
         """
-        den = self.denom(X)
-        if den==0: return 0 # TODO why is this here?
-        else:
-            return self.numer(X)/self.denom(X)
+        return self.P(X)/self.Q(X)
 
     def __call__(self, X):
         """
@@ -194,16 +158,35 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         Store all info in dict as basic python objects suitable for JSON
         """
         d={}
-        d["m"]    = self.m
-        d["n"]    = self.n
-        d["acoeff"] = list(self._acoeff)
-        d["bcoeff"] = list(self._bcoeff)
+        d["dim"]    = self.dim
+        d["trainingsize"] = self.trainingsize
+        d["m"]      = self.m
+        d["n"]      = self.n
+        d["pcoeff"] = list(self._pcoeff)
+        d["qcoeff"] = list(self._qcoeff)
         return d
 
     def save(self, fname):
         import json
         with open(fname, "w") as f:
             json.dump(self.asDict, f)
+
+    def mkFromDict(self, pdict):
+        self._pcoeff = np.array(pdict["pcoeff"])
+        self._qcoeff = np.array(pdict["qcoeff"])
+        self._m      = int(pdict["m"])
+        self._n      = int(pdict["n"])
+        self._dim    = int(pdict["dim"])
+        try:
+            self._trainingsize = int(pdict["trainingsize"])
+        except:
+            pass
+        self.setStructures()
+
+    def mkFromJSON(self, fname):
+        import json
+        d = json.load(open(fname))
+        self.mkFromDict(d)
 
 if __name__=="__main__":
 

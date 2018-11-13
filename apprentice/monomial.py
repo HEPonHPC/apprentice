@@ -63,5 +63,21 @@ def recurrence(X, structure):
     except:
         return np.prod(X**structure, axis=0) # this is for order 0 things
 
+def vandermonde(params, order):
+    """
+    Construct the Vandermonde matrix.
+    """
+    import numpy as np
+    try:
+        dim = len(params[0])
+    except:
+        dim = 1
+
+    from apprentice import tools
+    V = np.zeros((len(params), tools.numCoeffsPoly(dim, order)), dtype=np.float64)
+    s = monomialStructure(dim, order)
+    for a, p in enumerate(params): V[a]=recurrence(p, s)
+    return V
+
 if __name__=="__main__":
     print(monomialStructure(2,3))
