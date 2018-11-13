@@ -84,15 +84,13 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         SVD solve coefficients.
         """
-        U, S, V = np.linalg.svd(VM)
         # TODO check for singular values below threshold and raise Exception
-
-        # manipulations to solve for the coefficients
+        U, S, V = np.linalg.svd(VM)
+        # SM dixit: manipulations to solve for the coefficients
         # Given A = U Sigma VT, for A x = b, x = V Sigma^-1 UT b
-        tmp1 = np.transpose( U ).dot( np.transpose( self._Y ))[0:S.size]
-        Sinv = np.linalg.inv( np.diag(S) )
-        x = np.transpose(V).dot( Sinv.dot(tmp1) )
-        self._acoeff = x[0:self._M]
+        temp = np.dot(U.T, self._Y.T)[0:S.size]
+        self._acoeff = np.dot(V.T, 1./S * temp)
+
 
     def fit(self):
         """
@@ -152,7 +150,7 @@ if __name__=="__main__":
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
-    X, Y = mkTestData(500)
+    X, Y = mkTestData(10)
     from apprentice import scaler
     S=scaler.Scaler(X)
 
