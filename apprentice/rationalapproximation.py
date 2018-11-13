@@ -17,7 +17,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class RationalApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2):
         """
         Multivariate rational approximation f(x)_mn =  g(x)_m/h(x)_n
 
@@ -28,22 +28,20 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             Y     --- function values
             order --- tuple (m,n) m being the order of the numerator polynomial --- if omitted: auto
         """
-        import os
-        if len(args) == 0:
-            pass
+        if initDict is not None:
+            self.mkFromDict(initDict)
+        elif fname is not None:
+            self.mkFromJSON(fname)
+        elif X is not None and Y is not None:
+            self._m=order[0]
+            self._n=order[1]
+            self._X   = np.array(X, dtype=np.float64)
+            self._dim = self._X[0].shape[0]
+            self._Y   = np.array(Y, dtype=np.float64)
+            self._trainingsize=len(X)
+            self.fit(strategy=strategy)
         else:
-            if type(args[0])==dict:
-                self.mkFromDict(args[0])
-            elif type(args[0]) == str:
-                self.mkFromJSON(args[0])
-            else:
-                self._m=kwargs["order"][0]
-                self._n=kwargs["order"][1]
-                self._X   = np.array(args[0], dtype=np.float64)
-                self._dim = X[0].shape[0]
-                self._Y   = np.array(args[1], dtype=np.float64)
-                self._trainingsize=len(args[0])
-                self.fit(kwargs=kwargs)
+            raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
 
     @property
     def dim(self): return self._dim
@@ -144,6 +142,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         Return the prediction of the RationalApproximation at X.
         """
+        X=np.array(X)
         return self.P(X)/self.Q(X)
 
     def __call__(self, X):
@@ -151,6 +150,12 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         Operator version of predict.
         """
         return self.predict(X)
+
+    def __repr__(self):
+        """
+        Print-friendly representation.
+        """
+        return "<RationalApproximation dim:{} m:{} n:{}>".format(self.dim, self.m, self.n)
 
     @property
     def asDict(self):
@@ -202,7 +207,9 @@ if __name__=="__main__":
         return X, Y
 
     X, Y = mkTestData(500)
-    r=RationalApproximation(X,Y, order=(1,3))
+    r=RationalApproximation(X=X,Y=Y, order=(1,3))
+    r.save("testrational.json")
+    r=RationalApproximation(fname="testrational.json")
 
     import pylab
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")

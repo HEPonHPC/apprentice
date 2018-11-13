@@ -17,32 +17,32 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None):
         """
         Multivariate polynomial approximation
 
         kwargs:
             fname --- to read in previously calculated Pade approximation
 
-            X     --- anchor points
-            Y     --- function values
-            order --- int being the order of the polynomial
+            X        --- anchor points
+            Y        --- function values
+            fname    --- JSON file to read pre-calculated info from
+            initDict --- dict to read pre-calculated info from
+            order    --- int being the order of the polynomial
         """
-        import os
-        if len(args) == 0:
-            pass
+        if initDict is not None:
+            self.mkFromDict(initDict)
+        elif fname is not None:
+            self.mkFromJSON(fname)
+        elif X is not None and Y is not None:
+            self._m=order
+            self._X   = np.array(X, dtype=np.float64)
+            self._dim = self._X[0].shape[0]
+            self._Y   = np.array(Y, dtype=np.float64)
+            self._trainingsize=len(X)
+            self.fit()
         else:
-            if type(args[0])==dict:
-                self.mkFromDict(args[0])
-            elif type(args[0]) == str:
-                self.mkFromJSON(args[0])
-            else:
-                self._m=kwargs["order"]
-                self._X   = np.array(args[0], dtype=np.float64)
-                self._dim = self._X[0].shape[0]
-                self._Y   = np.array(args[1], dtype=np.float64)
-                self._trainingsize=len(args[0])
-                self.fit()
+            raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
 
     @property
     def dim(self): return self._dim
@@ -89,6 +89,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the numer poly at X.
         """
+        X=np.array(X)
         from apprentice import monomial
         rec_p = np.array(monomial.recurrence(X, self._struct_p))
         p=self._pcoeff.dot(rec_p)
@@ -99,6 +100,12 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Operator version of predict.
         """
         return self.predict(X)
+
+    def __repr__(self):
+        """
+        Print-friendly representation.
+        """
+        return "<PolynomialApproximation dim:{} order:{}>".format(self.dim, self.m)
 
     @property
     def asDict(self):
@@ -151,10 +158,10 @@ if __name__=="__main__":
     S=scaler.Scaler(X)
 
 
-    r=PolynomialApproximation(S.scaledPoints, Y, order=3)
+    r=PolynomialApproximation(X=S.scaledPoints, Y=Y, order=3)
 
     r.save("testpoly.json")
-    r=PolynomialApproximation("testpoly.json")
+    r=PolynomialApproximation(fname="testpoly.json")
 
     import pylab
     pylab.plot(S.scaledPoints, Y, marker="*", linestyle="none", label="Data")
@@ -167,7 +174,7 @@ if __name__=="__main__":
     pylab.ylabel("f(x)")
     pylab.savefig("demopoly.pdf")
 
-    r=PolynomialApproximation(X, Y, order=3)
+    r=PolynomialApproximation(X=X, Y=Y, order=3)
 
     import pylab
     pylab.clf()
