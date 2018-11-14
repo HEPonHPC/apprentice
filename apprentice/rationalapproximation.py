@@ -84,26 +84,26 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     def coeffSolve2(self, VM, VN):
         """
         This does the solving for the numerator and denominator coefficients
-        following Steve's recipe.
+        following Steve's recipe (from numerical recipes?).
+
+        F = p/q
         """
-        Feps = - (VN.T * self._Y).T
-        # the full left side of the equation
-        y = np.hstack([ VM, Feps[:,1:self._Y.size ] ])
-        U, S, V = np.linalg.svd(y)
-        # manipulations to solve for the coefficients
-        # Given A = U Sigma VT, for A x = b, x = V Sigma^-1 UT b
-        tmp1 = np.transpose( U ).dot( np.transpose( self._Y ))[0:S.size]
-        Sinv = np.linalg.inv( np.diag(S) )
-        x = np.transpose(V).dot( Sinv.dot(tmp1) )
+        Feps = - (VN.T * self._Y).T # This is something like -F*q
+        # The full left side of the equation
+        lhs = np.hstack([VM, Feps[:,1:]]) # lhs is now a (Npoints x (Ncoeffp + Ncoeffq -1)) size array
+        U, S, V = np.linalg.svd(lhs)
+        # Given A = U Sigma VT, for A x = b, it follows, that: x = V Sigma^-1 UT b
+        # TODO what exactly are we solving?
+        UTb = np.dot(U.T, self._Y.T)[0:S.size]
+        x = np.dot(V.T, 1./S * UTb)
         self._pcoeff = x[0:self._M]
-        self._qcoeff = np.concatenate([np.array([1.00]),x[self._M:self._M+self._N+1]])
+        self._qcoeff = np.concatenate([[1],x[self._M:]]) # First coeff in q is always 1 --> why?
 
     def fit(self, **kwargs):
         """
-        Do everything
+        Do everything.
         """
         # Set M, N, K, polynomial structures
-        # n_required=self.numCoeffs(self.dim, m+n+1)
         from apprentice import tools
         n_required = tools.numCoeffsRapp(self.dim, (self.m, self.n))
         if n_required > self._Y.shape[0]:
@@ -115,9 +115,10 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         VanderMonde=monomial.vandermonde(self._X, self._K)
         VM = VanderMonde[:, 0:(self._M)]
         VN = VanderMonde[:, 0:(self._N)]
-        strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 2
+        strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 1
         if   strategy==1: self.coeffSolve( VM, VN)
         elif strategy==2: self.coeffSolve2(VM, VN)
+        # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
     def Q(self, X):
@@ -206,8 +207,10 @@ if __name__=="__main__":
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
-    X, Y = mkTestData(500)
-    r=RationalApproximation(X=X,Y=Y, order=(1,3))
+    X, Y = mkTestData(100)
+    r=RationalApproximation(X,Y, order=(2,2))
+    r=RationalApproximation(X,Y, order=(2,2), strategy=1)
+
     r.save("testrational.json")
     r=RationalApproximation(fname="testrational.json")
 
