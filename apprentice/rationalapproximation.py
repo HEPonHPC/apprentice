@@ -106,8 +106,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         # Set M, N, K, polynomial structures
         from apprentice import tools
         n_required = tools.numCoeffsRapp(self.dim, (self.m, self.n))
-        if n_required > self._Y.shape[0]:
-            raise Exception("Not enough inputs: got %i but require %i to do m=%i n=%i"%(n_required, Fmatrix.shape[0], m,n))
+        if n_required > self._Y.size:
+            raise Exception("Not enough inputs: got %i but require %i to do m=%i n=%i"%(n_required, self._Y.size, m,n))
 
         self.setStructures()
 
