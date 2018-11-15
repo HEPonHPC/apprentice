@@ -17,7 +17,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2):
         """
         Multivariate polynomial approximation
 
@@ -40,7 +40,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
-            self.fit()
+            self.fit(strategy=strategy)
         else:
             raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
 
@@ -59,6 +59,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
 
+    # @timeit
     def coeffSolve(self, VM):
         """
         SVD solve coefficients.
@@ -70,7 +71,16 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         temp = np.dot(U.T, self._Y.T)[0:S.size]
         self._pcoeff = np.dot(V.T, 1./S * temp)
 
-    def fit(self):
+    # @timeit
+    def coeffSolve2(self, VM):
+        """
+        Least square solve coefficients.
+        """
+        rcond = -1 if np.version.version < "1.15" else None
+        x, res, rank, s  = np.linalg.lstsq(VM, self._Y, rcond=None)
+        self._pcoeff = x
+
+    def fit(self, **kwargs):
         """
         Do everything
         """
@@ -83,7 +93,11 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         from apprentice import monomial
         VM = monomial.vandermonde(self._X, self.m)
-        self.coeffSolve(VM)
+        strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 1
+        if   strategy==1: self.coeffSolve( VM)
+        elif strategy==2: self.coeffSolve2(VM)
+        # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
+        else: raise Exception("fit() strategy %i not implemented"%strategy)
 
     def predict(self, X):
         """
@@ -146,43 +160,46 @@ if __name__=="__main__":
 
     def mkTestData(NX, dim=1):
         def anthonyFunc(x):
-            return x**3-x**2
+            return x**5-x**2
         NR = 1
         np.random.seed(555)
         X = np.random.rand(NX, dim)
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
-    X, Y = mkTestData(20)
-    from apprentice import scaler
-    S=scaler.Scaler(X)
+    X, Y = mkTestData(200)
+    # from apprentice import scaler
+    # S=scaler.Scaler(X)
 
 
-    r=PolynomialApproximation(X=S.scaledPoints, Y=Y, order=3)
+    # r=PolynomialApproximation(X=S.scaledPoints, Y=Y, order=3)
 
-    r.save("testpoly.json")
-    r=PolynomialApproximation(fname="testpoly.json")
+    # r.save("testpoly.json")
+    # r=PolynomialApproximation(fname="testpoly.json")
 
-    import pylab
-    pylab.plot(S.scaledPoints, Y, marker="*", linestyle="none", label="Data")
-    TX = sorted(S.scaledPoints)
-    YW = [r(p) for p in TX]
+    # import pylab
+    # pylab.plot(S.scaledPoints, Y, marker="*", linestyle="none", label="Data")
+    # TX = sorted(S.scaledPoints)
+    # YW = [r(p) for p in TX]
 
-    pylab.plot(TX, YW, label="Polynomial approx m={}".format(3))
-    pylab.legend()
-    pylab.xlabel("x")
-    pylab.ylabel("f(x)")
-    pylab.savefig("demopoly.pdf")
+    # pylab.plot(TX, YW, label="Polynomial approx m={}".format(3))
+    # pylab.legend()
+    # pylab.xlabel("x")
+    # pylab.ylabel("f(x)")
+    # pylab.savefig("demopoly.pdf")
 
-    r=PolynomialApproximation(X=X, Y=Y, order=3)
+    r =PolynomialApproximation(X=X, Y=Y, order=3, strategy=1)
+    r2=PolynomialApproximation(X=X, Y=Y, order=3, strategy=2)
 
     import pylab
     pylab.clf()
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
     TX = sorted(X)
-    YW = [r(p) for p in TX]
+    YW  = [r(p)  for p in TX]
+    YW2 = [r2(p) for p in TX]
 
-    pylab.plot(TX, YW, label="Polynomial approx m={}".format(3))
+    pylab.plot(TX, YW, label="Polynomial approx m={} strategy 1".format(3))
+    pylab.plot(TX, YW, label="Polynomial approx m={} strategy 2".format(3))
     pylab.legend()
     pylab.xlabel("x")
     pylab.ylabel("f(x)")
