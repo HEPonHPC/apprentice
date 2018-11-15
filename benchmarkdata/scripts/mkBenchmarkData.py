@@ -33,19 +33,21 @@ if __name__ == "__main__":
     op.add_option("-n", dest="NPOINTS", default=100, type=int,  help="Number of data points to generate (default: %default)")
     op.add_option("-f", dest="FUNCTION", default=1, type=int,  help="Test function number [1...6] (default: %default)")
     op.add_option("-r", dest="RANDOM", default=0, type=float,  help="Random noise in pct (default: %default)")
+    op.add_option("--xmin", dest="MIN", default=-1, type=float,  help="Minimum X (default: %default)")
+    op.add_option("--xmax", dest="MAX", default=1, type=float,  help="Maximum X (default: %default)")
     op.add_option("-s", "--seed", dest="SEED", default=54321, type=int,  help="Random seed (default: %default)")
     op.add_option("-c", "--corners", dest="CORNERS", default=False, action="store_true",  help="Include corners (default: %default)")
     opts, args = op.parse_args()
 
     np.random.seed(opts.SEED)
 
-    X = np.random.rand(opts.NPOINTS, 2)*2-1 # Coordinates are generated in [-1,1]
+    X = np.random.rand(opts.NPOINTS, 2)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
     if opts.CORNERS:
         # Include the corners
-        X[0] = [-1, -1]
-        X[1] = [-1,  1]
-        X[2] = [ 1, -1]
-        X[3] = [ 1,  1]
+        X[0] = [opts.MIN, opts.MIN]
+        X[1] = [opts.MIN, opts.MAX]
+        X[2] = [opts.MAX, opts.MIN]
+        X[3] = [opts.MAX, opts.MAX]
 
     Y = getData(X, fn=opts.FUNCTION, noise=opts.RANDOM)
 
