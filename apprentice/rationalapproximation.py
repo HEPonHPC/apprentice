@@ -74,30 +74,49 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         Fmatrix=np.diag(self._Y)
         # rcond changes from 1.13 to 1.14
         rcond = -1 if np.version.version < "1.15" else None
+        # Solve VM x = diag(Y)
         MM, res, rank, s  = np.linalg.lstsq(VM, Fmatrix, rcond=rcond)
         Zmatrix = MM.dot(VN)
-        U, S, V = np.linalg.svd(VM.dot(Zmatrix) - Fmatrix.dot(VN))
-        self._qcoeff = V[-1]
+        # Solve (VM Z - F VN)x = 0
+        U, S, Vh = np.linalg.svd(VM.dot(Zmatrix) - Fmatrix.dot(VN))
+        self._qcoeff = Vh[-1] # The column of (i.e. row of Vh) corresponding to the smallest singular value is the least squares solution
         self._pcoeff = Zmatrix.dot(self._qcoeff)
 
     # @timeit
     def coeffSolve2(self, VM, VN):
         """
-        This does the solving for the numerator and denominator coefficients
-        following Steve's recipe (from numerical recipes?).
-
-        F = p/q
+        This does the solving for the numerator and denominator coefficients.
+        F = p/q is reformulated as 0 = p - qF using the VanderMonde matrices.
+        That defines the problem Ax = b and we solve for x in an SVD manner,
+        exploiting A = U x S x V.T
+        There is an additional manipulation exploiting on setting the constant
+        coefficient in q to 1.
         """
-        Feps = - (VN.T * self._Y).T # This is something like -F*q
-        # The full left side of the equation
-        lhs = np.hstack([VM, Feps[:,1:]]) # lhs is now a (Npoints x (Ncoeffp + Ncoeffq -1)) size array
-        U, S, V = np.linalg.svd(lhs)
+        FQ = - (VN.T * self._Y).T # This is something like -F*q
+        A = np.hstack([VM, FQ[:,1:]]) # Note that we leave the b0 terms out when defining A
+        U, S, Vh = np.linalg.svd(A)
         # Given A = U Sigma VT, for A x = b, it follows, that: x = V Sigma^-1 UT b
-        # TODO what exactly are we solving?
-        UTb = np.dot(U.T, self._Y.T)[0:S.size]
-        x = np.dot(V.T, 1./S * UTb)
-        self._pcoeff = x[0:self._M]
-        self._qcoeff = np.concatenate([[1],x[self._M:]]) # First coeff in q is always 1 --> why?
+        # b really is b0 * F but we explicitly choose b0 to be 1
+        # The solution formula is taken from numerical recipes
+        UTb = np.dot(U.T, self._Y.T)[:S.size]
+        x = np.dot(Vh.T, 1./S * UTb)
+        self._pcoeff = x[:self._M]
+        self._qcoeff = np.concatenate([[1],x[self._M:]]) # b0 is set to 1 !!!
+
+    # @timeit
+    def coeffSolve3(self, VM, VN):
+        """
+        This does the solving for the numerator and denominator coefficients.
+        F = p/q is reformulated as 0 = p - qF using the VanderMonde matrices.
+        That defines the problem Ax = 0 and we solve for x in an SVD manner,
+        exploiting A = U x S x V.T
+        We get the solution as the last column in V (corresponds to the smallest singular value)
+        """
+        FQ = - (VN.T * self._Y).T
+        A = np.hstack([VM, FQ])
+        U, S, Vh = np.linalg.svd(A)
+        self._pcoeff = Vh[-1][:self._M]
+        self._qcoeff = Vh[-1][self._M:]
 
     def fit(self, **kwargs):
         """
@@ -107,7 +126,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         from apprentice import tools
         n_required = tools.numCoeffsRapp(self.dim, (self.m, self.n))
         if n_required > self._Y.size:
-            raise Exception("Not enough inputs: got %i but require %i to do m=%i n=%i"%(n_required, self._Y.size, m,n))
+            raise Exception("Not enough inputs: got %i but require %i to do m=%i n=%i"%(self._Y.size, n_required, self.m,self.n))
 
         self.setStructures()
 
@@ -118,6 +137,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 1
         if   strategy==1: self.coeffSolve( VM, VN)
         elif strategy==2: self.coeffSolve2(VM, VN)
+        elif strategy==3: self.coeffSolve3(VM, VN)
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
@@ -207,19 +227,17 @@ if __name__=="__main__":
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
-    X, Y = mkTestData(100)
-    r=RationalApproximation(X,Y, order=(2,2))
-    r=RationalApproximation(X,Y, order=(2,2), strategy=1)
-
-    r.save("testrational.json")
-    r=RationalApproximation(fname="testrational.json")
+    X, Y = mkTestData(500)
 
     import pylab
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
     TX = sorted(X)
-    YW = [r(p) for p in TX]
+    for s in range(1,4):
+        r=RationalApproximation(X,Y, order=(5,5), strategy=s)
 
-    pylab.plot(TX, YW, label="Rational approx m={} n={}".format(1,3))
+        YW = [r(p) for p in TX]
+
+        pylab.plot(TX, YW, label="Rational approx m={} n={} strategy {}".format(2,2,s))
     pylab.legend()
     pylab.xlabel("x")
     pylab.ylabel("f(x)")
