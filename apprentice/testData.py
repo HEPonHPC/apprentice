@@ -50,7 +50,7 @@ def f6(P):
 
 def f7(P):
     x, y = P
-    return (x + y**3)/(y**2*x)
+    return (x + y**3)/((y**2*x)+1)
 
 def f8(P):
     x, y = P
