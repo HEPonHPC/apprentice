@@ -21,6 +21,8 @@ def getData(X_train, fn, noise):
         Y_train = [testData.f7(x) for x in X_train]
     elif fn==8:
         Y_train = [testData.f8(x) for x in X_train]
+    elif fn==9:
+        Y_train = [testData.f8(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 

@@ -56,6 +56,10 @@ def f8(P):
     x, y = P
     return (x**2 + y**2 + x - y - 1)/((x-1.1)*(y-1.1))
 
+def f9(P):
+    x, y = P
+    return (x**4 + y**4 + x**2*y**2 + x*y)/((x**2-1.1)*(y**2-1.1))
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -82,6 +86,9 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==8:
         Y_train = [f8(x) for x in X_train]
         Y_test  = [f8(x) for x in X_test]
+    elif fn==9:
+        Y_train = [f9(x) for x in X_train]
+        Y_test  = [f9(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
