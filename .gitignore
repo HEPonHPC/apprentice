@@ -1,4 +1,4 @@
-*.pyc 
+*.pyc
 *~
 build
 *.swp
@@ -6,3 +6,4 @@ build
 dist
 *.egg-info
 *.json
+*.299445
