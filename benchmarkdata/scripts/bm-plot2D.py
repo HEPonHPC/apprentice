@@ -15,7 +15,7 @@ def plotError(f_rapp, f_test, f_out, norm=1):
     cmapname   = 'viridis'
     plt.clf()
 
-    plt.scatter(X_test[:,0], X_test[:,1], marker = '.', c = np.log10(error), cmap = cmapname, alpha = 0.8)
+    plt.scatter(X_test[:,0], X_test[:,1], marker = '.', c = np.ma.log10(error), cmap = cmapname, alpha = 0.8)
     plt.vlines(-1, ymin=-1, ymax=1, linestyle="dashed")
     plt.vlines( 1, ymin=-1, ymax=1, linestyle="dashed")
     plt.hlines(-1, xmin=-1, xmax=1, linestyle="dashed")
