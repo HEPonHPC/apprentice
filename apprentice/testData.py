@@ -60,6 +60,10 @@ def f9(P):
     x, y = P
     return (x**4 + y**4 + x**2*y**2 + x*y)/((x**2-1.1)*(y**2-1.1))
 
+def f10(P):
+    x1, x2, x3, x4 = P
+    return (x1**2 + x2**2 + x1 - x2 + 1)/(x1**2 + (x3 - 2) * (x4 - 2))
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -89,6 +93,9 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==9:
         Y_train = [f9(x) for x in X_train]
         Y_test  = [f9(x) for x in X_test]
+    elif fn==10:
+        Y_train = [f10(x) for x in X_train]
+        Y_test  = [f10†(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 

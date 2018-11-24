@@ -23,6 +23,8 @@ def getData(X_train, fn, noise):
         Y_train = [testData.f8(x) for x in X_train]
     elif fn==9:
         Y_train = [testData.f9(x) for x in X_train]
+    elif fn==10:
+        Y_train = [testData.f10(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
@@ -39,17 +41,24 @@ if __name__ == "__main__":
     op.add_option("--xmax", dest="MAX", default=1, type=float,  help="Maximum X (default: %default)")
     op.add_option("-s", "--seed", dest="SEED", default=54321, type=int,  help="Random seed (default: %default)")
     op.add_option("-c", "--corners", dest="CORNERS", default=False, action="store_true",  help="Include corners (default: %default)")
+    op.add_option("-d", dest="DIM", default=2, type=int,  help="Dimension (default: %default)")
     opts, args = op.parse_args()
 
     np.random.seed(opts.SEED)
 
-    X = np.random.rand(opts.NPOINTS, 2)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
+    X = np.random.rand(opts.NPOINTS, opts.DIM)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
+
     if opts.CORNERS:
+        min = []
+        max = []
+        for i in range(opts.DIM):
+            min.append(opts.MIN)
+            max.append(opts.MAX)
         # Include the corners
-        X[0] = [opts.MIN, opts.MIN]
-        X[1] = [opts.MIN, opts.MAX]
-        X[2] = [opts.MAX, opts.MIN]
-        X[3] = [opts.MAX, opts.MAX]
+        X[0] = min
+        X[1] = min
+        X[2] = max
+        X[3] = max
 
     Y = getData(X, fn=opts.FUNCTION, noise=opts.RANDOM)
 
