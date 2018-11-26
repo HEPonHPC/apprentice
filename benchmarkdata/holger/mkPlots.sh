@@ -17,7 +17,7 @@ do
     btest=`basename $ftest`
     bin=`basename $fin`
     fout="$OUTDIR/${btest%.*}_${bin%.*}.png"
-    python ../scripts/bm-plot2D.py $fin $ftest -n 1 -o $fout
+    python ../scripts/bm-plot2D.py $fin -t $ftest -n 1 -o $fout
 done
 
 cd $OUTDIR
