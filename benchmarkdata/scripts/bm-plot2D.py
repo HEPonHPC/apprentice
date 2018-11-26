@@ -53,18 +53,18 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
     mpl.style.use("ggplot")
-    cmapname   = 'RdYlBu'
+    cmapname   = 'viridis'
     plt.clf()
     X,Y = np.meshgrid(range(1,5), range(1,5))
-    plt.scatter(X,Y, marker = 's', c = error_m_n, cmap = cmapname, alpha = 2)
+    plt.scatter(X,Y, marker = 's', s=1000, c = error_m_n, cmap = cmapname, alpha = 1)
 
     plt.xlabel("$m$")
     plt.ylabel("$n$")
     plt.ylim((0,5))
     plt.xlim((0,5))
     b=plt.colorbar()
-    b.set_label("Error = $\\frac{\\sum\\left|f - \\frac{p^m}{q^n}\\right|_%i}{(%i)}$"%(norm,testSize))
-    # plt.show()
+    b.set_label("Error = $\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}$"%(norm,testSize))
+    plt.show()
 
 
 if __name__=="__main__":
