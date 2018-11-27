@@ -48,21 +48,35 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     #     for j in range(len(error_m_n[i])):
     #         print(error_m_n[i][j])
 
+    # from math import floor, ceil
+    # minE = floor(np.amin(error_m_n))
+    # maxE = ceil(np.amax(error_m_n))
+    # print(minE)
+    # print(maxE)
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
     mpl.style.use("ggplot")
     cmapname   = 'viridis'
-    plt.clf()
     X,Y = np.meshgrid(range(1,5), range(1,5))
-    plt.scatter(X,Y, marker = 's', s=1000, c = error_m_n, cmap = cmapname, alpha = 1)
 
-    plt.xlabel("$m$")
-    plt.ylabel("$n$")
-    plt.ylim((0,5))
-    plt.xlim((0,5))
-    b=plt.colorbar()
+    f, axarr = plt.subplots(2,2, sharex=True, sharey=True)
+
+    sc1 = axarr[0,0].scatter(X,Y, marker = 's', s=400, c = error_m_n, cmap = cmapname, alpha = 1)
+    axarr[0,0].set_title('All training size')
+    sc2 = axarr[0,1].scatter(X,Y, marker = 's', s=400, c = error_m_n, cmap = cmapname, alpha = 1)
+    axarr[0,1].set_title('Training size = 1x')
+    sc3 = axarr[1,0].scatter(X,Y, marker = 's', s=400, c = error_m_n, cmap = cmapname, alpha = 1)
+    axarr[1,0].set_title('Training size = 2x')
+    sc4 = axarr[1,1].scatter(X,Y, marker = 's', s=400, c = error_m_n, cmap = cmapname, alpha = 1)
+    axarr[1,1].set_title('Training size = 1000')
+
+    for ax in axarr.flat:
+        ax.set(xlim=(0,5),ylim=(0,5),xlabel='$m$', ylabel='$n$')
+    for ax in axarr.flat:
+        ax.label_outer()
+    b=f.colorbar(sc1,ax=axarr.ravel().tolist(), shrink=0.95)
     b.set_label("Error = $\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}$"%(norm,testSize))
     plt.show()
 
