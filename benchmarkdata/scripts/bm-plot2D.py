@@ -33,7 +33,7 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     testSize = len(X_test[:,0])
     # error that maps average error to m,n on x and y axis respectively
     import numpy as np
-    error_m_n_all = np.zeros(shape=(4,4))
+    # error_m_n_all = np.zeros(shape=(4,4))
     error_m_n_1x = np.zeros(shape=(4,4))
     error_m_n_2x = np.zeros(shape=(4,4))
     error_m_n_1k = np.zeros(shape=(4,4))
@@ -54,7 +54,7 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
             error_m_n_1k[m-1][n-1] = error_m_n_1k[m-1][n-1] + addTerm
         else:
             raise Exception("Something is wrong here. Incorrect training size used")
-        error_m_n_all[m-1][n-1] = error_m_n_all[m-1][n-1] + addTerm
+        # error_m_n_all[m-1][n-1] = error_m_n_all[m-1][n-1] + addTerm
 
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -64,23 +64,26 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     cmapname   = 'viridis'
     X,Y = np.meshgrid(range(1,5), range(1,5))
 
-    f, axarr = plt.subplots(2,2, sharex=True, sharey=True)
-    markersize = 400
-    sc1 = axarr[0,0].scatter(X,Y, marker = 's', s=markersize, c = error_m_n_all, cmap = cmapname, alpha = 1)
-    axarr[0,0].set_title('All training size')
-    sc2 = axarr[0,1].scatter(X,Y, marker = 's', s=markersize, c = error_m_n_1x, cmap = cmapname, alpha = 1)
-    axarr[0,1].set_title('Training size = 1x')
-    sc3 = axarr[1,0].scatter(X,Y, marker = 's', s=markersize, c = error_m_n_2x, cmap = cmapname, alpha = 1)
-    axarr[1,0].set_title('Training size = 2x')
-    sc4 = axarr[1,1].scatter(X,Y, marker = 's', s=markersize, c = error_m_n_1k, cmap = cmapname, alpha = 1)
-    axarr[1,1].set_title('Training size = 1000')
+    f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
+    markersize = 1000
+    vmin = -7
+    vmax = 9
+    v = np.linspace(-6, 3, 1, endpoint=True)
+    # sc1 = axarr[0,0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_all), cmap = cmapname, alpha = 1)
+    # axarr[0,0].set_title('All training size')
+    sc = axarr[0].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_1x), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+    axarr[0].set_title('Training size = 1x')
+    sc = axarr[1].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_2x), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+    axarr[1].set_title('Training size = 2x')
+    sc = axarr[2].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_1k), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+    axarr[2].set_title('Training size = 1000')
 
     for ax in axarr.flat:
         ax.set(xlim=(0,5),ylim=(0,5),xlabel='$m$', ylabel='$n$')
     for ax in axarr.flat:
         ax.label_outer()
-    b=f.colorbar(sc1,ax=axarr.ravel().tolist(), shrink=0.95)
-    b.set_label("Error = $\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}$"%(norm,testSize))
+    b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
+    b.set_label("Error = $log_{2}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize))
     # plt.show()
     plt.savefig(f_out)
 
