@@ -28,7 +28,7 @@ def plotResidualMap(f_rapp, f_test, f_out, norm=1):
     b.set_label("$\log_{10}\left|f - \\frac{p^{(%i)}}{q^{(%i)}}\\right|_%i$"%(R.m, R.n, norm))
     plt.savefig(f_out)
 
-def plotError(f_test, f_out, norm=1, *f_rapp):
+def plotError(f_test, f_out, norm=1, fno=1, *f_rapp):
     X_test, Y_test = app.readData(f_test)
     testSize = len(X_test[:,0])
     # error that maps average error to m,n on x and y axis respectively
@@ -65,6 +65,7 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     X,Y = np.meshgrid(range(1,5), range(1,5))
 
     f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
+    f.suptitle("f: "+getFunctionLatex(fno), fontsize=16)
     markersize = 1000
     vmin = -4
     vmax = 2.5
@@ -87,6 +88,31 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     # plt.show()
     plt.savefig(f_out)
 
+def getFunctionLatex(fno):
+    if fno == 1:
+        return "$\\frac{e^{xy}}{(x^2-1.44)(y^2-1.44)}$"
+    elif fno == 2:
+        return "$log(2.25-x^2-y^2)$"
+    elif fno == 3:
+        return "$tanh(5(x-y))$"
+    elif fno == 4:
+        return "$e^{\\frac{-(x^2+y^2)}{1000}}$"
+    elif fno == 5:
+        return "$|(x-y)|^3$"
+    elif fno == 6:
+        return "$\\frac{x^3-xy+y^3}{x^2-y^2+xy^2}$"
+    elif fno == 7:
+        return "$\\frac{x+y^3}{xy^2+1}$"
+    elif fno == 8:
+        return "$\\frac{x^2+y^2+x-y-1}{(x-1.1)(y-1.1)}$"
+    elif fno == 9:
+        return "$\\frac{x^4+y^4+x^2y^2+xy}{(x^2-1.1)(y^2-1.1)}$"
+    elif fno == 10:
+        return "$\\frac{x_1^2+x_2^2+x_1-x_2+1}{(x_3-1.5)(x_4-1.5)}$"
+    else: raise Exception("Function numnber not defined")
+
+
+
 
 if __name__=="__main__":
     import optparse, os, sys
@@ -95,12 +121,13 @@ if __name__=="__main__":
     op.add_option("-o", dest="OUTFILE", default="plot.pdf", help="Output file name (default: %default)")
     op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
     op.add_option("-p", dest="PLOT", default="residualMap", help="Plot Type: residualMap or errorPlot (default: %default)")
+    op.add_option("-f", dest="FNO", default=1, type=int, help="Function no (default: %default)")
     opts, args = op.parse_args()
 
 
     if opts.PLOT == "residualMap":
         plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM)
     elif opts.PLOT == "errorPlot":
-        plotError(opts.TEST, opts.OUTFILE, opts.NORM, args)
+        plotError(opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO, args)
     else:
         raise Exception("plot type unknown")

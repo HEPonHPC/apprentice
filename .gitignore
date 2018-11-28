@@ -6,4 +6,4 @@ build
 dist
 *.egg-info
 *.json
-*.299445
+*.299445.*
