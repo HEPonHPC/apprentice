@@ -66,16 +66,16 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
 
     f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
     markersize = 1000
-    vmin = -7
-    vmax = 9
+    vmin = -4
+    vmax = 2.5
     v = np.linspace(-6, 3, 1, endpoint=True)
     # sc1 = axarr[0,0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_all), cmap = cmapname, alpha = 1)
     # axarr[0,0].set_title('All training size')
-    sc = axarr[0].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_1x), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+    sc = axarr[0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1x), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
     axarr[0].set_title('Training size = 1x')
-    sc = axarr[1].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_2x), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+    sc = axarr[1].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_2x), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
     axarr[1].set_title('Training size = 2x')
-    sc = axarr[2].scatter(X,Y, marker = 's', s=markersize, c = np.log2(error_m_n_1k), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+    sc = axarr[2].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1k), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
     axarr[2].set_title('Training size = 1000')
 
     for ax in axarr.flat:
@@ -83,7 +83,7 @@ def plotError(f_test, f_out, norm=1, *f_rapp):
     for ax in axarr.flat:
         ax.label_outer()
     b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
-    b.set_label("Error = $log_{2}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize))
+    b.set_label("Error = $log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize))
     # plt.show()
     plt.savefig(f_out)
 
