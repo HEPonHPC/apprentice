@@ -111,9 +111,6 @@ def getFunctionLatex(fno):
         return "$\\frac{x_1^2+x_2^2+x_1-x_2+1}{(x_3-1.5)(x_4-1.5)}$"
     else: raise Exception("Function numnber not defined")
 
-
-
-
 if __name__=="__main__":
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
