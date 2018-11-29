@@ -65,7 +65,7 @@ def plotError(f_test, f_out, norm=1, fno=1, *f_rapp):
     X,Y = np.meshgrid(range(1,5), range(1,5))
 
     f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
-    f.suptitle("f: "+getFunctionLatex(fno), fontsize=16)
+    f.suptitle("f"+str(fno)+": "+getFunctionLatex(fno), fontsize=16)
     markersize = 1000
     vmin = -4
     vmax = 2.5
