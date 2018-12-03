@@ -109,7 +109,7 @@ def getFunctionLatex(fno):
         return "$\\frac{x^4+y^4+x^2y^2+xy}{(x^2-1.1)(y^2-1.1)}$"
     elif fno == 10:
         return "$\\frac{x_1^2+x_2^2+x_1-x_2+1}{(x_3-1.5)(x_4-1.5)}$"
-    else: raise Exception("Function numnber not defined")
+    else: return "N/A"
 
 if __name__=="__main__":
     import optparse, os, sys
