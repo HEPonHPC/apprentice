@@ -65,7 +65,7 @@ def plotError(f_test, f_out, norm=1, fno=1, *f_rapp):
     X,Y = np.meshgrid(range(1,5), range(1,5))
 
     f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
-    f.suptitle("f"+str(fno)+": "+getFunctionLatex(fno), fontsize=16)
+    f.suptitle("f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
     markersize = 1000
     vmin = -4
     vmax = 2.5
@@ -73,18 +73,22 @@ def plotError(f_test, f_out, norm=1, fno=1, *f_rapp):
     # sc1 = axarr[0,0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_all), cmap = cmapname, alpha = 1)
     # axarr[0,0].set_title('All training size')
     sc = axarr[0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1x), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
-    axarr[0].set_title('Training size = 1x')
+    axarr[0].set_title('Training size = 1x', fontsize = 28)
     sc = axarr[1].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_2x), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
-    axarr[1].set_title('Training size = 2x')
+    axarr[1].set_title('Training size = 2x', fontsize = 28)
     sc = axarr[2].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1k), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
-    axarr[2].set_title('Training size = 1000')
+    axarr[2].set_title('Training size = 1000', fontsize = 28)
 
     for ax in axarr.flat:
-        ax.set(xlim=(0,5),ylim=(0,5),xlabel='$m$', ylabel='$n$')
+        ax.set(xlim=(0,5),ylim=(0,5))
+        ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
+        ax.tick_params(axis = 'both', which = 'minor', labelsize = 18)
+        ax.set_xlabel('$m$', fontsize = 22)
+        ax.set_ylabel('$n$', fontsize = 22)
     for ax in axarr.flat:
         ax.label_outer()
     b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
-    b.set_label("Error = $log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize))
+    b.set_label("Error = $log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 28)
     # plt.show()
     plt.savefig(f_out)
 
