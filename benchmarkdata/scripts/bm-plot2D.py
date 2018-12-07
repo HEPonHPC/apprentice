@@ -1,7 +1,7 @@
 import numpy as np
 import apprentice as app
 
-def plotResidualMap(f_rapp, f_test, f_out, norm=1):
+def plotResidualMap(f_rapp, f_test, f_out, norm=1, fno=1):
     R = app.readApprentice(f_rapp)
     X_test, Y_test = app.readData(f_test)
     if norm == 1: error = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
@@ -26,6 +26,7 @@ def plotResidualMap(f_rapp, f_test, f_out, norm=1):
     plt.xlim((-1.5,1.5))
     b=plt.colorbar()
     b.set_label("$\log_{10}\left|f - \\frac{p^{(%i)}}{q^{(%i)}}\\right|_%i$"%(R.m, R.n, norm))
+    plt.title(getFunctionLatex(fno))
     plt.savefig(f_out)
 
 def plotError(f_test, f_out, norm=1, fno=1, *f_rapp):
@@ -96,9 +97,9 @@ def getFunctionLatex(fno):
     if fno == 1:
         return "$\\frac{e^{xy}}{(x^2-1.44)(y^2-1.44)}$"
     elif fno == 2:
-        return "$log(2.25-x^2-y^2)$"
+        return "$\log(2.25-x^2-y^2)$"
     elif fno == 3:
-        return "$tanh(5(x-y))$"
+        return "$\\tanh(5(x-y))$"
     elif fno == 4:
         return "$e^{\\frac{-(x^2+y^2)}{1000}}$"
     elif fno == 5:
@@ -127,7 +128,7 @@ if __name__=="__main__":
 
 
     if opts.PLOT == "residualMap":
-        plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM)
+        plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO)
     elif opts.PLOT == "errorPlot":
         plotError(opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO, args)
     else:
