@@ -29,14 +29,18 @@ import apprentice as app
     #     plt.title(getFunctionLatex(fno))
     #     plt.savefig(f_out)
 
-def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
+def plotPorQResidual(dir_in, dir_out, fno=1):
     noiseStr = ""
-    if noise == 0:
-        noiseStr = ""
-    elif noise == 0.1:
+    if "noise_0.1" in dir_in:
         noiseStr = "_noise_0.1"
-    elif args[1] == 0.5:
-        noise1 = "_noise_0.5"
+    elif "noise_0.5" in dir_in:
+        noiseStr = "_noise_0.5"
+
+    # print(fno);
+    # print(noiseStr)
+    # print(dir_in)
+    # print(dir_out)
+    # exit(1)
 
     porqOpt = ["ppen0000", "qpen0000"]
     noPointsScale = ["1x", "2x", "1k"]
@@ -45,6 +49,7 @@ def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
     # pOrq0 = porqOpt[0]
     # pOrqN0 = "qpen"
     # npoints = "1x"
+
 
     for pOrq0 in porqOpt:
         if(pOrq0 == "ppen0000"):
@@ -65,29 +70,48 @@ def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
             f.suptitle("Training LSQ. FixedPenalty = "+pOrq0 + ". noOfPoints = "+npoints+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
 
             #
-            yOrder = ["1111(01)",   # 0     1
-                    "0111(03)",     # 1     2
-                    "1011(04)",     # 2     3
-                    "1101(05)",     # 3     4
-                    "1110(06)",     # 4     5.1
-                    "0011(06)",     # 5     5.2
-                    "0101(07)",     # 6     6
-                    "0110(08)",     # 7     7.1
-                    "1001(08)",     # 8     7.2
-                    "1010(09)",     # 9     8
-                    "1100(10)",     # 10    9.1
-                    "0001(10)",     # 11    9.2
-                    "0010(11)",     # 12    10
-                    "0100(12)",     # 13    11
-                    "1000(13)",     # 14    12
-                    "0000(15)"]     # 15    13
+            yOrder = ["1111",   # 0     1
+                    "0111",     # 1     2
+                    "1011",     # 2     3
+                    "1101",     # 3     4
+                    "1110",     # 4     5.1
+                    "0011",     # 5     5.2
+                    "0101",     # 6     6
+                    "0110",     # 7     7.1
+                    "1001",     # 8     7.2
+                    "1010",     # 9     8
+                    "1100",     # 10    9.1
+                    "0001",     # 11    9.2
+                    "0010",     # 12    10
+                    "0100",     # 13    11
+                    "1000",     # 14    12
+                    "0000"]     # 15    13
+
+            noOfNonZeros = {"1111":"01",   # 0     1
+                    "0111":"03",     # 1     2
+                    "1011":"04",     # 2     3
+                    "1101":"05",     # 3     4
+                    "1110":"06",     # 4     5.1
+                    "0011":"06",     # 5     5.2
+                    "0101":"07",     # 6     6
+                    "0110":"08",     # 7     7.1
+                    "1001":"08",     # 8     7.2
+                    "1010":"09",     # 9     8
+                    "1100":"10",     # 10    9.1
+                    "0001":"10",     # 11    9.2
+                    "0010":"11",     # 12    10
+                    "0100":"12",     # 13    11
+                    "1000":"13",     # 14    12
+                    "0000":"15"}     # 15    13
+
             for pdeg in range(1,5):
                 for qdeg in range(1,5):
                     leastSq ={}
                     index = 0
-                    import re
+
                     while index < len(yOrder):
-                        yKey = re.sub(r" ?\([^)]+\)", "", yOrder[index])
+                        yKey = yOrder[index]
+                        yStr = yOrder[index]+"("+noOfNonZeros[yKey]+")"
                         yAct = (yKey)[::-1]
 
                         penStr = ""
@@ -110,12 +134,12 @@ def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
                                 datastore = json.load(fn)
                         iterationInfo = datastore["iterationInfo"]
                         # print(yOrder[index])
-                        leastSq[yOrder[index]] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+                        leastSq[yStr] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
                         index += 1
                     # print(leastSq)
+
                     X = [];
                     Y = [];
-
 
                     # index = 0
                     # while index < len(yOrder):
@@ -124,24 +148,61 @@ def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
                     #         Y.append(yOrder[index])
                     #     index += 1
 
-
                     for key, value in sorted(leastSq.iteritems(), key=lambda (k,v): (v,k), reverse=True):
                         Y.append(key)
                         X.append(value)
                         # print "%s: %s" % (key, mydict[key])
 
+                    print ("=================",pdeg,qdeg,"=============")
+
+
+                    nonZeroY = np.array([])
+                    keyArr = np.array([])
+                    import re
+                    for key in leastSq:
+                        nonZeroY = np.append(nonZeroY,int(noOfNonZeros[re.sub(r" ?\([^)]+\)", "", key)]))
+                        keyArr = np.append(keyArr,key)
+                    leastSqX = np.array(leastSq.values())
+                    # print (nonZeroY, leastSqX)
+                    nonZeroYNorm = (leastSqX.max()-leastSqX.min())*((nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())) + leastSqX.min()
+                    # leastSqXNorm = np.interp(leastSqX, (leastSqX.min(), leastSqX.max()), (0, +1))
+                    leastSqXNorm = leastSqX
+                    # print (nonZeroYNorm)
+                    # print(leastSqXNorm)
+
+                    # distance = []
+                    # origin = [0,0]
+                    # point = [int(noOfNonZeros[keyWithoutNZ]), value]
+                    #
+                    distance = []
+                    # print(np.square(nonZeroYNorm))
+                    # print(np.square(leastSqXNorm))
+                    distance = np.sqrt(np.sum([np.square(nonZeroYNorm),np.square(leastSqXNorm)],0))
+                    # print(np.c_[keyArr, distance,leastSqXNorm, nonZeroYNorm])
+                    minIndex = keyArr[np.argmin(distance)]
+                    # print(np.sqrt((np.square(a),np.square(b))))
+                    # distance = {}
+                    # import numpy as np
+                    # origin = [0,0]
+                    # keyWithoutNZ = re.sub(r" ?\([^)]+\)", "", key)
+                    # point = [int(noOfNonZeros[keyWithoutNZ]), value]
+                    # import math
+                    # distance.append(math.sqrt(sum([(a - b) ** 2 for a, b in zip(origin, point)])))
+                    # print (key, origin, point, distance)
 
                     # for i in range(len(X)):
                     #     print (Y[i] + " "+str(X[i]))
                     # print("===============END========================")
 
-                    import numpy as np
+
+                    logX = np.ma.log10(X)
                     if(pOrqN0 == "ppen"):
-                        axarr[pdeg-1][qdeg-1].plot(np.ma.log10(X), Y)
+                        axarr[pdeg-1][qdeg-1].plot(logX, Y)
                         axarr[pdeg-1][qdeg-1].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
                     else:
-                        axarr[qdeg-1][pdeg-1].plot(np.ma.log10(X), Y)
+                        axarr[qdeg-1][pdeg-1].plot(logX, Y)
                         axarr[qdeg-1][pdeg-1].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
+
             for ax in axarr.flat:
                 ax.set(xlim=(-6,4))
                 if(ax.is_first_col()):
@@ -155,7 +216,7 @@ def plotPorQResidual(dir_in, dir_out, fno=1, noise=0):
             # plt.show()
             f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_training.png"
             plt.savefig(f_out)
-
+            exit(1);
 
 
 
@@ -262,7 +323,7 @@ if __name__=="__main__":
     # op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
     # op.add_option("-p", dest="PLOT", default="residualMap", help="Plot Type: residualMap or errorPlot (default: %default)")
     op.add_option("-f", dest="FNO", default=1, type=int, help="Function no (default: %default)")
-    op.add_option("-n", dest="NOISE", default=0.0, type=float, help="Noise level(0.0,0.1,0.5) (default: %default)")
+    # op.add_option("-n", dest="NOISE", default=0.0, type=float, help="Noise level(0.0,0.1,0.5) (default: %default)")
     op.add_option("-i", dest="INDIR", help="Input directory")
     opts, args = op.parse_args()
 
