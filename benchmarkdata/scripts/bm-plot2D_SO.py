@@ -42,7 +42,7 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
     # print(dir_out)
     # exit(1)
 
-    porqOpt = ["ppen0000", "qpen0000"]
+    porqOpt = ["ppen", "qpen"]
     noPointsScale = ["1x", "2x", "1k"]
 
     # # Static for now
@@ -52,7 +52,7 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
 
 
     for pOrq0 in porqOpt:
-        if(pOrq0 == "ppen0000"):
+        if(pOrq0 == "ppen"):
             pOrqN0 = "qpen"
         else:
             pOrqN0 = "ppen"
@@ -87,23 +87,6 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
                     "1000",     # 14    12
                     "0000"]     # 15    13
 
-            noOfNonZeros = {"1111":"01",   # 0     1
-                    "0111":"03",     # 1     2
-                    "1011":"04",     # 2     3
-                    "1101":"05",     # 3     4
-                    "1110":"06",     # 4     5.1
-                    "0011":"06",     # 5     5.2
-                    "0101":"07",     # 6     6
-                    "0110":"08",     # 7     7.1
-                    "1001":"08",     # 8     7.2
-                    "1010":"09",     # 9     8
-                    "1100":"10",     # 10    9.1
-                    "0001":"10",     # 11    9.2
-                    "0010":"11",     # 12    10
-                    "0100":"12",     # 13    11
-                    "1000":"13",     # 14    12
-                    "0000":"15"}     # 15    13
-
             for pdeg in range(1,5):
                 for qdeg in range(1,5):
                     leastSq ={}
@@ -111,7 +94,6 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
 
                     while index < len(yOrder):
                         yKey = yOrder[index]
-                        yStr = yOrder[index]+"("+noOfNonZeros[yKey]+")"
                         yAct = (yKey)[::-1]
 
                         penStr = ""
@@ -119,13 +101,12 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
                             if(int(yAct, 2) >= 2**pdeg):
                                 index += 1
                                 continue
-                            penStr = pOrqN0+yKey+"_"+pOrq0
+                            penStr = pOrqN0+yKey+"_"+pOrq0+"0000"
                         else:
                             if(int(yAct, 2) >= 2**qdeg):
                                 index += 1
                                 continue
-                            penStr = pOrq0+"_"+pOrqN0+yKey
-                        # print(pdeg,qdeg,npoints, penStr)
+                            penStr = pOrq0+"0000_"+pOrqN0+yKey
                         jsonfn = dir_in+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_RA_SIP_LSQSO_Qxge1_Xsample_s10_"+penStr+".json"
                         # print(jsonfn)
                         import json
@@ -134,91 +115,111 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
                                 datastore = json.load(fn)
                         iterationInfo = datastore["iterationInfo"]
                         # print(yOrder[index])
-                        leastSq[yStr] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+                        if(pOrqN0 == "ppen"):
+                            yKey = flipBitsUpto(yKey,pdeg)
+                        elif(pOrqN0 == "qpen"):
+                            yKey = flipBitsUpto(yKey,qdeg)
+                        leastSq[yKey] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
                         index += 1
                     # print(leastSq)
 
                     X = [];
                     Y = [];
+# OPTIONS
+                    plotOrder = 2
+                    if(plotOrder == 1):
+                        # IN the order of Yorder
+                        index = 0
+                        while index < len(yOrder):
+                            yKey = yOrder[index]
+                            if(pOrqN0 == "ppen"):
+                                yKey = flipBitsUpto(yKey,pdeg)
+                            elif(pOrqN0 == "qpen"):
+                                yKey = flipBitsUpto(yKey,qdeg)
+                            if(yKey in leastSq):
+                                X.append(leastSq[yKey])
+                                Y.append(yKey+"("+str(calcNumberOfNonZeroCoeff(yKey))+")")
+                            index += 1
+                    elif(plotOrder == 2):
+                        # IN decreasing order of leastSq
+                        for key, value in sorted(leastSq.iteritems(), key=lambda (k,v): (v,k), reverse=True):
+                            index = 0
+                            Y.append(key+"("+str(calcNumberOfNonZeroCoeff(key))+")")
+                            X.append(value)
 
-                    # index = 0
-                    # while index < len(yOrder):
-                    #     if(yOrder[index] in leastSq):
-                    #         X.append(leastSq[yOrder[index]])
-                    #         Y.append(yOrder[index])
-                    #     index += 1
-
-                    for key, value in sorted(leastSq.iteritems(), key=lambda (k,v): (v,k), reverse=True):
-                        Y.append(key)
-                        X.append(value)
-                        # print "%s: %s" % (key, mydict[key])
-
-                    print ("=================",pdeg,qdeg,"=============")
+                    # print ("=================",pdeg,qdeg,"=============")
 
 
                     nonZeroY = np.array([])
                     keyArr = np.array([])
-                    import re
                     for key in leastSq:
-                        nonZeroY = np.append(nonZeroY,int(noOfNonZeros[re.sub(r" ?\([^)]+\)", "", key)]))
+                        nonZeroY = np.append(nonZeroY,calcNumberOfNonZeroCoeff(key))
                         keyArr = np.append(keyArr,key)
                     leastSqX = np.array(leastSq.values())
-                    # print (nonZeroY, leastSqX)
-                    nonZeroYNorm = (leastSqX.max()-leastSqX.min())*((nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())) + leastSqX.min()
-                    # leastSqXNorm = np.interp(leastSqX, (leastSqX.min(), leastSqX.max()), (0, +1))
-                    leastSqXNorm = leastSqX
-                    # print (nonZeroYNorm)
-                    # print(leastSqXNorm)
 
-                    # distance = []
-                    # origin = [0,0]
-                    # point = [int(noOfNonZeros[keyWithoutNZ]), value]
-                    #
+# OPTIONS
+                    scaleOption = 1
+                    if(scaleOption == 1):
+                        # Y normalized to be between X.min() and X.max()
+                        nonZeroYNorm = (leastSqX.max()-leastSqX.min())*((nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())) + leastSqX.min()
+                        leastSqXNorm = leastSqX
+                    elif(scaleOption == 2):
+                        # X and Y normalized to be between 0 and 1
+                        nonZeroYNorm = (nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())
+                        leastSqXNorm = (leastSqX - leastSqX.min())/(leastSqX.max()-leastSqX.min())
+
                     distance = []
-                    # print(np.square(nonZeroYNorm))
-                    # print(np.square(leastSqXNorm))
                     distance = np.sqrt(np.sum([np.square(nonZeroYNorm),np.square(leastSqXNorm)],0))
-                    # print(np.c_[keyArr, distance,leastSqXNorm, nonZeroYNorm])
-                    minIndex = keyArr[np.argmin(distance)]
-                    # print(np.sqrt((np.square(a),np.square(b))))
-                    # distance = {}
-                    # import numpy as np
-                    # origin = [0,0]
-                    # keyWithoutNZ = re.sub(r" ?\([^)]+\)", "", key)
-                    # point = [int(noOfNonZeros[keyWithoutNZ]), value]
-                    # import math
-                    # distance.append(math.sqrt(sum([(a - b) ** 2 for a, b in zip(origin, point)])))
-                    # print (key, origin, point, distance)
-
-                    # for i in range(len(X)):
-                    #     print (Y[i] + " "+str(X[i]))
-                    # print("===============END========================")
+                    minKey = keyArr[np.argmin(distance)]
+                    minIndex = 0
+                    while minIndex < len(Y):
+                        if(Y[minIndex] == minKey+"("+str(calcNumberOfNonZeroCoeff(minKey))+")"):
+                            break
+                        minIndex += 1
 
 
                     logX = np.ma.log10(X)
                     if(pOrqN0 == "ppen"):
-                        axarr[pdeg-1][qdeg-1].plot(logX, Y)
+                        axarr[pdeg-1][qdeg-1].plot(logX, Y, '-rD', markevery=[minIndex])
                         axarr[pdeg-1][qdeg-1].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
                     else:
-                        axarr[qdeg-1][pdeg-1].plot(logX, Y)
+                        axarr[qdeg-1][pdeg-1].plot(logX, Y, '-rD', markevery=[minIndex])
                         axarr[qdeg-1][pdeg-1].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
 
             for ax in axarr.flat:
                 ax.set(xlim=(-6,4))
                 if(ax.is_first_col()):
-                    ax.set_ylabel('Non Zeros', fontsize = 15)
+                    ax.set_ylabel(pOrqN0[0] + ' Non Zeros', fontsize = 15)
                 if(ax.is_last_row()):
                     ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
-                # ax.set_ylabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$"%(norm,testSize), fontsize = 22)
-            # for ax in axarr.flat:
-            #     if(!ax.isF)
-            #     ax.label_outer()
-            # plt.show()
+
             f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_training.png"
             plt.savefig(f_out)
-            exit(1);
 
 
+def flipBitsUpto(bitStr, upto):
+    bitL = list(bitStr)
+    index = 0
+    while index < len(bitL):
+        if(index < upto and bitL[index] == "1"):
+            bitL[index] = "0"
+        elif(index < upto and bitL[index] == "0"):
+            bitL[index] = "1"
+        else: break
+        index += 1
+    retStr = "".join(bitL)
+    return retStr
+
+#2D only 1100 = 1 + 2 + 3 = 6
+def calcNumberOfNonZeroCoeff(bitStr):
+    bitL = list(bitStr)
+    index = 0
+    coeffs = [2,3,4,5]
+    sum = 1
+    while index < len(bitL):
+        sum += int(bitL[index]) * coeffs[index]
+        index += 1
+    return sum
 
 
 
