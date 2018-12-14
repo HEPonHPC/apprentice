@@ -29,7 +29,7 @@ import apprentice as app
     #     plt.title(getFunctionLatex(fno))
     #     plt.savefig(f_out)
 
-def plotPorQResidual(dir_in, dir_out, fno=1):
+def plotPorQResidualTraining(dir_in, dir_out, fno=1):
     noiseStr = ""
     if "noise_0.1" in dir_in:
         noiseStr = "_noise_0.1"
@@ -52,6 +52,10 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
 
 
     for pOrq0 in porqOpt:
+        error_m_n_1x = np.zeros(shape=(4,4))
+        error_m_n_2x = np.zeros(shape=(4,4))
+        error_m_n_1k = np.zeros(shape=(4,4))
+
         if(pOrq0 == "ppen"):
             pOrqN0 = "qpen"
         else:
@@ -152,10 +156,11 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
 
                     nonZeroY = np.array([])
                     keyArr = np.array([])
+                    leastSqX = np.array([])
                     for key in leastSq:
                         nonZeroY = np.append(nonZeroY,calcNumberOfNonZeroCoeff(key))
                         keyArr = np.append(keyArr,key)
-                    leastSqX = np.array(leastSq.values())
+                        leastSqX = np.append(leastSqX,leastSq[key])
 
 # OPTIONS
                     scaleOption = 1
@@ -177,6 +182,12 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
                             break
                         minIndex += 1
 
+                    if(npoints == "1x"):
+                        error_m_n_1x[pdeg-1][qdeg-1] = X[minIndex]
+                    if(npoints == "2x"):
+                        error_m_n_2x[pdeg-1][qdeg-1] = X[minIndex]
+                    if(npoints == "1k"):
+                        error_m_n_1k[pdeg-1][qdeg-1] = X[minIndex]
 
                     logX = np.ma.log10(X)
                     if(pOrqN0 == "ppen"):
@@ -195,6 +206,226 @@ def plotPorQResidual(dir_in, dir_out, fno=1):
 
             f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_training.png"
             plt.savefig(f_out)
+        # print(np.c_[error_m_n_1x ,error_m_n_2x, error_m_n_1k])
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.rc('text', usetex = True)
+        mpl.rc('font', family = 'serif', size=12)
+        mpl.style.use("ggplot")
+        cmapname   = 'viridis'
+        X,Y = np.meshgrid(range(1,5), range(1,5))
+        f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
+        f.suptitle("Training LSQ. FixedPenalty = "+pOrq0+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
+        markersize = 1000
+        vmin = -6
+        vmax = 4
+
+        sc = axarr[0].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1x), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+        axarr[0].set_title('Training size = 1x', fontsize = 28)
+        sc = axarr[1].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_2x), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+        axarr[1].set_title('Training size = 2x', fontsize = 28)
+        sc = axarr[2].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(error_m_n_1k), cmap = cmapname,  vmin=vmin, vmax=vmax, alpha = 1)
+        axarr[2].set_title('Training size = 1000', fontsize = 28)
+
+        for ax in axarr.flat:
+            ax.set(xlim=(0,5),ylim=(0,5))
+            ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
+            ax.tick_params(axis = 'both', which = 'minor', labelsize = 18)
+            ax.set_xlabel('$m$', fontsize = 22)
+            ax.set_ylabel('$n$', fontsize = 22)
+        for ax in axarr.flat:
+            ax.label_outer()
+        b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
+        b.set_label("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 28)
+
+        f_out = dir_out+"/f"+str(fno)+noiseStr+"_nz-"+pOrqN0+"_training.png"
+        plt.savefig(f_out)
+
+# #########################################################
+
+
+def plotPandQResidualTraining(dir_in, dir_out, fno=1):
+    noiseStr = ""
+    if "noise_0.1" in dir_in:
+        noiseStr = "_noise_0.1"
+    elif "noise_0.5" in dir_in:
+        noiseStr = "_noise_0.5"
+
+    noPointsScale = ["1x", "2x", "1k"]
+
+    # Only for (p,q) = (4,4) for now
+    pdeg = 4
+    qdeg = 4
+
+    pyOrder = ["1111",   # 0     1
+            "1111",     # 1     2.1
+            "0111",     # 2     2.2
+            "0111",     # 3     3
+            "1111",     # 4     4.1
+            "0011",     # 5     4.2
+            "0111",     # 6     5.1
+            "0011",     # 7     5.2
+            "1111",     # 8     6.1
+            "0001",     # 9     6.2
+            "0011",     # 10    7
+            "0111",     # 11    8.1
+            "0001",     # 12    8.2
+            "0011",     # 13    9.1
+            "0001",     # 14    9.2
+            "0000",     # 15    9.3
+            "1111",     # 16    9.4
+            "0000",     # 17    10.1
+            "0111",     # 18    10.2
+            "0001",     # 19    11
+            "0011",     # 20    12.1
+            "0000",     # 21    12.2
+            "0001",     # 22    13.1
+            "0000"]     # 23    13.2
+
+    qyOrder = ["1111",   # 0     1
+            "0111",     # 1     2.1
+            "1111",     # 2     2.2
+            "0111",     # 3     3
+            "0011",     # 4     4.1
+            "1111",     # 5     4.2
+            "0011",     # 6     5.1
+            "0111",     # 7     5.2
+            "0001",     # 8     6.1
+            "1111",     # 9     6.2
+            "0011",     # 10    7
+            "0001",     # 11    8.1
+            "0111",     # 12    8.2
+            "0001",     # 13    9.1
+            "0011",     # 14    9.2
+            "1111",     # 15    9.3
+            "0000",     # 16    9.4
+            "0111",     # 17    10.1
+            "0000",     # 18    10.2
+            "0001",     # 19    11
+            "0000",     # 20    12.1
+            "0011",     # 21    12.2
+            "0000",     # 22    13.1
+            "0001"]     # 23    13.2
+
+    # print(np.c_[pyOrder,qyOrder])
+
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+    cmapname   = 'viridis'
+
+    f, axarr = plt.subplots(3,sharex=True, figsize=(15,15))
+    f.suptitle("Training LSQ. m = 4, n = 4. f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
+    for npoints in noPointsScale:
+        leastSq ={}
+        index = 0
+        while index < len(pyOrder):
+            pyKey = pyOrder[index]
+            qyKey = qyOrder[index]
+
+            penStr = "ppen"+pyKey+"_"+"qpen"+qyKey
+            jsonfn = dir_in+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_RA_SIP_LSQSO_Qxge1_Xsample_s10_"+penStr+".json"
+            import json
+            if jsonfn:
+                with open(jsonfn, 'r') as fn:
+                    datastore = json.load(fn)
+            iterationInfo = datastore["iterationInfo"]
+            # print(yOrder[index])
+            pyKey = flipBitsUpto(pyKey,pdeg)
+            qyKey = flipBitsUpto(qyKey,qdeg)
+            leastSq[(pyKey,qyKey)] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+            index += 1
+        # print(leastSq)
+
+        X = [];
+        Y = [];
+# OPTIONS
+        plotOrder = 2
+        if(plotOrder == 1):
+            # IN the order of Yorder
+            index = 0
+            while index < len(pyOrder):
+                pyKey = pyOrder[index]
+                qyKey = qyOrder[index]
+                pyKey = flipBitsUpto(pyKey,pdeg)
+                qyKey = flipBitsUpto(qyKey,qdeg)
+                if((pyKey,qyKey) in leastSq):
+                    X.append(leastSq[(pyKey,qyKey)])
+                    no_nz_coeff = (calcNumberOfNonZeroCoeff(pyKey)) \
+                                    + (calcNumberOfNonZeroCoeff(qyKey))
+                    Y.append(pyKey+"-"+qyKey+"("+str(no_nz_coeff)+")")
+                index += 1
+        elif(plotOrder == 2):
+            # IN decreasing order of leastSq
+            for key, value in sorted(leastSq.iteritems(), key=lambda (k,v): (v,k), reverse=True):
+                index = 0
+                no_nz_coeff = (calcNumberOfNonZeroCoeff(key[0])) \
+                                + (calcNumberOfNonZeroCoeff(key[1]))
+                Y.append(key[0]+"-"+key[1]+"("+str(no_nz_coeff)+")")
+                X.append(value)
+
+        # print(np.c_[X,Y])
+        nonZeroY = np.array([])
+        pkeyArr = np.array([])
+        qkeyArr = np.array([])
+        leastSqX = np.array([])
+        for key in leastSq:
+            no_nz_coeff = (calcNumberOfNonZeroCoeff(key[0])) \
+                            + (calcNumberOfNonZeroCoeff(key[1]))
+            nonZeroY = np.append(nonZeroY,no_nz_coeff)
+            pkeyArr = np.append(pkeyArr,key[0])
+            qkeyArr = np.append(qkeyArr,key[1])
+            leastSqX = np.append(leastSqX,leastSq[key])
+# OPTIONS
+        scaleOption = 1
+        if(scaleOption == 1):
+            # Y normalized to be between X.min() and X.max()
+            nonZeroYNorm = (leastSqX.max()-leastSqX.min())*((nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())) + leastSqX.min()
+            leastSqXNorm = leastSqX
+        elif(scaleOption == 2):
+            # X and Y normalized to be between 0 and 1
+            nonZeroYNorm = (nonZeroY - nonZeroY.min())/(nonZeroY.max()-nonZeroY.min())
+            leastSqXNorm = (leastSqX - leastSqX.min())/(leastSqX.max()-leastSqX.min())
+
+        distance = []
+        distance = np.sqrt(np.sum([np.square(nonZeroYNorm),np.square(leastSqXNorm)],0))
+        pminKey = pkeyArr[np.argmin(distance)]
+        qminKey = qkeyArr[np.argmin(distance)]
+        minIndex = 0
+        while minIndex < len(Y):
+            no_nz_coeff = (calcNumberOfNonZeroCoeff(pminKey)) \
+                            + (calcNumberOfNonZeroCoeff(qminKey))
+            if(Y[minIndex] == pminKey+"-"+qminKey+"("+str(no_nz_coeff)+")"):
+                break
+            minIndex += 1
+
+        # print(np.c_[X,Y])
+        # print(np.c_[pkeyArr, qkeyArr, distance, Y, X])
+        # print(pminKey,qminKey, minIndex, np.min(distance))
+        # exit(1)
+        logX = np.ma.log10(X)
+        if(npoints == "1x"):
+            axarr[0].plot(logX, Y, '-rD', markevery=[minIndex])
+            axarr[0].set_title("no of points = 1x")
+        if(npoints == "2x"):
+            axarr[1].plot(logX, Y, '-rD', markevery=[minIndex])
+            axarr[1].set_title("no of points = 2x")
+        if(npoints == "1k"):
+            axarr[2].plot(logX, Y, '-rD', markevery=[minIndex])
+            axarr[2].set_title("no of points = 1k")
+
+    for ax in axarr.flat:
+        ax.set(xlim=(-6,4))
+        if(ax.is_first_col()):
+            ax.set_ylabel('p-q Non Zeros', fontsize = 15)
+        if(ax.is_last_row()):
+            ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
+
+    f_out = dir_out+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_nz-pandq_training.png"
+    plt.savefig(f_out)
+
 
 
 def flipBitsUpto(bitStr, upto):
@@ -322,16 +553,17 @@ if __name__=="__main__":
     # op.add_option("-t", dest="TEST", help="Test File name (default: %default)")
     op.add_option("-o", dest="OUTDIR", help="Output directory")
     # op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
-    # op.add_option("-p", dest="PLOT", default="residualMap", help="Plot Type: residualMap or errorPlot (default: %default)")
+    op.add_option("-p", dest="PLOT", default="plotPorQResidualTraining", help="Plot Type: plotPorQResidualTraining or plotPandQResidualTraining (default: %default)")
     op.add_option("-f", dest="FNO", default=1, type=int, help="Function no (default: %default)")
     # op.add_option("-n", dest="NOISE", default=0.0, type=float, help="Noise level(0.0,0.1,0.5) (default: %default)")
     op.add_option("-i", dest="INDIR", help="Input directory")
     opts, args = op.parse_args()
 
-    plotPorQResidual(opts.INDIR, opts.OUTDIR, opts.FNO)
-    # if opts.PLOT == "residualMap":
-    #     plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO)
-    # elif opts.PLOT == "errorPlot":
-    #     plotError(opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO, args)
-    # else:
-    #     raise Exception("plot type unknown")
+
+
+    if opts.PLOT == "plotPorQResidualTraining":
+        plotPorQResidual(opts.INDIR, opts.OUTDIR, opts.FNO)
+    elif opts.PLOT == "plotPandQResidualTraining":
+        plotPandQResidualTraining(opts.INDIR, opts.OUTDIR, opts.FNO)
+    else:
+        raise Exception("plot type unknown")
