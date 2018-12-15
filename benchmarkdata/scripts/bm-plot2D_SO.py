@@ -255,12 +255,19 @@ def plotPorQResidual(dir_in, dir_out, fno=1, datatype="train", f_test="", norm=1
 # #########################################################
 
 
-def plotPandQResidualTraining(dir_in, dir_out, fno=1):
+def plotPandQResidual(dir_in, dir_out, fno=1, datatype="train", f_test="", norm=1):
     noiseStr = ""
     if "noise_0.1" in dir_in:
         noiseStr = "_noise_0.1"
     elif "noise_0.5" in dir_in:
         noiseStr = "_noise_0.5"
+
+    X_test = []
+    Y_test = []
+    testSize = 0
+    if(datatype == "test"):
+        X_test, Y_test = app.readData(f_test)
+        testSize = len(X_test[:,0])
 
     noPointsScale = ["1x", "2x", "1k"]
 
@@ -328,7 +335,12 @@ def plotPandQResidualTraining(dir_in, dir_out, fno=1):
     cmapname   = 'viridis'
 
     f, axarr = plt.subplots(3,sharex=True, figsize=(15,15))
-    f.suptitle("Training LSQ. m = 4, n = 4. f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
+    dataTypeStr = ""
+    if(datatype == "train"):
+        dataTypeStr = "Training LSQ"
+    elif(datatype == "test"):
+        dataTypeStr = "Testing LSQ"
+    f.suptitle(dataTypeStr+". m = 4, n = 4. f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
     for npoints in noPointsScale:
         leastSq ={}
         index = 0
@@ -338,15 +350,21 @@ def plotPandQResidualTraining(dir_in, dir_out, fno=1):
 
             penStr = "ppen"+pyKey+"_"+"qpen"+qyKey
             jsonfn = dir_in+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_RA_SIP_LSQSO_Qxge1_Xsample_s10_"+penStr+".json"
-            import json
-            if jsonfn:
-                with open(jsonfn, 'r') as fn:
-                    datastore = json.load(fn)
-            iterationInfo = datastore["iterationInfo"]
-            # print(yOrder[index])
             pyKey = flipBitsUpto(pyKey,pdeg)
             qyKey = flipBitsUpto(qyKey,qdeg)
-            leastSq[(pyKey,qyKey)] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+            if(datatype == "train"):
+                import json
+                if jsonfn:
+                    with open(jsonfn, 'r') as fn:
+                        datastore = json.load(fn)
+                iterationInfo = datastore["iterationInfo"]
+                # print(yOrder[index])
+                leastSq[(pyKey,qyKey)] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+            elif(datatype=="test"):
+                R = app.readApprentice(jsonfn)
+                if norm == 1: res = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
+                if norm == 2: res = [(R(x)-Y_test[num])**2 for num, x in enumerate(X_test)]
+                leastSq[(pyKey,qyKey)] = sum(res)/testSize
             index += 1
         # print(leastSq)
 
@@ -425,16 +443,23 @@ def plotPandQResidualTraining(dir_in, dir_out, fno=1):
             axarr[1].set_title("no of points = 2x")
         if(npoints == "1k"):
             axarr[2].plot(logX, Y, '-rD', markevery=[minIndex])
-            axarr[2].set_title("no of points = 1k")
+            axarr[2].set_title("no of points = 1000")
 
     for ax in axarr.flat:
         ax.set(xlim=(-6,4))
         if(ax.is_first_col()):
             ax.set_ylabel('p-q Non Zeros', fontsize = 15)
         if(ax.is_last_row()):
-            ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
+            if(datatype == "train"):
+                ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
+            elif(datatype == "test"):
+                ax.set_xlabel("$log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 15)
 
-    f_out = dir_out+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_nz-pandq_training.png"
+    f_out = ""
+    if(datatype == "train"):
+        f_out = dir_out+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_nz-pandq_training.png"
+    elif(datatype == "test"):
+        f_out = dir_out+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_nz-pandq_testing.png"
     plt.savefig(f_out)
 
 
@@ -575,6 +600,6 @@ if __name__=="__main__":
     if opts.PLOT == "plotPorQResidual":
         plotPorQResidual(opts.INDIR, opts.OUTDIR, opts.FNO, opts.DATATYPE, opts.TEST, opts.NORM)
     elif opts.PLOT == "plotPandQResidual":
-        plotPandQResidualTraining(opts.INDIR, opts.OUTDIR, opts.FNO)
+        plotPandQResidual(opts.INDIR, opts.OUTDIR, opts.FNO, opts.DATATYPE, opts.TEST, opts.NORM)
     else:
         raise Exception("plot type unknown")
