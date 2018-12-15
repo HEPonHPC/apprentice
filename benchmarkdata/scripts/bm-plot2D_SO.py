@@ -1,40 +1,19 @@
 import numpy as np
 import apprentice as app
 
-    # def plotResidualMap(f_rapp, f_test, f_out, norm=1, fno=1):
-    #     R = app.readApprentice(f_rapp)
-    #     X_test, Y_test = app.readData(f_test)
-    #     if norm == 1: error = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
-    #     if norm == 2: error = [(R(x)-Y_test[num])**2 for num, x in enumerate(X_test)]
-    #
-    #     import matplotlib as mpl
-    #     import matplotlib.pyplot as plt
-    #     mpl.rc('text', usetex = True)
-    #     mpl.rc('font', family = 'serif', size=12)
-    #     mpl.style.use("ggplot")
-    #     cmapname   = 'viridis'
-    #     plt.clf()
-    #
-    #     plt.scatter(X_test[:,0], X_test[:,1], marker = '.', c = np.ma.log10(error), cmap = cmapname, alpha = 0.8)
-    #     plt.vlines(-1, ymin=-1, ymax=1, linestyle="dashed")
-    #     plt.vlines( 1, ymin=-1, ymax=1, linestyle="dashed")
-    #     plt.hlines(-1, xmin=-1, xmax=1, linestyle="dashed")
-    #     plt.hlines( 1, xmin=-1, xmax=1, linestyle="dashed")
-    #     plt.xlabel("$x$")
-    #     plt.ylabel("$y$")
-    #     plt.ylim((-1.5,1.5))
-    #     plt.xlim((-1.5,1.5))
-    #     b=plt.colorbar()
-    #     b.set_label("$\log_{10}\left|f - \\frac{p^{(%i)}}{q^{(%i)}}\\right|_%i$"%(R.m, R.n, norm))
-    #     plt.title(getFunctionLatex(fno))
-    #     plt.savefig(f_out)
-
-def plotPorQResidualTraining(dir_in, dir_out, fno=1):
+def plotPorQResidual(dir_in, dir_out, fno=1, datatype="train", f_test="", norm=1):
     noiseStr = ""
     if "noise_0.1" in dir_in:
         noiseStr = "_noise_0.1"
     elif "noise_0.5" in dir_in:
         noiseStr = "_noise_0.5"
+
+    X_test = []
+    Y_test = []
+    testSize = 0
+    if(datatype == "test"):
+        X_test, Y_test = app.readData(f_test)
+        testSize = len(X_test[:,0])
 
     # print(fno);
     # print(noiseStr)
@@ -71,7 +50,12 @@ def plotPorQResidualTraining(dir_in, dir_out, fno=1):
             cmapname   = 'viridis'
 
             f, axarr = plt.subplots(4, 4,sharex=True, figsize=(20,20))
-            f.suptitle("Training LSQ. FixedPenalty = "+pOrq0 + ". noOfPoints = "+npoints+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
+            dataTypeStr = ""
+            if(datatype == "train"):
+                dataTypeStr = "Training LSQ"
+            elif(datatype == "test"):
+                dataTypeStr = "Testing LSQ"
+            f.suptitle(dataTypeStr+". FixedPenalty = "+pOrq0 + ". noOfPoints = "+npoints+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
 
             #
             yOrder = ["1111",   # 0     1
@@ -113,17 +97,24 @@ def plotPorQResidualTraining(dir_in, dir_out, fno=1):
                             penStr = pOrq0+"0000_"+pOrqN0+yKey
                         jsonfn = dir_in+"/f"+str(fno)+noiseStr+"_p"+str(pdeg)+"_q"+str(qdeg)+"_n"+npoints+"_RA_SIP_LSQSO_Qxge1_Xsample_s10_"+penStr+".json"
                         # print(jsonfn)
-                        import json
-                        if jsonfn:
-                            with open(jsonfn, 'r') as fn:
-                                datastore = json.load(fn)
-                        iterationInfo = datastore["iterationInfo"]
-                        # print(yOrder[index])
                         if(pOrqN0 == "ppen"):
                             yKey = flipBitsUpto(yKey,pdeg)
                         elif(pOrqN0 == "qpen"):
                             yKey = flipBitsUpto(yKey,qdeg)
-                        leastSq[yKey] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+                        if(datatype == "train"):
+                            import json
+                            if jsonfn:
+                                with open(jsonfn, 'r') as fn:
+                                    datastore = json.load(fn)
+                            iterationInfo = datastore["iterationInfo"]
+                            # print(yOrder[index])
+                            leastSq[yKey] = iterationInfo[len(iterationInfo)-1]['LeastSqObj']
+                        elif(datatype=="test"):
+                            R = app.readApprentice(jsonfn)
+                            if norm == 1: res = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
+                            if norm == 2: res = [(R(x)-Y_test[num])**2 for num, x in enumerate(X_test)]
+                            leastSq[yKey] = sum(res)/testSize
+
                         index += 1
                     # print(leastSq)
 
@@ -202,9 +193,16 @@ def plotPorQResidualTraining(dir_in, dir_out, fno=1):
                 if(ax.is_first_col()):
                     ax.set_ylabel(pOrqN0[0] + ' Non Zeros', fontsize = 15)
                 if(ax.is_last_row()):
-                    ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
+                    if(datatype == "train"):
+                        ax.set_xlabel("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 15)
+                    elif(datatype == "test"):
+                        ax.set_xlabel("$log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 15)
 
-            f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_training.png"
+            f_out = ""
+            if(datatype == "train"):
+                f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_training.png"
+            elif(datatype == "test"):
+                f_out = dir_out+"/f"+str(fno)+noiseStr+"_n"+npoints+"_nz-"+pOrqN0+"_testing.png"
             plt.savefig(f_out)
         # print(np.c_[error_m_n_1x ,error_m_n_2x, error_m_n_1k])
         import matplotlib as mpl
@@ -215,7 +213,12 @@ def plotPorQResidualTraining(dir_in, dir_out, fno=1):
         cmapname   = 'viridis'
         X,Y = np.meshgrid(range(1,5), range(1,5))
         f, axarr = plt.subplots(3, sharex=True, sharey=True, figsize=(15,15))
-        f.suptitle("Training LSQ. FixedPenalty = "+pOrq0+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
+        dataTypeStr = ""
+        if(datatype == "train"):
+            dataTypeStr = "Training LSQ"
+        elif(datatype == "test"):
+            dataTypeStr = "Testing LSQ"
+        f.suptitle(dataTypeStr+". FixedPenalty = "+pOrq0+". f"+str(fno)+": "+getFunctionLatex(fno), fontsize = 28)
         markersize = 1000
         vmin = -6
         vmax = 4
@@ -236,9 +239,17 @@ def plotPorQResidualTraining(dir_in, dir_out, fno=1):
         for ax in axarr.flat:
             ax.label_outer()
         b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
-        b.set_label("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 28)
+        if(datatype == "train"):
+            b.set_label("$log_{10}\\left(\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2^2\\right)$", fontsize = 28)
+        elif(datatype == "test"):
+            b.set_label("$log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 28)
 
-        f_out = dir_out+"/f"+str(fno)+noiseStr+"_nz-"+pOrqN0+"_training.png"
+
+        f_out = ""
+        if(datatype == "train"):
+            f_out = dir_out+"/f"+str(fno)+noiseStr+"_nz-"+pOrqN0+"_training.png"
+        if(datatype == "test"):
+            f_out = dir_out+"/f"+str(fno)+noiseStr+"_nz-"+pOrqN0+"_testing.png"
         plt.savefig(f_out)
 
 # #########################################################
@@ -550,20 +561,20 @@ def getFunctionLatex(fno):
 if __name__=="__main__":
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
-    # op.add_option("-t", dest="TEST", help="Test File name (default: %default)")
+    op.add_option("-t", dest="TEST", default="../f1_test.txt", help="Test File name (default: %default)")
     op.add_option("-o", dest="OUTDIR", help="Output directory")
-    # op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
-    op.add_option("-p", dest="PLOT", default="plotPorQResidualTraining", help="Plot Type: plotPorQResidualTraining or plotPandQResidualTraining (default: %default)")
+    op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
+    op.add_option("-p", dest="PLOT", default="plotPorQResidual", help="Plot Type: plotPorQResidual or plotPandQResidual (default: %default)")
     op.add_option("-f", dest="FNO", default=1, type=int, help="Function no (default: %default)")
-    # op.add_option("-n", dest="NOISE", default=0.0, type=float, help="Noise level(0.0,0.1,0.5) (default: %default)")
+    op.add_option("-d", dest="DATATYPE", default="train", help="Data Type (train or test) (default: %default)")
     op.add_option("-i", dest="INDIR", help="Input directory")
     opts, args = op.parse_args()
 
 
 
-    if opts.PLOT == "plotPorQResidualTraining":
-        plotPorQResidual(opts.INDIR, opts.OUTDIR, opts.FNO)
-    elif opts.PLOT == "plotPandQResidualTraining":
+    if opts.PLOT == "plotPorQResidual":
+        plotPorQResidual(opts.INDIR, opts.OUTDIR, opts.FNO, opts.DATATYPE, opts.TEST, opts.NORM)
+    elif opts.PLOT == "plotPandQResidual":
         plotPandQResidualTraining(opts.INDIR, opts.OUTDIR, opts.FNO)
     else:
         raise Exception("plot type unknown")
