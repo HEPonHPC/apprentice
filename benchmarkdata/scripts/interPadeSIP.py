@@ -225,7 +225,22 @@ infilePath = "../f11_noise_0.1.txt"
 box = np.array([[-1,1]],dtype=np.float64)
 json = optimize(dim,trainingscale,m,n, box, infilePath,
             strategy=2,penaltyBin=[[1,0,0],[1,0,0,0]], penaltyParam = 10**-1)
-print(json)
+# print(json)
+
+from apprentice import RationalApproximationSIP
+X, Y = tools.readData(infilePath)
+r = RationalApproximationSIP(X,Y,
+                            m=2,
+                            n=3,
+                            trainingscale="1x",
+                            box=np.array([[-1,1]]),
+                            strategy=2,
+                            penaltyparam=10**-1,
+                            ppenaltybin=[1,0,0],
+                            qpenaltybin=[1,0,0,0]
+)
+print(r.asJSON)
+
 
 
 
