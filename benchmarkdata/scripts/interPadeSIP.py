@@ -191,21 +191,23 @@ def optimize(dim=1,trainingscale="1x",m=2,n=2,
     if(len(iterationInfo) == maxIterations and iterationInfo[maxIterations-1]["robustObj"]<0.02):
         raise Exception("Could not find a robust objective")
     jsonRet = {}
+    jsonRet['box'] = box.tolist()
     jsonRet['strategy'] = strategy
     if(strategy ==1 or strategy==2):
-        jsonRet['chosenPpenalty'] = penaltyBin[0]
-        jsonRet['chosenQpenalty'] = penaltyBin[1]
+        jsonRet['chosenppenalty'] = penaltyBin[0]
+        jsonRet['chosenqpenalty'] = penaltyBin[1]
     if(strategy == 2):
         jsonRet['lambda'] = penaltyParam
     jsonRet['dim'] = dim
     jsonRet['M'] = M
     jsonRet['N'] = N
+    jsonRet['trainingscale'] = trainingscale
     jsonRet['trainingsize'] = trainingsize
     jsonRet['pcoeff'] = iterationInfo[len(iterationInfo)-1]["pcoeff"]
     jsonRet['qcoeff'] = iterationInfo[len(iterationInfo)-1]["qcoeff"]
     jsonRet['m'] = m
     jsonRet['n'] = n
-    jsonRet['iterationInfo'] = iterationInfo
+    jsonRet['iterationinfo'] = iterationInfo
 
     import json
     jsonStr = json.dumps(jsonRet,indent=4, sort_keys=True)
@@ -217,12 +219,12 @@ def optimize(dim=1,trainingscale="1x",m=2,n=2,
 dim=1
 trainingscale = '1x'
 m=2
-n=2
+n=3
 infilePath = "../f11_noise_0.1.txt"
 # infilePath = "../f11.txt"
 box = np.array([[-1,1]],dtype=np.float64)
 json = optimize(dim,trainingscale,m,n, box, infilePath,
-            strategy=1,penaltyBin=[[1,0,0],[1,0,0]], penaltyParam = 10**-1)
+            strategy=2,penaltyBin=[[1,0,0],[1,0,0,0]], penaltyParam = 10**-1)
 print(json)
 
 
