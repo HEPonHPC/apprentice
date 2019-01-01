@@ -86,8 +86,8 @@ class RationalApproximationSIP():
         self.mkFromDict(d)
 
     def mkFromDict(self, pdict):
-        self._pcoeff        = np.array(pdict["pcoeff"])
-        self._qcoeff        = np.array(pdict["qcoeff"])
+        self._pcoeff        = np.array(pdict["pcoeff"]).tolist()
+        self._qcoeff        = np.array(pdict["qcoeff"]).tolist()
         self._iterationinfo = pdict["iterationinfo"]
         self._dim           = pdict["dim"]
         self._m             = pdict["m"]
@@ -104,7 +104,7 @@ class RationalApproximationSIP():
             self._ppenaltybin = pdict['chosenppenalty']
             self._qpenaltybin = pdict['chosenqpenalty']
 
-        if(strategy == 2):
+        if(self.strategy == 2):
             self._penaltyparam = pdict['lambda']
         # self.setStructures(pdict["m"], pdict["n"])
 
@@ -367,6 +367,7 @@ class RationalApproximationSIP():
         return json.dumps(d,indent=4, sort_keys=True)
 
     def save(self, fname, indent=4, sort_keys=True):
+        import json
         with open(fname, "w") as f:
             json.dump(self.asDict, f,indent=indent, sort_keys=sort_keys)
 
@@ -379,12 +380,19 @@ if __name__=="__main__":
                                 n=3,
                                 trainingscale="1x",
                                 box=np.array([[-1,1]]),
-                                strategy=1,
+                                strategy=2,
                                 penaltyparam=10**-1,
                                 ppenaltybin=[1,0,0],
                                 qpenaltybin=[1,0,0,0]
     )
-    print(r.asJSON)
+    # r.save("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
+
+    r2 = RationalApproximationSIP(r.asDict)
+    print(r2.asJSON)
+
+    # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
+    # print(r1.asJSON)
+
 
 
 
