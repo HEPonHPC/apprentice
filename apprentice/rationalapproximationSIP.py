@@ -373,13 +373,15 @@ class RationalApproximationSIP():
 
 if __name__=="__main__":
     import sys
-    infilePath = "/Users/mkrishnamoorthy/Research/Code/apprentice/benchmarkdata/f11_noise_0.1.txt"
-    X, Y = tools.readData(infilePath)
+    infilePath11 = "/Users/mkrishnamoorthy/Research/Code/apprentice/benchmarkdata/f11_noise_0.1.txt"
+    infilePath1 = "/Users/mkrishnamoorthy/Research/Code/apprentice/benchmarkdata/f1_noise_0.1.txt"
+    X, Y = tools.readData(infilePath11)
     r = RationalApproximationSIP(X,Y,
                                 m=2,
                                 n=3,
                                 trainingscale="1x",
                                 box=np.array([[-1,1]]),
+                                # box=np.array([[-1,1],[-1,1]]),
                                 strategy=2,
                                 penaltyparam=10**-1,
                                 ppenaltybin=[1,0,0],
@@ -389,7 +391,7 @@ if __name__=="__main__":
 
     r2 = RationalApproximationSIP(r.asDict)
     print(r2.asJSON)
-    print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin)
+    print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
 
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
     # print(r1.asJSON)
