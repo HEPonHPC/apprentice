@@ -389,6 +389,7 @@ if __name__=="__main__":
 
     r2 = RationalApproximationSIP(r.asDict)
     print(r2.asJSON)
+    print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin)
 
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
     # print(r1.asJSON)
