@@ -106,6 +106,9 @@ class RationalApproximationSIP():
 
         if(self.strategy == 2):
             self._penaltyparam = pdict['lambda']
+
+        self._struct_p      = monomial.monomialStructure(self.dim, self.m)
+        self._struct_q      = monomial.monomialStructure(self.dim, self.n)
         # self.setStructures(pdict["m"], pdict["n"])
 
     def mkFromData(self, kwargs):
@@ -329,6 +332,38 @@ class RationalApproximationSIP():
 
         return p_penaltyIndex, q_penaltyIndex
 
+    def numer(self, X):
+        """
+        Evaluation of the denom poly at X.
+        """
+        ipo = np.empty(len(X),"object")
+        for i in range(len(X)):
+            ipo[i] = monomial.recurrence(X[i,0:self.dim],self._struct_p)
+            ipo[i] = ipo[i].dot(self._pcoeff)
+        return ipo
+
+    def denom(self, X):
+        """
+        Evaluation of the numer poly at X.
+        """
+        ipo = np.empty(len(X),"object")
+        for i in range(len(X)):
+            ipo[i] = monomial.recurrence(X[i,0:self.dim],self._struct_q)
+            ipo[i] = ipo[i].dot(self._qcoeff)
+        return ipo
+
+    def predict(self, X):
+        """
+        Return the prediction of the RationalApproximation at X.
+        """
+        return self.numer(X)/self.denom(X)
+
+    def __call__(self, X):
+        """
+        Operator version of predict.
+        """
+        return self.predict(X)
+
     @property
     def asDict(self):
         """
@@ -373,8 +408,8 @@ class RationalApproximationSIP():
 
 if __name__=="__main__":
     import sys
-    infilePath11 = "/Users/mkrishnamoorthy/Research/Code/apprentice/benchmarkdata/f11_noise_0.1.txt"
-    infilePath1 = "/Users/mkrishnamoorthy/Research/Code/apprentice/benchmarkdata/f1_noise_0.1.txt"
+    infilePath11 = "../benchmarkdata/f11_noise_0.1.txt"
+    infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
     X, Y = tools.readData(infilePath11)
     r = RationalApproximationSIP(X,Y,
                                 m=2,
@@ -392,6 +427,7 @@ if __name__=="__main__":
     r2 = RationalApproximationSIP(r.asDict)
     print(r2.asJSON)
     print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
+    print(r2(X[0:4,:])) #calls predict
 
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
     # print(r1.asJSON)
