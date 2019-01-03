@@ -1,6 +1,4 @@
-import nlopt
 import numpy as np
-import sympy as sym
 from apprentice import monomial
 from apprentice import tools
 from scipy.optimize import minimize
@@ -144,7 +142,7 @@ class RationalApproximationSIP():
         elif(self.trainingscale == "2x"):
             self._trainingsize = 2*(self.M+self.N)
         elif(self.trainingscale == "Cp"):
-            self._trainingsize = len(self.X)
+            self._trainingsize = len(self._X)
 
         self._penaltyparam  = kwargs["penaltyparam"] if kwargs.get("penaltyparam") is not None else 0.0
 
