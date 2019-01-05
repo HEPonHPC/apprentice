@@ -33,7 +33,7 @@ def getData(X_train, fn, noisepct):
         stdnormalnoise[i] = np.random.normal(0,1)
 
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
-    
+
 if __name__ == "__main__":
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
@@ -53,16 +53,16 @@ if __name__ == "__main__":
     X = np.random.rand(opts.NPOINTS, opts.DIM)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
 
     if opts.CORNERS:
-        min = []
-        max = []
-        for i in range(opts.DIM):
-            min.append(opts.MIN)
-            max.append(opts.MAX)
-        # Include the corners
-        X[0] = min
-        X[1] = min
-        X[2] = max
-        X[3] = max
+        formatStr = "{0:0%db}"%(opts.DIM)
+        for d in range(2**opts.DIM):
+            binArr = [int(x) for x in formatStr.format(d)[0:]]
+            val = []
+            for i in range(opts.DIM):
+                if(binArr[i] == 0):
+                    val.append(opts.MIN)
+                else:
+                    val.append(opts.MAX)
+            X[d] = val
 
     if(opts.NOISEPCT < 0 or opts.NOISEPCT >1):
         raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(opts.NOISEPCT))
