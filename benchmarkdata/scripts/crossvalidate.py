@@ -189,27 +189,14 @@ def prettyPrint(jsonfile):
 
 
 
-outfile = "f8_noise_0.5_out.299445.json"
-infilePath = "../f8_noise_0.5.txt"
+outfile = "f8_noisepct10-3_out.299445.json"
+infilePath = "../f8_noisepct10-3.txt"
 box = np.array([[-1,1],[-1,1]])
 debug = 1
 
 runCrossValidation(infilePath,box,outfile,debug)
 
 # prettyPrint(outfile)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
