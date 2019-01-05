@@ -1,6 +1,6 @@
 import numpy as np
 
-def getData(X_train, fn, noise):
+def getData(X_train, fn, noisepct):
     """
     TODO use eval or something to make this less noisy
     """
@@ -28,15 +28,19 @@ def getData(X_train, fn, noise):
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
-    return np.atleast_2d(np.array(Y_train)*(1+ np.random.normal(0,noise)))
+    stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
+    for i in range(len(Y_train)):
+        stdnormalnoise[i] = np.random.normal(0,1)
 
+    return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
+    
 if __name__ == "__main__":
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
     op.add_option("-o", dest="OUTFILE", default="test.dat", help="Output file name (default: %default)")
     op.add_option("-n", dest="NPOINTS", default=100, type=int,  help="Number of data points to generate (default: %default)")
     op.add_option("-f", dest="FUNCTION", default=1, type=int,  help="Test function number [1...6] (default: %default)")
-    op.add_option("-r", dest="RANDOM", default=0, type=float,  help="Random noise in pct (default: %default)")
+    op.add_option("-r", dest="NOISEPCT", default=0, type=float,  help="Percentage of standard normal noise to use (between 0 and 1, i.e., not in %) (default: %default)")
     op.add_option("--xmin", dest="MIN", default=-1, type=float,  help="Minimum X (default: %default)")
     op.add_option("--xmax", dest="MAX", default=1, type=float,  help="Maximum X (default: %default)")
     op.add_option("-s", "--seed", dest="SEED", default=54321, type=int,  help="Random seed (default: %default)")
@@ -60,6 +64,8 @@ if __name__ == "__main__":
         X[2] = max
         X[3] = max
 
-    Y = getData(X, fn=opts.FUNCTION, noise=opts.RANDOM)
+    if(opts.NOISEPCT < 0 or opts.NOISEPCT >1):
+        raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(opts.NOISEPCT))
+    Y = getData(X, fn=opts.FUNCTION, noisepct=opts.NOISEPCT)
 
     np.savetxt(opts.OUTFILE, np.hstack((X,Y.T)), delimiter=",")
