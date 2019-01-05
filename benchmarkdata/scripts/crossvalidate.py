@@ -17,10 +17,10 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 
 	outJSON = {}
 	for pdeg in range(2,5):
-	# for pdeg in range(4,5):
+	# for pdeg in range(3,5):
 		ppenaltybin = np.zeros(pdeg+1)
 		for qdeg in range(2,5):
-		# for qdeg in range(4,5):
+		# for qdeg in range(3,5):
 			qpenaltybin = np.zeros(qdeg+1)
 			avgerror = np.zeros(len(larr))
 			avgerror_k = np.zeros(len(larr))
@@ -115,9 +115,104 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
+def prettyPrint(jsonfile):
+	import json
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+
+	keylist = datastore.keys()
+	keylist.sort()
+	s = "pq deg\tcparam\tparam\tl2term\t\tl1term\n\n"
+	for key in keylist:
+
+		iterationInfo = datastore[key]['min']["iterationinfo"]
+		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+		s += "%s\tmin\t%.0E\t%f\t%f\n"%(key,datastore[key]['minl'],lsqsplit['l2term'],lsqsplit['l1term'])
+
+		iterationInfo = datastore[key]['min plus SE']["iterationinfo"]
+		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+		s += "%s\tmpse\t%.0E\t%f\t%f\n"%(key,datastore[key]['mpsel'],lsqsplit['l2term'],lsqsplit['l1term'])
+		s+="\naverage error\n"
+
+
+		avgerror =  datastore[key]['avgerror']
+		larr = np.array([10**i for i in range(3,-13,-1)])
+		# for i in larr:
+		# 	s += "%.1E\t"%(i)
+		s+="\n"
+		for i in avgerror:
+			s += "%.4E\t"%(i)
+		s+="\n\n"
+
+
+	# static for f8 and upto p4 and q4
+	s+= "p coeffs obtained for lambda with minimum avg CV error\n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+	# P 0,1,2,3,5
+	pcoeffO = [-1,-1,1,1,0,1]
+	for i in range(15):
+		if(i <= 3 or i == 5):
+			s+= "%d\t"%(pcoeffO[i])
+		else:
+			s+="\t"
+		for key in keylist:
+			pcoeff = datastore[key]['min']["pcoeff"]
+			if(i<len(pcoeff)):
+				s+="%f\t"%(pcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+
+	s+= "q coeffs obtained for lambda with minimum avg CV error\n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+	qcoeffO = [1.21,-1.1,-1.1,0,1,0]
+	# Q 0,1,2,3,5
+	for i in range(15):
+		if(i <= 2 or i == 4):
+			s+= "%.2f\t"%(qcoeffO[i])
+		else:
+			s+="\t"
+		for key in keylist:
+			qcoeff = datastore[key]['min']["qcoeff"]
+			if(i < len(qcoeff)):
+				s+="%f\t"%(qcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+	print(s)
+
+
 
 outfile = "f8_noise_0.5_out.299445.json"
 infilePath = "../f8_noise_0.5.txt"
 box = np.array([[-1,1],[-1,1]])
 debug = 1
+
 runCrossValidation(infilePath,box,outfile,debug)
+
+# prettyPrint(outfile)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#end
