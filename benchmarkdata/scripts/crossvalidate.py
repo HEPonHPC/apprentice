@@ -101,7 +101,7 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 			)
 			rappsip = {"min":rappsip_min.asDict, "min plus SE":rappsip_minpse.asDict, "avgerror":avgerror.tolist(),
 						"avgerror_k":avgerror_k.tolist(), "stderror":stderror,"minIndex":minIndex,"minl":minl,
-						"mpseIndex":currIndex, "mpsel":currl}
+						"minv":minv, "mpseIndex":currIndex, "mpsel":currl}
 
 			outJSON["p%s_q%s"%(str(pdeg),str(qdeg))] = rappsip
 
