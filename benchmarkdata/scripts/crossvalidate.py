@@ -222,7 +222,7 @@ def prettyPrint(jsonfile, testfile):
 	for key in keylist:
 		s += "%.E\t\t"%(datastore[key]['minl'])
 	s+="\n\n"
-	
+
 	s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
 	s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
 
@@ -230,8 +230,8 @@ def prettyPrint(jsonfile, testfile):
 
 
 
-outfile = "f8_noisepct10-3_out.299445.json"
 infilePath = "../f8_noisepct10-3.txt"
+outfile = "f8_noisepct10-3_out.299445.json"
 testfile = "../f8_test.txt"
 box = np.array([[-1,1],[-1,1]])
 debug = 1
