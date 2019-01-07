@@ -203,6 +203,8 @@ class RationalApproximationSIP():
             raise Exception("fit() strategy %i not implemented"%self.strategy)
 
         maxIterations = 100 # hardcode for now. Param later?
+        maxRestarts = 10    # hardcode for now. Param later?
+        threshold = 0.02
         self._iterationinfo = []
         for iter in range(1,maxIterations+1):
             data = {}
@@ -225,21 +227,31 @@ class RationalApproximationSIP():
                 lsqsplit['l2term'] = leastSq - l1term
                 data['leastSqSplit'] = lsqsplit
 
+            data['restartInfo'] = []
+            robO = 0
+            for r in range(maxRestarts):
+                x0 = []
+                if(r == 0):
+                    x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
+                else:
+                    x0 = np.zeros(self.dim, dtype=np.float64)
+                    for d in range(self.dim):
+                        x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
+                ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
+                x = ret.get('x')
+                robO = ret.get('fun')
+                rinfo = {'robustArg':x.tolist(),'robustObj':robO}
+                data['restartInfo'].append(rinfo)
+                if(robO < threshold):
+                    break
 
-            x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
-
-            ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
-            x = ret.get('x')
-            robO = ret.get('fun')
-            data['robustArg'] = x.tolist()
-            data['robustObj'] = robO
             self._iterationinfo.append(data)
-            if(robO >= 0.02):
+            if(robO >= threshold):
                 break
             q_ipo_new = monomial.recurrence(x,self._struct_q)
             cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
 
-        if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]["robustObj"]<0.02):
+        if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]["robustObj"]<threshold):
             raise Exception("Could not find a robust objective")
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
