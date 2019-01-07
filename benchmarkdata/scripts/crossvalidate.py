@@ -115,6 +115,33 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
+def runRappsipBaseStrategy(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",debug=0):
+	trainingScale = "Cp"
+
+	X, Y = tools.readData(infile)
+	outJSON = {}
+	for pdeg in range(2,5):
+		for qdeg in range(2,5):
+			rappsip = RationalApproximationSIP(
+										X,
+										Y,
+										m=pdeg,
+										n=qdeg,
+										trainingscale=trainingScale,
+										box=box,
+										strategy=0
+			)
+			outJSON["p%s_q%s"%(str(pdeg),str(qdeg))] = rappsip.asDict
+			if(debug == 1):
+				import json
+				with open("/tmp/s0_latest.json", "w") as f:
+					json.dump(outJSON, f,indent=4, sort_keys=True)
+
+	import json
+	with open(outfile, "w") as f:
+		json.dump(outJSON, f,indent=4, sort_keys=True)
+
+
 def prettyPrint(jsonfile, testfile):
 	import json
 	if jsonfile:
@@ -231,14 +258,15 @@ def prettyPrint(jsonfile, testfile):
 
 
 infilePath = "../f8_noisepct10-3.txt"
-outfile = "f8_noisepct10-3_out.299445.json"
+cvoutfile = "f8_noisepct10-3_cv_out.299445.json"
+s0outfile = "f8_noisepct10-3_s0_out.299445.json"
 testfile = "../f8_test.txt"
 box = np.array([[-1,1],[-1,1]])
 debug = 1
 
-# runCrossValidation(infilePath,box,outfile,debug)
-
-prettyPrint(outfile,testfile)
+# runCrossValidation(infilePath,box,cvoutfile,debug)
+runRappsipBaseStrategy(infilePath,box,s0outfile,debug)
+# prettyPrint(outfile,testfile)
 
 
 
