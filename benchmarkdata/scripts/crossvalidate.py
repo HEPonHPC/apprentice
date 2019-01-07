@@ -1,7 +1,7 @@
 import numpy as np
 from apprentice import RationalApproximationSIP
 from sklearn.model_selection import KFold
-from apprentice import tools
+from apprentice import tools, readData
 
 def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",debug=0):
 	trainingScale = "Cp"
@@ -115,7 +115,7 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
-def prettyPrint(jsonfile):
+def prettyPrint(jsonfile, testfile):
 	import json
 	if jsonfile:
 		with open(jsonfile, 'r') as fn:
@@ -124,28 +124,29 @@ def prettyPrint(jsonfile):
 
 	keylist = datastore.keys()
 	keylist.sort()
-	s = "pq deg\tcparam\tparam\tl2term\t\tl1term\n\n"
-	for key in keylist:
-
-		iterationInfo = datastore[key]['min']["iterationinfo"]
-		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-		s += "%s\tmin\t%.0E\t%f\t%f\n"%(key,datastore[key]['minl'],lsqsplit['l2term'],lsqsplit['l1term'])
-
-		iterationInfo = datastore[key]['min plus SE']["iterationinfo"]
-		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-		s += "%s\tmpse\t%.0E\t%f\t%f\n"%(key,datastore[key]['mpsel'],lsqsplit['l2term'],lsqsplit['l1term'])
-		s+="\naverage error\n"
-
-
-		avgerror =  datastore[key]['avgerror']
-		larr = np.array([10**i for i in range(3,-13,-1)])
-		# for i in larr:
-		# 	s += "%.1E\t"%(i)
-		s+="\n"
-		for i in avgerror:
-			s += "%.4E\t"%(i)
-		s+="\n\n"
-
+	s=""
+	# s = "pq deg\tcparam\tparam\tl2term\t\tl1term\n\n"
+	# for key in keylist:
+	#
+	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	s += "%s\tmin\t%.0E\t%f\t%f\n"%(key,datastore[key]['minl'],lsqsplit['l2term'],lsqsplit['l1term'])
+	#
+	# 	iterationInfo = datastore[key]['min plus SE']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	s += "%s\tmpse\t%.0E\t%f\t%f\n"%(key,datastore[key]['mpsel'],lsqsplit['l2term'],lsqsplit['l1term'])
+	# 	s+="\naverage error\n"
+	#
+	#
+	# 	avgerror =  datastore[key]['avgerror']
+	# 	larr = np.array([10**i for i in range(3,-13,-1)])
+	# 	# for i in larr:
+	# 	# 	s += "%.1E\t"%(i)
+	# 	s+="\n"
+	# 	for i in avgerror:
+	# 		s += "%.4E\t"%(i)
+	# 	s+="\n\n"
+	#
 
 	# static for f8 and upto p4 and q4
 	s+= "p coeffs obtained for lambda with minimum avg CV error\n"
@@ -185,18 +186,59 @@ def prettyPrint(jsonfile):
 				s+="%f\t"%(qcoeff[i])
 			else: s+="\t\t"
 		s+="\n"
+	s+="\n"
+
+	X_test, Y_test = readData(testfile)
+
+	for key in keylist:
+		s+="\t%s\t"%(key)
+	s+="\n"
+
+	testerrarr = np.array([])
+	s+= "testErr\t"
+	for key in keylist:
+		rappsip = RationalApproximationSIP(datastore[key]['min'])
+		Y_pred = abs(rappsip(X_test))
+		# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
+		error = np.average(abs(Y_pred-Y_test))
+		testerrarr = np.append(testerrarr,error)
+		s += "%.8f\t"%(error)
+	s+="\n"
+	trainerrarr = np.array([])
+	s+= "l2term\t"
+	for key in keylist:
+		iterationInfo = datastore[key]['min']["iterationinfo"]
+		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+		trainerrarr = np.append(trainerrarr,lsqsplit['l2term'])
+		s += "%f\t"%(lsqsplit['l2term'])
+	s+="\n"
+	s+= "l1term\t"
+	for key in keylist:
+		iterationInfo = datastore[key]['min']["iterationinfo"]
+		lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+		s += "%f\t"%(lsqsplit['l1term'])
+	s+="\n"
+	s+= "param\t"
+	for key in keylist:
+		s += "%.E\t\t"%(datastore[key]['minl'])
+	s+="\n\n"
+	
+	s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
+	s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
+
 	print(s)
 
 
 
 outfile = "f8_noisepct10-3_out.299445.json"
 infilePath = "../f8_noisepct10-3.txt"
+testfile = "../f8_test.txt"
 box = np.array([[-1,1],[-1,1]])
 debug = 1
 
-runCrossValidation(infilePath,box,outfile,debug)
+# runCrossValidation(infilePath,box,outfile,debug)
 
-# prettyPrint(outfile)
+prettyPrint(outfile,testfile)
 
 
 
