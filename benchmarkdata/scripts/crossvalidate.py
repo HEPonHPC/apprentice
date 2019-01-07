@@ -142,10 +142,10 @@ def runRappsipBaseStrategy(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.jso
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
 
-def prettyPrint(jsonfile, testfile):
+def prettyPrint(cvjsonfile,s0jsonfile, testfile):
 	import json
-	if jsonfile:
-		with open(jsonfile, 'r') as fn:
+	if cvjsonfile:
+		with open(cvjsonfile, 'r') as fn:
 			datastore = json.load(fn)
 
 
@@ -255,6 +255,82 @@ def prettyPrint(jsonfile, testfile):
 
 	print(s)
 
+	if s0jsonfile:
+		with open(s0jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+
+	keylist = datastore.keys()
+	keylist.sort()
+
+	s=""
+
+	s+= "p coeffs obtained \n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+	# P 0,1,2,3,5
+	pcoeffO = [-1,-1,1,1,0,1]
+	for i in range(15):
+		if(i <= 3 or i == 5):
+			s+= "%d\t"%(pcoeffO[i])
+		else:
+			s+="\t"
+		for key in keylist:
+			pcoeff = datastore[key]["pcoeff"]
+			if(i<len(pcoeff)):
+				s+="%f\t"%(pcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+
+	s+= "q coeffs obtained \n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+	qcoeffO = [1.21,-1.1,-1.1,0,1,0]
+	# Q 0,1,2,3,5
+	for i in range(15):
+		if(i <= 2 or i == 4):
+			s+= "%.2f\t"%(qcoeffO[i])
+		else:
+			s+="\t"
+		for key in keylist:
+			qcoeff = datastore[key]["qcoeff"]
+			if(i < len(qcoeff)):
+				s+="%f\t"%(qcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+	s+="\n"
+
+	for key in keylist:
+		s+="\t%s\t"%(key)
+	s+="\n"
+
+	testerrarr = np.array([])
+	s+= "testErr\t"
+	for key in keylist:
+		rappsip = RationalApproximationSIP(datastore[key])
+		Y_pred = abs(rappsip(X_test))
+		# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
+		error = np.average(abs(Y_pred-Y_test))
+		testerrarr = np.append(testerrarr,error)
+		s += "%.8f\t"%(error)
+	s+="\n"
+	trainerrarr = np.array([])
+	s+= "l2term\t"
+	for key in keylist:
+		iterationInfo = datastore[key]["iterationinfo"]
+		trainerr = iterationInfo[len(iterationInfo)-1]["leastSqObj"]
+		trainerrarr = np.append(trainerrarr,trainerr)
+		s += "%f\t"%(trainerr)
+	s+="\n\n"
+
+	s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
+	s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
+
+	print(s)
 
 
 infilePath = "../f8_noisepct10-3.txt"
@@ -265,8 +341,8 @@ box = np.array([[-1,1],[-1,1]])
 debug = 1
 
 # runCrossValidation(infilePath,box,cvoutfile,debug)
-runRappsipBaseStrategy(infilePath,box,s0outfile,debug)
-# prettyPrint(outfile,testfile)
+# runRappsipBaseStrategy(infilePath,box,s0outfile,debug)
+prettyPrint(cvoutfile,s0outfile,testfile)
 
 
 
