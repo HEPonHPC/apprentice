@@ -124,5 +124,5 @@ def getPolyGradient(coeff, X, dim=2, n=2):
                     else:
                         term *= X[i]**s[i]
                 der.append(term)
-    grad[i] = np.dot(der, coeff)
+        grad[coord] = np.dot(der, coeff)
     return grad

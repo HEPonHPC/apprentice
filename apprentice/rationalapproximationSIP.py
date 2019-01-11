@@ -28,6 +28,10 @@ class RationalApproximationSIP():
                                 0: min ||f*p(x)_m/q(x)_n||^2_2 sub. to q(x)_n >=1
                                 1: min ||f*p(x)_m/q(x)_n||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
                                 2: min ||f*p(x)_m/q(x)_n||^2_2 + lambda*||c_pq|| sub. to q(x)_n >=1
+            roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
+                                ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
+                                mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
+                                baron: pyomo with baron (TODO)
             penaltyparam    --- lambda to use for strategy 2 --- if omitted: auto 0.1 used
             penaltybin      --- penalty binary array for numberator and denomintor of the bits to keep active in strategy 1 and put in penalty term for activity 2
                                 represented in a 2D array of shape(2,(m/n)+1) where for each numberator and denominator, the bits represent penalized coeffecient degrees and constant (1: not peanlized, 0 penalized)
@@ -66,6 +70,8 @@ class RationalApproximationSIP():
     @property
     def strategy(self): return self._strategy
     @property
+    def roboptstrategy(self): return self._roboptstrategy
+    @property
     def penaltyparam(self): return self._penaltyparam
     @property
     def ppenaltybin(self): return self._ppenaltybin
@@ -93,6 +99,7 @@ class RationalApproximationSIP():
         self._M             = pdict["M"]
         self._N             = pdict["N"]
         self._strategy      = pdict["strategy"]
+        self._roboptstrategy= pdict["roboptstrategy"]
         self._box           = np.array(pdict["box"],dtype=np.float64)
         self._trainingscale = pdict["trainingscale"]
         self._trainingsize  = pdict["trainingsize"]
@@ -113,19 +120,16 @@ class RationalApproximationSIP():
         """
         Calculate the Pade approximation
         """
-        # order=kwargs["order"]
-        # debug=kwargs["debug"] if kwargs.get("debug") is not None else False
-        # strategy=int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 2
-        # self.fit(order[0], order[1], debug=debug, strategy=strategy)
 
-        self._dim           = self._X[0].shape[0]
+        self._dim               = self._X[0].shape[0]
 
-        self._m             = int(kwargs["m"]) if kwargs.get("m") is not None else 1
-        self._n             = int(kwargs["n"]) if kwargs.get("n") is not None else 1
-        self._M             = tools.numCoeffsPoly(self.dim, self.m)
-        self._N             = tools.numCoeffsPoly(self.dim, self.n)
-        self._strategy      = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
-        self._box           = np.empty(shape=(0,2))
+        self._m                 = int(kwargs["m"]) if kwargs.get("m") is not None else 1
+        self._n                 = int(kwargs["n"]) if kwargs.get("n") is not None else 1
+        self._M                 = tools.numCoeffsPoly(self.dim, self.m)
+        self._N                 = tools.numCoeffsPoly(self.dim, self.n)
+        self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
+        self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
+        self._box               = np.empty(shape=(0,2))
 
         if(kwargs.get("box") is not None):
             for arr in kwargs.get("box"):
@@ -227,23 +231,15 @@ class RationalApproximationSIP():
                 lsqsplit['l2term'] = leastSq - l1term
                 data['leastSqSplit'] = lsqsplit
 
-            data['restartInfo'] = []
+            # data['restartInfo'] = []
             robO = 0
-            for r in range(maxRestarts):
-                x0 = []
-                if(r == 0):
-                    x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
-                else:
-                    x0 = np.zeros(self.dim, dtype=np.float64)
-                    for d in range(self.dim):
-                        x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
-                ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
-                x = ret.get('x')
-                robO = ret.get('fun')
-                rinfo = {'robustArg':x.tolist(),'robustObj':robO}
-                data['restartInfo'].append(rinfo)
-                if(robO < threshold):
-                    break
+
+            if(self._roboptstrategy == 'ms'):
+                robO, restartInfo = self.multipleRestartRobO(coeffs,threshold)
+                data['robOptInfo'] = restartInfo
+            elif(self._roboptstrategy == 'mlsl'):
+                robO, restartInfo = self.mlslRobO(coeffs,threshold)
+                data['robOptInfo'] = restartInfo
 
             self._iterationinfo.append(data)
             if(robO >= threshold):
@@ -256,6 +252,52 @@ class RationalApproximationSIP():
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
 
+    def mlslRobO(self,coeffs, threshold=0.2):
+        import nlopt
+        localopt = nlopt.opt(nlopt.LD_LBFGS, self._dim)
+        localopt.set_lower_bounds(self._box[:,0])
+        localopt.set_upper_bounds(self._box[:,1])
+        localopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
+        localopt.set_xtol_rel(1e-4)
+
+        mlslopt = nlopt.opt(nlopt.G_MLSL_LDS, self._dim)
+        mlslopt.set_lower_bounds(self._box[:,0])
+        mlslopt.set_upper_bounds(self._box[:,1])
+        mlslopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
+        mlslopt.set_local_optimizer(localopt)
+        mlslopt.set_stopval(1e-20)
+        # mlslopt.set_maxtime(10.0)
+
+        x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
+        x = mlslopt.optimize(x0)
+        robO = mlslopt.last_optimum_value()
+        info = [{'robustArg':x.tolist(),'robustObj':robO}]
+
+        print(info)
+        exit(1)
+
+        return robO, info
+
+    def multipleRestartRobO(self, coeffs, threshold=0.2):
+        maxRestarts = 10
+        robO = 0
+        restartInfo = []
+        for r in range(maxRestarts):
+            x0 = []
+            if(r == 0):
+                x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
+            else:
+                x0 = np.zeros(self.dim, dtype=np.float64)
+                for d in range(self.dim):
+                    x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
+            ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
+            x = ret.get('x')
+            robO = ret.get('fun')
+            rinfo = {'robustArg':x.tolist(),'robustObj':robO}
+            restartInfo.append(rinfo)
+            if(robO < threshold):
+                break
+        return robO, restartInfo
 
     def leastSqObj(self,coeff):
         sum = 0
@@ -308,6 +350,16 @@ class RationalApproximationSIP():
 
     def robustSample(self,coeff, q_ipo):
         return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])-1
+
+    def robustObjWithGrad(self, x, grad, coeff):
+        if grad.size > 0:
+            g = tools.getPolyGradient(coeff=coeff[self.M:self.M+self.N],X=x, dim=self._dim,n=self._n)
+            for i in range(grad.size): grad[i] = g[i]
+
+        q_ipo = monomial.recurrence(x,self._struct_q)
+
+        res = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
+        return res
 
     def robustObj(self,x,coeff):
         q_ipo = monomial.recurrence(x,self._struct_q)
@@ -389,6 +441,7 @@ class RationalApproximationSIP():
         d['M'] = self._M
         d['N'] = self._N
         d['strategy'] = self._strategy
+        d['roboptstrategy'] = self._roboptstrategy
         d['box'] = self._box.tolist()
         d['trainingscale'] = self._trainingscale
         d['trainingsize'] = self._trainingsize
