@@ -27,6 +27,47 @@ def maxOrder(N, dim):
     return omax
 
 
+def readH5(fname, idx=[0], xfield="params", yfield="values"):
+    """
+    Read X,Y values etc from HDF5 file.
+    By default, only the first object is read.
+    The X and Y-value dataset names depend on the file of course, so we allow
+    specifying wha to use. yfield can be values|errors with the test files.
+    Returns a list of tuples of arrays : [ (X1, Y1), (X2, Y2), ...]
+    The X-arrays are n-dimensional, the Y-arrays are always 1D
+    """
+    import numpy as np
+    import h5py
+
+    with h5py.File(fname, "r") as f:
+        indexsize = f.get("index").size
+
+    # A bit of logic here --- if idx is passed an empty list, ALL data is read from file.
+    # Otherwise we need to check that we are not out of bounds.
+
+    # pnames = [p for p in f.get(xfield).attrs["names"]]
+    if len(idx)>0:
+        assert(max(idx) <= indexsize)
+    else:
+        idx=[i for i in range(indexsize)]
+
+    ret = []
+    f = h5py.File(fname, "r")
+
+    # Read parameters
+    _X=np.array(f.get(xfield))
+
+    # Read y-values
+    for i in idx:
+        _Y=np.atleast_1d(f.get(yfield)[i])
+        USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) )
+        ret.append([ _X[USE], _Y[USE] ])
+
+    f.close()
+
+    return ret
+
+
 def readData(fname, delimiter=","):
     """
     Read CSV formatted data. The last column is interpreted as
