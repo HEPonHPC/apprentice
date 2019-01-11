@@ -95,3 +95,34 @@ def readApprentice(fname):
     except:
         app = apprentice.PolynomialApproximation(fname=fname)
     return app
+
+def getPolyGradient(coeff, X, dim=2, n=2):
+    from apprentice import monomial
+    import numpy as np
+    struct_q = monomial.monomialStructure(dim, n)
+    grad = np.zeros(dim,dtype=np.float64)
+
+    for coord in range(dim):
+        """
+        Partial derivative w.r.t. coord
+        """
+        der = [0.]
+        if dim==1:
+            for s in struct_q[1:]: # Start with the linear terms
+                der.append(s*X[0]**(s-1))
+        else:
+            for s in struct_q[1:]: # Start with the linear terms
+                if s[coord] == 0:
+                    der.append(0.)
+                    continue
+                term = 1.0
+                for i in range(len(s)):
+                    # print(s[i])
+                    if i==coord:
+                        term *= s[i]
+                        term *= X[i]**(s[i]-1)
+                    else:
+                        term *= X[i]**s[i]
+                der.append(term)
+    grad[i] = np.dot(der, coeff)
+    return grad
