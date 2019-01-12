@@ -31,7 +31,7 @@ class RationalApproximationSIP():
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
                                 mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
-                                baron: pyomo with baron (TODO)
+                                baron: pyomo with baron
             penaltyparam    --- lambda to use for strategy 2 --- if omitted: auto 0.1 used
             penaltybin      --- penalty binary array for numberator and denomintor of the bits to keep active in strategy 1 and put in penalty term for activity 2
                                 represented in a 2D array of shape(2,(m/n)+1) where for each numberator and denominator, the bits represent penalized coeffecient degrees and constant (1: not peanlized, 0 penalized)
@@ -266,15 +266,15 @@ class RationalApproximationSIP():
         mlslopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
         mlslopt.set_local_optimizer(localopt)
         mlslopt.set_stopval(1e-20)
-        # mlslopt.set_maxtime(10.0)
+        mlslopt.set_maxtime(500.0)
 
         x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
         x = mlslopt.optimize(x0)
         robO = mlslopt.last_optimum_value()
         info = [{'robustArg':x.tolist(),'robustObj':robO}]
 
-        print(info)
-        exit(1)
+        # print(info)
+        # exit(1)
 
         return robO, info
 
