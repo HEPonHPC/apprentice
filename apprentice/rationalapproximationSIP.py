@@ -235,7 +235,8 @@ class RationalApproximationSIP():
             robO = 0
             x = []
             if(self._roboptstrategy == 'ms'):
-                x, robO, restartInfo = self.multipleRestartRobO(coeffs,threshold)
+                maxRestarts = 10
+                x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = restartInfo
             elif(self._roboptstrategy == 'mlsl'):
                 x, robO, restartInfo = self.mlslRobO(coeffs,threshold)
@@ -276,7 +277,7 @@ class RationalApproximationSIP():
         robO = model.robO()
         x = np.array([model.x[i].value for i in range(self._dim)])
         info = [{'robustArg':x.tolist(),'robustObj':robO}]
-        
+
         return x, robO, info
 
 
@@ -306,8 +307,7 @@ class RationalApproximationSIP():
 
         return x, robO, info
 
-    def multipleRestartRobO(self, coeffs, threshold=0.2):
-        maxRestarts = 10
+    def multipleRestartRobO(self, coeffs, maxRestarts = 10, threshold=0.2):
         robO = 0
         x = []
         restartInfo = []
