@@ -69,22 +69,33 @@ class Scaler(object):
 
     def _scale(self, x):
         """
-        Scale the point x from the observed range _Xmin, _Xmax to the intervale _interval
+        Scale the point x from the observed range _Xmin, _Xmax to the interval _interval
         (newmax-newmin)/(oldmax-oldmin)*(x-oldmin)+newmin
         """
         return self._scaleTerm*(x - self._Xmin) + self._ab[:,0]
+
+    def _unscale(self, x):
+        """
+        Convert a point from the scaled world back to the real world.
+        """
+        return self._Xmin + (x-self._ab[:,0])/self._scaleTerm
+
 
     @property
     def scaledPoints(self):
         return self._XS
 
-    def __call__(self, x):
+    def __call__(self, x, unscale=False):
         """
-        Return a single scaled point.
+        Return a single scaled/unscaled point. By default, we scale from the real world into the
+        [a,b] world.
         """
         if len(x)!=self._dim:
             raise Exception("Dimensions incompatible (should be %i)"%self._dim)
-        return self._scale(x)
+        if unscale:
+            return self._unscale(x)
+        else:
+            return self._scale(x)
 
     def __str__(self):
         s="Scaler --- translating %i-dimensional points into [%i,%i]"%(self._dim, self._a, self._b)
@@ -93,7 +104,27 @@ class Scaler(object):
         return s
 
     @property
+    def center(self):
+        return self._ab[:,0] + 0.5*(self._ab[:,1] - self._ab[:,0])
+
+    @property
     def dim(self): return self._dim
+
+    @property
+    def sbox(self): return self._ab
+
+    @property
+    def box(self):
+        """
+        The real world parameter box
+        """
+        _b = np.empty((self.dim, 2))
+        _b[:,0]= self(self._ab[:,0])
+        _b[:,1]= self(self._ab[:,1])
+        return _b
+
+
+
 
 if __name__== "__main__":
     D=np.array([[1.,2.,3.],[4.,5.,6.],[7.,8.,9.],[1,4,7],[5,3,9]])
