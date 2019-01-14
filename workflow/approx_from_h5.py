@@ -48,4 +48,4 @@ if __name__ == "__main__":
     import json
     with open(sys.argv[2], "w") as f: json.dump(JD, f)
 
-    print("Done --- approximation of {} objects written to {}".format(len(idx), sys.argv[2]))
+    print("Done --- approximation of {} objects written to {} and scaler written to {}.scaler".format(len(idx), sys.argv[2], sys.argv[2]))

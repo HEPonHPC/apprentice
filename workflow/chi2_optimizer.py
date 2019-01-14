@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
 
     # Now do some more universes
-    NSAMPLES = 100
+    NSAMPLES = 1000
     COV = mkCov(E)
     import scipy.stats as st
 
