@@ -267,18 +267,18 @@ class RationalApproximationSIP():
         return b
 
     def baronPyomoRobO(self, coeffs, threshold=0.2):
-        from pyomo.environ import *
+        from pyomo import environ
         info = np.zeros(shape=(len(self._struct_q),self._dim+1),dtype=np.float64)
         for l in range(len(self._struct_q)):
             for d in range(self._dim):
                 info[l][d] = self._struct_q[l][d]
             info[l][self._dim] = coeffs[l+self._M]
-        model = ConcreteModel()
+        model = environ.ConcreteModel()
         model.dimrange = range(self._dim)
         model.coeffinfo = info
-        model.x = Var(model.dimrange, bounds=self.variableBound)
-        model.robO = Objective(rule=self.robObjPyomo, sense=minimize)
-        opt = SolverFactory('baron')
+        model.x = environ.Var(model.dimrange, bounds=self.variableBound)
+        model.robO = environ.Objective(rule=self.robObjPyomo, sense=1)
+        opt = environ.SolverFactory('baron')
         ret = opt.solve(model)
         robO = model.robO()
         x = np.array([model.x[i].value for i in range(self._dim)])
