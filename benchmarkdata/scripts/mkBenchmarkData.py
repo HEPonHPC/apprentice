@@ -25,6 +25,8 @@ def getData(X_train, fn, noisepct):
         Y_train = [testData.f9(x) for x in X_train]
     elif fn==10:
         Y_train = [testData.f10(x) for x in X_train]
+    elif fn==12:
+        Y_train = [testData.f12(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 

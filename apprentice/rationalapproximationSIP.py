@@ -22,7 +22,11 @@ class RationalApproximationSIP():
         kwargs:
             m               --- order of the numerator polynomial --- if omitted: auto 1 used
             n               --- order of the denominator polynomial --- if omitted: auto 1 used
-            trainingscale   --- size of training data to use: 1x is the number of coeffs in numerator and denominator, 2x is twice the number of coeffecients, Cp is 100% of the data --- if omitted: auto 1x used
+            trainingscale   --- size of training data to use --- if omitted: auto 1x used
+                                .5x is the half the numbner of coeffs in numerator and denominator,
+                                1x is the number of coeffs in numerator and denominator,
+                                2x is twice the number of coeffecients,
+                                Cp is 100% of the data
             box             --- box (2D array of dim X [min,max]) within which to perform the approximation --- if omitted: auto dim X [-1, 1] used
             strategy        --- strategy to use --- if omitted: auto 0 used
                                 0: min ||f*p(x)_m/q(x)_n||^2_2 sub. to q(x)_n >=1
@@ -31,7 +35,7 @@ class RationalApproximationSIP():
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
                                 mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
-                                baron: pyomo with baron (TODO)
+                                baron: pyomo with baron
             penaltyparam    --- lambda to use for strategy 2 --- if omitted: auto 0.1 used
             penaltybin      --- penalty binary array for numberator and denomintor of the bits to keep active in strategy 1 and put in penalty term for activity 2
                                 represented in a 2D array of shape(2,(m/n)+1) where for each numberator and denominator, the bits represent penalized coeffecient degrees and constant (1: not peanlized, 0 penalized)
@@ -141,7 +145,9 @@ class RationalApproximationSIP():
                 self._box = np.concatenate((self._box,newArr),axis=0)
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
-        if(self.trainingscale == "1x"):
+        if(self.trainingscale == ".5x"):
+            self._trainingsize = int(0.5*(self.M+self.N))
+        elif(self.trainingscale == "1x"):
             self._trainingsize = self.M+self.N
         elif(self.trainingscale == "2x"):
             self._trainingsize = 2*(self.M+self.N)
@@ -233,12 +239,16 @@ class RationalApproximationSIP():
 
             # data['restartInfo'] = []
             robO = 0
-
+            x = []
             if(self._roboptstrategy == 'ms'):
-                robO, restartInfo = self.multipleRestartRobO(coeffs,threshold)
+                maxRestarts = 10
+                x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = restartInfo
             elif(self._roboptstrategy == 'mlsl'):
-                robO, restartInfo = self.mlslRobO(coeffs,threshold)
+                x, robO, restartInfo = self.mlslRobO(coeffs,threshold)
+                data['robOptInfo'] = restartInfo
+            elif(self._roboptstrategy == 'baron'):
+                x, robO, restartInfo = self.baronPyomoRobO(coeffs,threshold)
                 data['robOptInfo'] = restartInfo
 
             self._iterationinfo.append(data)
@@ -251,6 +261,31 @@ class RationalApproximationSIP():
             raise Exception("Could not find a robust objective")
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
+
+    def variableBound(self, model, i):
+        b = (self._box[i][0], self._box[i][1])
+        return b
+
+    def baronPyomoRobO(self, coeffs, threshold=0.2):
+        from pyomo.environ import *
+        info = np.zeros(shape=(len(self._struct_q),self._dim+1),dtype=np.float64)
+        for l in range(len(self._struct_q)):
+            for d in range(self._dim):
+                info[l][d] = self._struct_q[l][d]
+            info[l][self._dim] = coeffs[l+self._M]
+        model = ConcreteModel()
+        model.dimrange = range(self._dim)
+        model.coeffinfo = info
+        model.x = Var(model.dimrange, bounds=self.variableBound)
+        model.robO = Objective(rule=self.robObjPyomo, sense=minimize)
+        opt = SolverFactory('baron')
+        ret = opt.solve(model)
+        robO = model.robO()
+        x = np.array([model.x[i].value for i in range(self._dim)])
+        info = [{'robustArg':x.tolist(),'robustObj':robO}]
+
+        return x, robO, info
+
 
     def mlslRobO(self,coeffs, threshold=0.2):
         import nlopt
@@ -266,21 +301,21 @@ class RationalApproximationSIP():
         mlslopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
         mlslopt.set_local_optimizer(localopt)
         mlslopt.set_stopval(1e-20)
-        # mlslopt.set_maxtime(10.0)
+        mlslopt.set_maxtime(500.0)
 
         x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
         x = mlslopt.optimize(x0)
         robO = mlslopt.last_optimum_value()
         info = [{'robustArg':x.tolist(),'robustObj':robO}]
 
-        print(info)
-        exit(1)
+        # print(info)
+        # exit(1)
 
-        return robO, info
+        return x, robO, info
 
-    def multipleRestartRobO(self, coeffs, threshold=0.2):
-        maxRestarts = 10
+    def multipleRestartRobO(self, coeffs, maxRestarts = 10, threshold=0.2):
         robO = 0
+        x = []
         restartInfo = []
         for r in range(maxRestarts):
             x0 = []
@@ -297,7 +332,7 @@ class RationalApproximationSIP():
             restartInfo.append(rinfo)
             if(robO < threshold):
                 break
-        return robO, restartInfo
+        return x, robO, restartInfo
 
     def leastSqObj(self,coeff):
         sum = 0
@@ -350,6 +385,16 @@ class RationalApproximationSIP():
 
     def robustSample(self,coeff, q_ipo):
         return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])-1
+
+    def robObjPyomo(self, model):
+        dim = len(model.dimrange)
+        res = 0
+        for mon in model.coeffinfo:
+            term = 1
+            for d in model.dimrange:
+                term *= model.x[d] ** mon[d]
+            res += mon[dim] * term
+        return res
 
     def robustObjWithGrad(self, x, grad, coeff):
         if grad.size > 0:

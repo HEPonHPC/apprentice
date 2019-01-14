@@ -1,11 +1,21 @@
 import numpy as np
 import apprentice as app
+from apprentice import RationalApproximationSIP
 
-def plotResidualMap(f_rapp, f_test, f_out, norm=1, fno=1):
-    R = app.readApprentice(f_rapp)
+def plotResidualMap(f_rapp, f_test, f_out,norm=1, fno=1, type=None):
     X_test, Y_test = app.readData(f_test)
-    if norm == 1: error = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
-    if norm == 2: error = [(R(x)-Y_test[num])**2 for num, x in enumerate(X_test)]
+    error = ""
+    if(type == None):
+        R = app.readApprentice(f_rapp)
+        if norm == 1: error = [abs(R(x)-Y_test[num]) for num, x in enumerate(X_test)]
+        if norm == 2: error = [(R(x)-Y_test[num])**2 for num, x in enumerate(X_test)]
+    elif(type == "rappsip"):
+        R = RationalApproximationSIP(f_rapp)
+        Y_pred = R(X_test)
+        error = (abs(Y_pred-Y_test))
+        if norm == 1: error = np.array(abs(Y_pred-Y_test),dtype=np.float64)
+        if norm == 2: error = np.array((Y_pred-Y_test)**2,)
+
 
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -124,11 +134,12 @@ if __name__=="__main__":
     op.add_option("-n", dest="NORM", default=1, type=int, help="Error norm (default: %default)")
     op.add_option("-p", dest="PLOT", default="residualMap", help="Plot Type: residualMap or errorPlot (default: %default)")
     op.add_option("-f", dest="FNO", default=1, type=int, help="Function no (default: %default)")
+    op.add_option("-y", dest="TYPE", default=None, help="Type of analysis (default: %default)")
     opts, args = op.parse_args()
 
 
     if opts.PLOT == "residualMap":
-        plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO)
+        plotResidualMap(args[0],  opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO, opts.TYPE)
     elif opts.PLOT == "errorPlot":
         plotError(opts.TEST, opts.OUTFILE, opts.NORM, opts.FNO, args)
     else:
