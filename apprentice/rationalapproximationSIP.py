@@ -225,6 +225,9 @@ class RationalApproximationSIP():
             else:
                 ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'iprint': 0,'ftol': 1e-6, 'disp': False})
             coeffs = ret.get('x')
+            # print(ret)
+            # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
+            # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
             leastSq = ret.get('fun')
             data['leastSqObj'] = leastSq
             data['pcoeff'] = coeffs[0:self.M].tolist()
@@ -349,9 +352,13 @@ class RationalApproximationSIP():
     def computel1Term(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         l1Term = 0
         for index in p_penaltyIndexs:
-            l1Term += self.penaltyparam * coeff[self.M+self.N+index]
+            term = self.penaltyparam * coeff[self.M+self.N+index]
+            if(abs(term) > 10**-5):
+                l1Term += term
         for index in q_penaltyIndexs:
-            l1Term += self.penaltyparam * coeff[self.M+self.N+self.M+index]
+            term =  self.penaltyparam * coeff[self.M+self.N+self.M+index]
+            if(abs(term) > 10**-5):
+                l1Term += term
         return l1Term
 
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
