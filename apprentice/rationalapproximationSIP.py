@@ -22,7 +22,11 @@ class RationalApproximationSIP():
         kwargs:
             m               --- order of the numerator polynomial --- if omitted: auto 1 used
             n               --- order of the denominator polynomial --- if omitted: auto 1 used
-            trainingscale   --- size of training data to use: 1x is the number of coeffs in numerator and denominator, 2x is twice the number of coeffecients, Cp is 100% of the data --- if omitted: auto 1x used
+            trainingscale   --- size of training data to use --- if omitted: auto 1x used
+                                .5x is the half the numbner of coeffs in numerator and denominator,
+                                1x is the number of coeffs in numerator and denominator,
+                                2x is twice the number of coeffecients,
+                                Cp is 100% of the data
             box             --- box (2D array of dim X [min,max]) within which to perform the approximation --- if omitted: auto dim X [-1, 1] used
             strategy        --- strategy to use --- if omitted: auto 0 used
                                 0: min ||f*p(x)_m/q(x)_n||^2_2 sub. to q(x)_n >=1
@@ -141,7 +145,9 @@ class RationalApproximationSIP():
                 self._box = np.concatenate((self._box,newArr),axis=0)
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
-        if(self.trainingscale == "1x"):
+        if(self.trainingscale == ".5x"):
+            self._trainingsize = int(0.5*(self.M+self.N))
+        elif(self.trainingscale == "1x"):
             self._trainingsize = self.M+self.N
         elif(self.trainingscale == "2x"):
             self._trainingsize = 2*(self.M+self.N)
