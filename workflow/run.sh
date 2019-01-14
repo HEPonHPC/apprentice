@@ -17,4 +17,4 @@ python3 chi2_optimizer.py approx_flavour.json data/exerimental_data.json
 # This analyes the output file from the minimisation step to decide on a
 # new sampling box. Scatter plots of the analysed data with the old and
 # new boxes are also produced (newbox.pdf, oldbox.pdf). 
-python3 new_box.py test2.json.minimization test2.json.scaler newbox.json
+python3 new_box.py approx_flavour.json.minimization approx_flavour.json.scaler newbox.json
