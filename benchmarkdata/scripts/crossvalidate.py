@@ -209,6 +209,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 	mintesterrArr = np.array([])
 	minaic = np.array([])
 	minbic = np.array([])
+	minparam = np.array([])
 
 
 	for r in runs:
@@ -220,6 +221,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 		karr = np.array([])
 		aic = np.array([])
 		bic = np.array([])
+		param = np.array([])
 		for l in larr:
 			key = "p%s_q%s_%.E"%(str(pdeg),str(qdeg),l)
 			iterationInfo = datastore[key]["iterationinfo"]
@@ -260,6 +262,8 @@ def plotS2(jsonfile, testfile, runs, larr):
 			aic = np.append(aic,a)
 			bic = np.append(bic,b)
 
+			param = np.append(param,l)
+
 		print("p = "+str(pdeg)+"; q = "+str(qdeg))
 		print("#\tl2 error\tl1 error\ttest err\tnnz\taic\t\tbic")
 		for i in range(len(larr)):
@@ -274,32 +278,32 @@ def plotS2(jsonfile, testfile, runs, larr):
 			mintesterrArr = np.append(mintesterrArr,np.min(Z_testerr))
 			minaic = np.append(minaic,np.min(aic))
 			minbic = np.append(minbic,np.min(bic))
+			minparam = np.append(minparam,param[minindexarr[0]])
 		# 2 elements match
 		elif len(set(arr)) == 2:
 			# find the 2 mathcing elements and take values from all arrays at that index
-			if minindexarr[0]==minindexarr[1]:
+			if minindexarr[0]==minindexarr[1] or minindexarr[0]==minindexarr[2]:
 				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
 				minaic = np.append(minaic,aic[minindexarr[0]])
 				minbic = np.append(minbic,bic[minindexarr[0]])
+				minparam = np.append(minparam,param[minindexarr[0]])
 			elif minindexarr[1]==minindexarr[2]:
 				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[1]])
 				minaic = np.append(minaic,aic[minindexarr[1]])
 				minbic = np.append(minbic,bic[minindexarr[1]])
-			elif minindexarr[0]==minindexarr[2]:
-				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
-				minaic = np.append(minaic,aic[minindexarr[0]])
-				minbic = np.append(minbic,bic[minindexarr[0]])
-			# no elements match. Highly unlikely that we will be here
+				minparam = np.append(minparam,param[minindexarr[1]])
+		# no elements match. Highly unlikely that we will be here
 		else:
 			#take the case where test arr is minimum
 			mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
 			minaic = np.append(minaic,aic[minindexarr[0]])
 			minbic = np.append(minbic,bic[minindexarr[0]])
+			minparam = np.append(minparam,param[minindexarr[0]])
 
 	for i in range(len(runs)):
 		pdeg = runs[i][0]
 		qdeg = runs[i][1]
-		print("\n%d\tp%dq%d\t%f\t%f\t%f"%(i+1,pdeg,qdeg,mintesterrArr[i],minaic[i],minbic[i]))
+		print("%d\tp%dq%d\t%f\t%f\t%f\t%.2E"%(i+1,pdeg,qdeg,mintesterrArr[i],minaic[i],minbic[i],minparam[i]))
 
 	print("\nMIN\t\t%d\t\t%d\t\t%d\n"%(np.argmin(mintesterrArr)+1,np.argmin(minaic)+1,np.argmin(minbic)+1))
 
