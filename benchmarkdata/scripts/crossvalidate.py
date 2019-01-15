@@ -194,17 +194,22 @@ def plotS2(jsonfile, testfile, runs, larr):
 
 	X_test, Y_test = readData(testfile)
 
-	import matplotlib as mpl
-	import matplotlib.pyplot as plt
-	mpl.rc('text', usetex = True)
-	mpl.rc('font', family = 'serif', size=12)
-	mpl.style.use("ggplot")
-	cmapname   = 'viridis'
+	# import matplotlib as mpl
+	# import matplotlib.pyplot as plt
+	# mpl.rc('text', usetex = True)
+	# mpl.rc('font', family = 'serif', size=12)
+	# mpl.style.use("ggplot")
+	# cmapname   = 'viridis'
+	#
+	# f, axarr = plt.subplots(4,4, figsize=(15,15))
+	# markersize = 1000
+	# vmin = -4
+	# vmax = 2.5
 
-	f, axarr = plt.subplots(4,4, figsize=(15,15))
-	markersize = 1000
-	vmin = -4
-	vmax = 2.5
+	mintesterrArr = np.array([])
+	minaic = np.array([])
+	minbic = np.array([])
+
 
 	for r in runs:
 		pdeg=r[0]
@@ -248,7 +253,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 			n = len(X_test)
 			# AIC = 2k - 2log(L)
 			# BIC = klog(n) - 2log(L)
-			# -2log(L) becomes nlog(variance) = nlog(SSE/n)
+			# -2log(L) becomes nlog(variance) = nlog(SSE/n) = nlog(testerror/n)
 			a = 2*k + n*np.log(testerror/n)
 			b = k*np.log(n) + n*np.log(testerror/n)
 
@@ -256,19 +261,56 @@ def plotS2(jsonfile, testfile, runs, larr):
 			bic = np.append(bic,b)
 
 		print("p = "+str(pdeg)+"; q = "+str(qdeg))
-		print("l2 error\tl1 error\ttest err\tnnz\taic\t\tbic")
+		print("#\tl2 error\tl1 error\ttest err\tnnz\taic\t\tbic")
 		for i in range(len(larr)):
-			print("%f\t%f\t%f\t%d\t%f\t%f"%(X_l2[i],Y_l1[i],Z_testerr[i],karr[i], aic[i],bic[i]))
-		axarr[pdeg-2][qdeg-2].plot(X_l2, Y_l1, '-rD')
-		axarr[pdeg-2][qdeg-2].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
+			print("%d\t%f\t%f\t%f\t%d\t%f\t%f"%(i+1,X_l2[i],Y_l1[i],Z_testerr[i],karr[i], aic[i],bic[i]))
+		print("\nMIN\t%d\t\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Y_l1)+1,np.argmin(Z_testerr)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
+		# axarr[pdeg-2][qdeg-2].plot(X_l2, Y_l1, '-rD')
+		# axarr[pdeg-2][qdeg-2].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
 
-	for ax in axarr.flat:
-		# ax.set(xlim=(-6,4))
-		if(ax.is_first_col()):
-			ax.set_ylabel("L1 error", fontsize = 15)
-		if(ax.is_last_row()):
-			ax.set_xlabel("L2 error", fontsize = 15)
-	# plt.show()
+		# if min arg of aic, bic and test err match, then take that and put int min arrays
+		minindexarr = [np.argmin(Z_testerr),np.argmin(aic),np.argmin(bic)]
+		if all(x == minindexarr[0] for x in minindexarr):
+			mintesterrArr = np.append(mintesterrArr,np.min(Z_testerr))
+			minaic = np.append(minaic,np.min(aic))
+			minbic = np.append(minbic,np.min(bic))
+		# 2 elements match
+		elif len(set(arr)) == 2:
+			# find the 2 mathcing elements and take values from all arrays at that index
+			if minindexarr[0]==minindexarr[1]:
+				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
+				minaic = np.append(minaic,aic[minindexarr[0]])
+				minbic = np.append(minbic,bic[minindexarr[0]])
+			elif minindexarr[1]==minindexarr[2]:
+				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[1]])
+				minaic = np.append(minaic,aic[minindexarr[1]])
+				minbic = np.append(minbic,bic[minindexarr[1]])
+			elif minindexarr[0]==minindexarr[2]:
+				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
+				minaic = np.append(minaic,aic[minindexarr[0]])
+				minbic = np.append(minbic,bic[minindexarr[0]])
+			# no elements match. Highly unlikely that we will be here
+		else:
+			#take the case where test arr is minimum
+			mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[0]])
+			minaic = np.append(minaic,aic[minindexarr[0]])
+			minbic = np.append(minbic,bic[minindexarr[0]])
+
+	for i in range(len(runs)):
+		pdeg = runs[i][0]
+		qdeg = runs[i][1]
+		print("\n%d\tp%dq%d\t%f\t%f\t%f"%(i+1,pdeg,qdeg,mintesterrArr[i],minaic[i],minbic[i]))
+
+	print("\nMIN\t\t%d\t\t%d\t\t%d\n"%(np.argmin(mintesterrArr)+1,np.argmin(minaic)+1,np.argmin(minbic)+1))
+
+
+	# for ax in axarr.flat:
+	# 	# ax.set(xlim=(-6,4))
+	# 	if(ax.is_first_col()):
+	# 		ax.set_ylabel("L1 error", fontsize = 15)
+	# 	if(ax.is_last_row()):
+	# 		ax.set_xlabel("L2 error", fontsize = 15)
+	# # plt.show()
 
 
 
