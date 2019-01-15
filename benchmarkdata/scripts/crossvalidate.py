@@ -1,0 +1,537 @@
+import numpy as np
+from apprentice import RationalApproximationSIP
+from sklearn.model_selection import KFold
+from apprentice import tools, readData
+
+def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",debug=0):
+	trainingScale = "Cp"
+
+	X, Y = tools.readData(infile)
+
+	# Some param overrides for debug
+	larr = np.array([10**i for i in range(3,-13,-1)])
+	# larr = np.array([10**i for i in range(0,-5,-1)])
+
+	k=10
+	# k=2
+
+	outJSON = {}
+	for pdeg in range(2,5):
+	# for pdeg in range(3,5):
+		ppenaltybin = np.zeros(pdeg+1)
+		for qdeg in range(2,5):
+		# for qdeg in range(3,5):
+			qpenaltybin = np.zeros(qdeg+1)
+			avgerror = np.zeros(len(larr))
+			avgerror_k = np.zeros(len(larr))
+			for index in range(len(larr)):
+				l = larr[index]
+				kfold = KFold(k)
+				error_l = 0
+				for train, test in kfold.split(X):
+					rappsip = RationalApproximationSIP(
+												X[train],
+												Y[train],
+				                                m=pdeg,
+				                                n=qdeg,
+				                                trainingscale=trainingScale,
+				                                box=box,
+				                                strategy=2,
+				                                penaltyparam=l,
+				                                ppenaltybin=ppenaltybin.tolist(),
+				                                qpenaltybin=qpenaltybin.tolist()
+				    )
+					error_l_k = np.sum([(rappsip(X[test])-Y[test])**2])
+					error_l += error_l_k
+				avgerror[index] = error_l / len(X)
+				avgerror_k[index] = error_l / len(X[test])
+			stderror = np.std(avgerror_k)/np.sqrt(k)
+			minIndex = np.argmin(avgerror)
+			minv = avgerror[minIndex]
+			minl = larr[minIndex]
+
+			currIndex = minIndex
+			while currIndex >= 0:
+				if(minv + stderror == avgerror[currIndex]):
+					break
+				elif(minv + stderror > avgerror[currIndex]):
+					currIndex -= 1
+				else:
+					currIndex += 1
+					break
+			if(currIndex == -1):
+				currIndex = 0
+			currl = larr[currIndex]
+
+			# print(minIndex)
+			# print(currIndex)
+			#
+			# print(avgerror)
+			# print(avgerror_k)
+			# print(stderror)
+			#
+			# print(minl)
+			# print(currl)
+
+			rappsip_min = RationalApproximationSIP(
+										X,
+										Y,
+										m=pdeg,
+										n=qdeg,
+										trainingscale=trainingScale,
+										box=box,
+										strategy=2,
+										penaltyparam=minl,
+										ppenaltybin=ppenaltybin.tolist(),
+										qpenaltybin=qpenaltybin.tolist()
+			)
+			rappsip_minpse = rappsip_min
+			if(currl != minl):
+				rappsip_minpse = RationalApproximationSIP(
+											X,
+											Y,
+											m=pdeg,
+											n=qdeg,
+											trainingscale=trainingScale,
+											box=box,
+											strategy=2,
+											penaltyparam=currl,
+											ppenaltybin=ppenaltybin.tolist(),
+											qpenaltybin=qpenaltybin.tolist()
+			)
+			rappsip = {"min":rappsip_min.asDict, "min plus SE":rappsip_minpse.asDict, "avgerror":avgerror.tolist(),
+						"avgerror_k":avgerror_k.tolist(), "stderror":stderror,"minIndex":minIndex,"minl":minl,
+						"minv":minv, "mpseIndex":currIndex, "mpsel":currl}
+
+			outJSON["p%s_q%s"%(str(pdeg),str(qdeg))] = rappsip
+
+			if(debug == 1):
+				import json
+				with open("/tmp/cv_latest.json", "w") as f:
+					json.dump(outJSON, f,indent=4, sort_keys=True)
+			# exit(1)
+
+	import json
+	with open(outfile, "w") as f:
+		json.dump(outJSON, f,indent=4, sort_keys=True)
+
+def runRappsipBaseStrategy(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",debug=0):
+	trainingScale = "Cp"
+
+	X, Y = tools.readData(infile)
+	outJSON = {}
+	runs = [[2,2],[2,3],[2,4],[3,2],[3,3],[3,4], [4,2],[4,3],[4,4]]
+	# runs = [[2,2],[3,3],[4,4],[5,5],[6,6]]
+	for r in runs:
+		pdeg=r[0]
+		qdeg=r[1]
+		rappsip = RationalApproximationSIP(
+										X,
+										Y,
+										m=pdeg,
+										n=qdeg,
+										trainingscale=trainingScale,
+										roboptstrategy="baron",
+										box=box,
+										strategy=0
+		)
+		outJSON["p%s_q%s"%(str(pdeg),str(qdeg))] = rappsip.asDict
+		if(debug == 1):
+			import json
+			with open("/tmp/s0_latest.json", "w") as f:
+				json.dump(outJSON, f,indent=4, sort_keys=True)
+
+	import json
+	with open(outfile, "w") as f:
+		json.dump(outJSON, f,indent=4, sort_keys=True)
+
+def runRappsipStrategy2(infile,runs, larr,box=np.array([[-1,1],[-1,1]]),trainingScale="1x",outfile="out.json",debug=0):
+
+	X, Y = tools.readData(infile)
+	outJSON = {}
+
+	# runs = [[2,2],[3,?3],[4,4],[5,5],[6,6]]
+	for r in runs:
+		for l in larr:
+			pdeg=r[0]
+			qdeg=r[1]
+			ppenaltybin = np.ones(pdeg+1)
+			ppenaltybin[pdeg] = 0
+
+			qpenaltybin = np.ones(qdeg+1)
+			qpenaltybin[qdeg] = 0
+
+			rappsip = RationalApproximationSIP(
+											X,
+											Y,
+											m=pdeg,
+											n=qdeg,
+											trainingscale=trainingScale,
+											roboptstrategy="baron",
+											box=box,
+											strategy=2,
+											penaltyparam=l,
+				                            ppenaltybin=ppenaltybin.tolist(),
+				                            qpenaltybin=qpenaltybin.tolist()
+
+			)
+			outJSON["p%s_q%s_%.E"%(str(pdeg),str(qdeg),l)] = rappsip.asDict
+			if(debug == 1):
+				import json
+				with open("/tmp/s2_latest.json", "w") as f:
+					json.dump(outJSON, f,indent=4, sort_keys=True)
+
+	import json
+	with open(outfile, "w") as f:
+		json.dump(outJSON, f,indent=4, sort_keys=True)
+
+def plotS2(jsonfile, testfile, runs, larr):
+	import json
+	# Lcurve
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+	X_test, Y_test = readData(testfile)
+
+	import matplotlib as mpl
+	import matplotlib.pyplot as plt
+	mpl.rc('text', usetex = True)
+	mpl.rc('font', family = 'serif', size=12)
+	mpl.style.use("ggplot")
+	cmapname   = 'viridis'
+
+	f, axarr = plt.subplots(4,4, figsize=(15,15))
+	markersize = 1000
+	vmin = -4
+	vmax = 2.5
+
+	for r in runs:
+		pdeg=r[0]
+		qdeg=r[1]
+		Y_l1 = np.array([])
+		X_l2 = np.array([])
+		Z_testerr = np.array([])
+		karr = np.array([])
+		aic = np.array([])
+		bic = np.array([])
+		for l in larr:
+			key = "p%s_q%s_%.E"%(str(pdeg),str(qdeg),l)
+			iterationInfo = datastore[key]["iterationinfo"]
+			lastii = iterationInfo[len(iterationInfo)-1]
+			regerr = lastii["leastSqSplit"]["l1term"]
+			trainerr = lastii["leastSqSplit"]["l2term"]
+			X_l2 = np.append(X_l2,trainerr)
+			Y_l1 = np.append(Y_l1,regerr)
+
+			rappsip = RationalApproximationSIP(datastore[key])
+			Y_pred = rappsip(X_test)
+			testerror = np.sum((Y_pred-Y_test)**2)
+			Z_testerr = np.append(Z_testerr,testerror)
+			k = 2
+			pcoeff = datastore[key]["pcoeff"]
+			qcoeff = datastore[key]["qcoeff"]
+			maxp = abs(max(pcoeff, key=abs))
+			maxq = abs(max(qcoeff, key=abs))
+			# print(np.c_[pcoeff])
+			# print(np.c_[qcoeff])
+			# print(maxp,maxq)
+			for pc in pcoeff:
+				if(pc > 10**-2*maxp):
+					k += 1
+			for qc in qcoeff:
+				if(qc > 10**-2*maxq):
+					k += 1
+
+
+			karr = np.append(karr,k)
+			n = len(X_test)
+			# AIC = 2k - 2log(L)
+			# BIC = klog(n) - 2log(L)
+			# -2log(L) becomes nlog(variance) = nlog(SSE/n)
+			a = 2*k + n*np.log(testerror/n)
+			b = k*np.log(n) + n*np.log(testerror/n)
+
+			aic = np.append(aic,a)
+			bic = np.append(bic,b)
+
+		print("p = "+str(pdeg)+"; q = "+str(qdeg))
+		print("l2 error\tl1 error\ttest err\tnnz\taic\t\tbic")
+		for i in range(len(larr)):
+			print("%f\t%f\t%f\t%d\t%f\t%f"%(X_l2[i],Y_l1[i],Z_testerr[i],karr[i], aic[i],bic[i]))
+		axarr[pdeg-2][qdeg-2].plot(X_l2, Y_l1, '-rD')
+		axarr[pdeg-2][qdeg-2].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
+
+	for ax in axarr.flat:
+		# ax.set(xlim=(-6,4))
+		if(ax.is_first_col()):
+			ax.set_ylabel("L1 error", fontsize = 15)
+		if(ax.is_last_row()):
+			ax.set_xlabel("L2 error", fontsize = 15)
+	# plt.show()
+
+
+
+	# P 0,1,2,3,5
+
+
+def prettyPrint(cvjsonfile,jsonfile, testfile):
+	import json
+	# if cvjsonfile:
+	# 	with open(cvjsonfile, 'r') as fn:
+	# 		datastore = json.load(fn)
+	#
+	#
+	# keylist = datastore.keys()
+	# keylist.sort()
+	# s=""
+	# s = "pq deg\tcparam\tparam\tl2term\t\tl1term\n\n"
+	# for key in keylist:
+	#
+	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	s += "%s\tmin\t%.0E\t%f\t%f\n"%(key,datastore[key]['minl'],lsqsplit['l2term'],lsqsplit['l1term'])
+	#
+	# 	iterationInfo = datastore[key]['min plus SE']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	s += "%s\tmpse\t%.0E\t%f\t%f\n"%(key,datastore[key]['mpsel'],lsqsplit['l2term'],lsqsplit['l1term'])
+	# 	s+="\naverage error\n"
+	#
+	#
+	# 	avgerror =  datastore[key]['avgerror']
+	# 	larr = np.array([10**i for i in range(3,-13,-1)])
+	# 	# for i in larr:
+	# 	# 	s += "%.1E\t"%(i)
+	# 	s+="\n"
+	# 	for i in avgerror:
+	# 		s += "%.4E\t"%(i)
+	# 	s+="\n\n"
+	#
+
+
+
+	X_test, Y_test = readData(testfile)
+
+
+
+	# static for f8 and upto p4 and q4
+
+	# s+= "p coeffs obtained for lambda with minimum avg CV error\n"
+	# s+="origfn\t"
+	# for key in keylist:
+	# 	s+="%s\t\t"%(key)
+	# s+="\n"
+	# # P 0,1,2,3,5
+	# pcoeffO = [-1,-1,1,1,0,1]
+	# for i in range(15):
+	# 	if(i <= 3 or i == 5):
+	# 		s+= "%d\t"%(pcoeffO[i])
+	# 	else:
+	# 		s+="\t"
+	# 	for key in keylist:
+	# 		pcoeff = datastore[key]['min']["pcoeff"]
+	# 		if(i<len(pcoeff)):
+	# 			s+="%f\t"%(pcoeff[i])
+	# 		else: s+="\t\t"
+	# 	s+="\n"
+	#
+	# s+= "q coeffs obtained for lambda with minimum avg CV error\n"
+	# s+="origfn\t"
+	# for key in keylist:
+	# 	s+="%s\t\t"%(key)
+	# s+="\n"
+	# qcoeffO = [1.21,-1.1,-1.1,0,1,0]
+	# # Q 0,1,2,3,5
+	# for i in range(15):
+	# 	if(i <= 2 or i == 4):
+	# 		s+= "%.2f\t"%(qcoeffO[i])
+	# 	else:
+	# 		s+="\t"
+	# 	for key in keylist:
+	# 		qcoeff = datastore[key]['min']["qcoeff"]
+	# 		if(i < len(qcoeff)):
+	# 			s+="%f\t"%(qcoeff[i])
+	# 		else: s+="\t\t"
+	# 	s+="\n"
+	# s+="\n"
+	#
+
+	# f8
+	# pcoeffO = [-1,-1,1,1,0,1,0,0,0,0,0,0,0,0,0,0]
+	# qcoeffO = [1.21,-1.1,-1.1,0,1,0,0,0,0,0,0,0,0,0,0,0]
+
+	# f12
+	pcoeffO = [-1,-1,1,1,0,1,0,0,0,0,0,0,0,0,0,0]
+	qcoeffO = [4,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0]
+
+
+	# for key in keylist:
+	# 	s+="\t%s\t"%(key)
+	# s+="\n"
+	#
+	# testerrarr = np.array([])
+	# s+= "testErr\t"
+	# for key in keylist:
+	# 	rappsip = RationalApproximationSIP(datastore[key]['min'])
+	# 	Y_pred = rappsip(X_test)
+	# 	# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
+	# 	error = np.average(abs(Y_pred-Y_test))
+	# 	testerrarr = np.append(testerrarr,error)
+	# 	s += "%.8f\t"%(error)
+	# s+="\n"
+	# trainerrarr = np.array([])
+	# s+= "l2term\t"
+	# for key in keylist:
+	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	trainerrarr = np.append(trainerrarr,lsqsplit['l2term'])
+	# 	s += "%f\t"%(lsqsplit['l2term'])
+	# s+="\n"
+	# s+= "l1term\t"
+	# for key in keylist:
+	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
+	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
+	# 	s += "%f\t"%(lsqsplit['l1term'])
+	# s+="\n"
+	# s+= "param\t"
+	# for key in keylist:
+	# 	s += "%.E\t\t"%(datastore[key]['minl'])
+	# s+="\n\n"
+	#
+	# s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
+	# s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
+	#
+	# print(s)
+
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+
+	keylist = datastore.keys()
+	keylist.sort()
+
+	s=""
+
+	s+= "p coeffs obtained \n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+	# P 0,1,2,3,5
+
+	for i in range(28):
+		if(i>=len(pcoeffO) or pcoeffO[i] == 0):
+			s+= "\t"
+		else:
+			s+= "%d\t"%(pcoeffO[i])
+		for key in keylist:
+			pcoeff = datastore[key]["pcoeff"]
+			if(i<len(pcoeff)):
+				s+="%f\t"%(pcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+
+	s+= "q coeffs obtained \n"
+	s+="origfn\t"
+	for key in keylist:
+		s+="%s\t\t"%(key)
+	s+="\n"
+
+	# Q 0,1,2,3,5
+	for i in range(28):
+		if(i>=len(qcoeffO) or qcoeffO[i] == 0):
+			s+= "\t"
+		else:
+			s+= "%.2f\t"%(qcoeffO[i])
+		for key in keylist:
+			qcoeff = datastore[key]["qcoeff"]
+			if(i < len(qcoeff)):
+				s+="%f\t"%(qcoeff[i])
+			else: s+="\t\t"
+		s+="\n"
+	s+="\n"
+
+	for key in keylist:
+		s+="\t%s\t"%(key)
+	s+="\n"
+
+	testerrarr = np.array([])
+	s+= "testErr\t"
+	for key in keylist:
+		# print(datastore[key])
+		rappsip = RationalApproximationSIP(datastore[key])
+		Y_pred = rappsip(X_test)
+		# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
+		# print(np.c_[Y_pred,Y_test])
+		error = np.average(abs(Y_pred-Y_test))
+		testerrarr = np.append(testerrarr,error)
+		s += "%.8f\t"%(error)
+	s+="\n"
+	trainerrarr = np.array([])
+	s+= "l2term\t"
+	for key in keylist:
+		iterationInfo = datastore[key]["iterationinfo"]
+		lastii = iterationInfo[len(iterationInfo)-1]
+		trainerr = 0
+		if lastii.get("leastSqSplit") is not None:
+			trainerr = lastii["leastSqSplit"]["l2term"]
+		else:
+			trainerr = lastii["leastSqObj"]
+		trainerrarr = np.append(trainerrarr,trainerr)
+		s += "%f\t"%(trainerr)
+	s+="\n"
+
+	regerrarr = np.array([])
+	s+= "l1term\t"
+	for key in keylist:
+		iterationInfo = datastore[key]["iterationinfo"]
+		lastii = iterationInfo[len(iterationInfo)-1]
+		if lastii.get("leastSqSplit") is not None:
+			regerr = lastii["leastSqSplit"]["l1term"]
+			regerrarr = np.append(regerrarr,regerr)
+			s += "%f\t"%(regerr)
+		else:
+			s += "\t"
+	s+="\n\n"
+
+
+	s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
+	s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
+	if(len(regerrarr)>0):
+		s+="Min Regularization error was at %s with value %f.\n"%(keylist[np.argmin(regerrarr)],np.min(regerrarr))
+
+	print(s)
+
+
+infilePath = "../f8_noisepct10-3.txt"
+
+cvoutfile = "test/f8_noisepct10-3_cv_out.299445.json"
+s0outfile = "test/f8_noisepct10-3_s0_out.299445.json"
+testfile8 = "../f8_test.txt"
+testfile12 = "../f12_test.txt"
+box = np.array([[-1,1],[-1,1]])
+debug = 1
+infilePathNN = "../f8.txt"
+s0outfileNN = "test/f8_s0_out.299445.json"
+
+infilePath12 = "../f12_noisepct10-1.txt"
+s0outfile12 = "test/f12_noisepct10-1_s0_out.299445.json"
+
+s2outfile12 = "test/f12_noisepct10-1_s2_out.299445.json"
+
+# runs = [[2,2],[3,3],[4,4],[5,5]]
+runs = [[2,2],[2,3],[2,4],[2,5],[3,2],[3,3],[3,4],[3,5], [4,2],[4,3],[4,4],[4,5], [5,2],[5,3],[5,4],[5,5]]
+# larr = np.array([10**i for i in np.linspace(3,-8,23)])
+larr = np.array([10**i for i in range(2,-8,-1)])
+
+# runCrossValidation(infilePath,box,cvoutfile,debug)
+# runRappsipBaseStrategy(infilePath12,box,s0outfile12,debug)
+# runRappsipStrategy2(infilePath12,runs, larr,box,".5x",s2outfile12,debug)
+# prettyPrint(cvoutfile,s2outfile12,testfile12)
+plotS2(s2outfile12,testfile12,runs,larr)
+
+
+
+
+#end
