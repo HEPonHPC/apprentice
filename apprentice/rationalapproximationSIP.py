@@ -237,7 +237,7 @@ class RationalApproximationSIP():
                 lsqsplit = {}
                 l1term = self.computel1Term(coeffs,p_penaltyIndex,q_penaltyIndex)
                 lsqsplit['l1term'] = l1term
-                lsqsplit['l2term'] = leastSq - l1term
+                lsqsplit['l2term'] = leastSq - self.penaltyparam * l1term
                 data['leastSqSplit'] = lsqsplit
 
             # data['restartInfo'] = []
@@ -352,18 +352,18 @@ class RationalApproximationSIP():
     def computel1Term(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         l1Term = 0
         for index in p_penaltyIndexs:
-            term = self.penaltyparam * coeff[self.M+self.N+index]
+            term = coeff[self.M+self.N+index]
             if(abs(term) > 10**-5):
                 l1Term += term
         for index in q_penaltyIndexs:
-            term =  self.penaltyparam * coeff[self.M+self.N+self.M+index]
+            term = coeff[self.M+self.N+self.M+index]
             if(abs(term) > 10**-5):
                 l1Term += term
         return l1Term
 
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         sum = self.leastSqObj(coeff)
-        l1Term = self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
+        l1Term = self.penaltyparam * self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
         return sum+l1Term
 
     def abs1(self,coeff, index, pOrq="q"):
