@@ -145,7 +145,8 @@ class RationalApproximationSIP():
                 self._box = np.concatenate((self._box,newArr),axis=0)
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
-        if(self.trainingscale == ".5x"):
+        if(self.trainingscale == ".5x" or self.trainingscale == "0.5x"):
+            self.trainingscale == ".5x"
             self._trainingsize = int(0.5*(self.M+self.N))
         elif(self.trainingscale == "1x"):
             self._trainingsize = self.M+self.N
