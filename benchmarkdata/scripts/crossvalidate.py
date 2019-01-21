@@ -115,13 +115,10 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
-def runRappsipBaseStrategy(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",debug=0):
-	trainingScale = "Cp"
+def runRappsipBaseStrategy(infile,runs, box=np.array([[-1,1],[-1,1]]),trainingScale="1x", outfile="out.json",debug=0):
 
 	X, Y = tools.readData(infile)
 	outJSON = {}
-	runs = [[2,2],[2,3],[2,4],[3,2],[3,3],[3,4], [4,2],[4,3],[4,4]]
-	# runs = [[2,2],[3,3],[4,4],[5,5],[6,6]]
 	for r in runs:
 		pdeg=r[0]
 		qdeg=r[1]
@@ -184,6 +181,71 @@ def runRappsipStrategy2(infile,runs, larr,box=np.array([[-1,1],[-1,1]]),training
 	import json
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
+
+
+def plotS0(jsonfile, testfile, runs):
+	import json
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+	X_test, Y_test = readData(testfile)
+	karr = np.array([])
+	aic = np.array([])
+	bic = np.array([])
+	X_l2 = np.array([])
+	Z_testerr = np.array([])
+
+	for r in runs:
+		pdeg=r[0]
+		qdeg=r[1]
+		key = "p%s_q%s"%(str(pdeg),str(qdeg))
+		iterationInfo = datastore[key]["iterationinfo"]
+		lastii = iterationInfo[len(iterationInfo)-1]
+		trainerr = lastii["leastSqObj"]
+		X_l2 = np.append(X_l2,trainerr)
+
+		rappsip = RationalApproximationSIP(datastore[key])
+		Y_pred = rappsip(X_test)
+		testerror = np.sum((Y_pred-Y_test)**2)
+		Z_testerr = np.append(Z_testerr,testerror)
+
+		k = 2
+		pcoeff = datastore[key]["pcoeff"]
+		qcoeff = datastore[key]["qcoeff"]
+		maxp = abs(max(pcoeff, key=abs))
+		maxq = abs(max(qcoeff, key=abs))
+		# print(np.c_[pcoeff])
+		# print(np.c_[qcoeff])
+		# print(maxp,maxq)
+		for pc in pcoeff:
+			if(pc > 10**-2*maxp):
+				k += 1
+		for qc in qcoeff:
+			if(qc > 10**-2*maxq):
+				k += 1
+		karr = np.append(karr,k)
+		n = len(X_test)
+		# AIC = 2k - 2log(L)
+		# BIC = klog(n) - 2log(L)
+		# -2log(L) becomes nlog(variance) = nlog(SSE/n) = nlog(testerror/n)
+		a = 2*k + n*np.log(testerror/n)
+		b = k*np.log(n) + n*np.log(testerror/n)
+
+		aic = np.append(aic,a)
+		bic = np.append(bic,b)
+
+	print("#\tpq\tl2 error\ttest err\tnnz\taic\t\tbic")
+	for i in range(len(runs)):
+		r = runs[i]
+		pdeg=r[0]
+		qdeg=r[1]
+		print("%d\tp%dq%d\t%f\t%f\t%d\t%f\t%f"%(i+1,pdeg,qdeg,X_l2[i],Z_testerr[i],karr[i],aic[i],bic[i]))
+
+	print("\nMIN\t\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Z_testerr)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
+
+
+
 
 def plotS2(jsonfile, testfile, runs, larr):
 	import json
@@ -577,11 +639,14 @@ runs = [[2,2],[2,3],[2,4],[2,5],[3,2],[3,3],[3,4],[3,5], [4,2],[4,3],[4,4],[4,5]
 larr = np.array([10**i for i in range(2,-8,-1)])
 
 # runCrossValidation(infilePath,box,cvoutfile,debug)
-# runRappsipBaseStrategy(infilePath12,box,s0outfile12,debug)
+
+# runRappsipBaseStrategy(infilePath12,runs, box,"1x",s0outfile12,debug)
+# plotS0(s0outfile12,testfile12,runs)
+
 # runRappsipStrategy2(infilePath12,runs, larr,box,".5x",s2outfile12,debug)
-# prettyPrint(cvoutfile,s2outfile12,testfile12)
 plotS2(s2outfile12,testfile12,runs,larr)
 
+# prettyPrint(cvoutfile,s2outfile12,testfile12)
 
 
 
