@@ -68,6 +68,23 @@ def f12(P):
     x, y = P
     return (x**2 + y**2 + x - y - 1)/(x**3+y**3+4)
 
+def f13(P):
+    x, y = P
+    return (x**3+y**3)/(x**2 + y**2 + 3)
+
+def f14(P):
+    x, y = P
+    return (x**4 + y**4 + x**2*y**2 + x*y)/((x**2-2)*(y**2-2))
+
+def f15(P):
+    x, y = P
+    return (x**3+y**3)/((x**2-2)*(y**2-2))
+
+def f16(P):
+    x, y = P
+    return (x**4 + y**4 + x**2*y**2 + x*y)/(x**3+y**3+4)
+
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -103,6 +120,18 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==12:
         Y_train = [f12(x) for x in X_train]
         Y_test  = [f12(x) for x in X_test]
+    elif fn==13:
+        Y_train = [f13(x) for x in X_train]
+        Y_test  = [f13(x) for x in X_test]
+    elif fn==14:
+        Y_train = [f14(x) for x in X_train]
+        Y_test  = [f14(x) for x in X_test]
+    elif fn==15:
+        Y_train = [f15(x) for x in X_train]
+        Y_test  = [f15(x) for x in X_test]
+    elif fn==16:
+        Y_train = [f16(x) for x in X_train]
+        Y_test  = [f16(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 

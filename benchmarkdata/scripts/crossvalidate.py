@@ -142,7 +142,11 @@ def runRappsipBaseStrategy(infile,runs, box=np.array([[-1,1],[-1,1]]),trainingSc
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
-def runRappsipStrategy2(infile,runs, larr,box=np.array([[-1,1],[-1,1]]),trainingScale="1x",outfile="out.json",debug=0):
+def runRappsipStrategy2(infile,runs, larr,l1strat="ho_p_q",box=np.array([[-1,1],[-1,1]]),trainingScale="0.5x",outfile="out.json",debug=0):
+
+# l1strat="ho_p_q"
+# l1strat="all_p_q"
+
 
 	X, Y = tools.readData(infile)
 	outJSON = {}
@@ -152,11 +156,16 @@ def runRappsipStrategy2(infile,runs, larr,box=np.array([[-1,1],[-1,1]]),training
 		for l in larr:
 			pdeg=r[0]
 			qdeg=r[1]
-			ppenaltybin = np.ones(pdeg+1)
-			ppenaltybin[pdeg] = 0
+			if(l1strat == "ho_p_q"):
+				ppenaltybin = np.ones(pdeg+1)
+				ppenaltybin[pdeg] = 0
 
-			qpenaltybin = np.ones(qdeg+1)
-			qpenaltybin[qdeg] = 0
+				qpenaltybin = np.ones(qdeg+1)
+				qpenaltybin[qdeg] = 0
+			elif(l1strat == "all_p_q"):
+				ppenaltybin = np.zeros(pdeg+1)
+				qpenaltybin = np.zeros(qdeg+1)
+
 
 			rappsip = RationalApproximationSIP(
 											X,
@@ -273,6 +282,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 	minbic = np.array([])
 	minparam = np.array([])
 	minnnz = np.array([])
+	minmn = np.array([])
 
 
 	for r in runs:
@@ -284,6 +294,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 		karr = np.array([])
 		aic = np.array([])
 		bic = np.array([])
+		mn = np.array([])
 		param = np.array([])
 		for l in larr:
 			key = "p%s_q%s_%.E"%(str(pdeg),str(qdeg),l)
@@ -326,12 +337,17 @@ def plotS2(jsonfile, testfile, runs, larr):
 			bic = np.append(bic,b)
 
 			param = np.append(param,l)
+			mn = np.append(mn,rappsip.M+rappsip.N)
 
 		print("p = "+str(pdeg)+"; q = "+str(qdeg))
 		print("#\tl2 error\tl1 error\ttest err\tnnz\taic\t\tbic")
 		for i in range(len(larr)):
 			print("%d\t%f\t%f\t%f\t%d\t%f\t%f"%(i+1,X_l2[i],Y_l1[i],Z_testerr[i],karr[i], aic[i],bic[i]))
 		print("\nMIN\t%d\t\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Y_l1)+1,np.argmin(Z_testerr)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
+
+
+
+
 		# axarr[pdeg-2][qdeg-2].plot(X_l2, Y_l1, '-rD')
 		# axarr[pdeg-2][qdeg-2].set_title("p = "+str(pdeg)+"; q = "+str(qdeg))
 
@@ -342,7 +358,8 @@ def plotS2(jsonfile, testfile, runs, larr):
 			minaic = np.append(minaic,np.min(aic))
 			minbic = np.append(minbic,np.min(bic))
 			minparam = np.append(minparam,param[minindexarr[0]])
-			minnnz  = np.append(minnnz,param[minindexarr[0]])
+			minnnz  = np.append(minnnz,karr[minindexarr[0]])
+			minmn = np.append(minmn,mn[minindexarr[0]])
 		# 2 elements match
 		elif len(set(arr)) == 2:
 			# find the 2 mathcing elements and take values from all arrays at that index
@@ -351,13 +368,15 @@ def plotS2(jsonfile, testfile, runs, larr):
 				minaic = np.append(minaic,aic[minindexarr[0]])
 				minbic = np.append(minbic,bic[minindexarr[0]])
 				minparam = np.append(minparam,param[minindexarr[0]])
-				minnnz  = np.append(minnnz,param[minindexarr[0]])
+				minnnz  = np.append(minnnz,karr[minindexarr[0]])
+				minmn = np.append(minmn,mn[minindexarr[0]])
 			elif minindexarr[1]==minindexarr[2]:
 				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[1]])
 				minaic = np.append(minaic,aic[minindexarr[1]])
 				minbic = np.append(minbic,bic[minindexarr[1]])
 				minparam = np.append(minparam,param[minindexarr[1]])
-				minnnz  = np.append(minnnz,param[minindexarr[1]])
+				minnnz  = np.append(minnnz,karr[minindexarr[1]])
+				minmn = np.append(minmn,mn[minindexarr[1]])
 		# no elements match. Highly unlikely that we will be here
 		else:
 			#take the case where test arr is minimum
@@ -365,14 +384,26 @@ def plotS2(jsonfile, testfile, runs, larr):
 			minaic = np.append(minaic,aic[minindexarr[0]])
 			minbic = np.append(minbic,bic[minindexarr[0]])
 			minparam = np.append(minparam,param[minindexarr[0]])
-			minnnz  = np.append(minnnz,param[minindexarr[0]])
+			minnnz  = np.append(minnnz,karr[minindexarr[0]])
+			minmn = np.append(minmn,mn[minindexarr[0]])
 
+
+	print("#\tpq\ttesterr\t\tM+N\tNNZ\taic\t\tbic\t\tlambda")
 	for i in range(len(runs)):
 		pdeg = runs[i][0]
 		qdeg = runs[i][1]
-		print("%d\tp%dq%d\t%f\t%f\t%f\t%.2E"%(i+1,pdeg,qdeg,mintesterrArr[i],minaic[i],minbic[i],minparam[i]))
+		print("%d\tp%dq%d\t%f\t%d\t%d\t%f\t%f\t%.2E"%(i+1,pdeg,qdeg,mintesterrArr[i],minmn[i],minnnz[i],minaic[i],minbic[i],minparam[i]))
 
-	print("\nMIN\t\t%d\t\t%d\t\t%d\n"%(np.argmin(mintesterrArr)+1,np.argmin(minaic)+1,np.argmin(minbic)+1))
+	print("\n")
+
+	sortedmnindex = np.argsort(minmn)
+	print("#\tpq\ttesterr\t\tM+N\tNNZ\taic\t\tbic\t\tlambda")
+	for i in sortedmnindex:
+		pdeg = runs[i][0]
+		qdeg = runs[i][1]
+		print("%d\tp%dq%d\t%f\t%d\t%d\t%f\t%f\t%.2E"%(i+1,pdeg,qdeg,mintesterrArr[i],minmn[i],minnnz[i],minaic[i],minbic[i],minparam[i]))
+
+	print("\nMIN\t\t%d\t\t%d\t%d\t%d\t\t%d\n"%(np.argmin(mintesterrArr)+1,np.argmin(minmn)+1,np.argmin(minnnz)+1,np.argmin(minaic)+1,np.argmin(minbic)+1))
 
 
 	# for ax in axarr.flat:
@@ -640,10 +671,11 @@ larr = np.array([10**i for i in range(2,-8,-1)])
 
 # runCrossValidation(infilePath,box,cvoutfile,debug)
 
-# runRappsipBaseStrategy(infilePath12,runs, box,"1x",s0outfile12,debug)
+# runRappsipBaseStrategy(infilePath12,runs, box,"Cp",s0outfile12,debug)
 # plotS0(s0outfile12,testfile12,runs)
 
-# runRappsipStrategy2(infilePath12,runs, larr,box,".5x",s2outfile12,debug)
+# runRappsipStrategy2(infilePath12,runs, larr,"all_p_q", box,".5x",s2outfile12,debug)
+runRappsipStrategy2(infilePath12,runs, larr,"ho_p_q", box,"2x",s2outfile12,debug)
 plotS2(s2outfile12,testfile12,runs,larr)
 
 # prettyPrint(cvoutfile,s2outfile12,testfile12)

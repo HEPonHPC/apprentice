@@ -27,6 +27,14 @@ def getData(X_train, fn, noisepct):
         Y_train = [testData.f10(x) for x in X_train]
     elif fn==12:
         Y_train = [testData.f12(x) for x in X_train]
+    elif fn==13:
+        Y_train = [testData.f13(x) for x in X_train]
+    elif fn==14:
+        Y_train = [testData.f14(x) for x in X_train]
+    elif fn==15:
+        Y_train = [testData.f15(x) for x in X_train]
+    elif fn==16:
+        Y_train = [testData.f16(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
