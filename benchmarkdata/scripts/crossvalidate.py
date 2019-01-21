@@ -210,6 +210,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 	minaic = np.array([])
 	minbic = np.array([])
 	minparam = np.array([])
+	minnnz = np.array([])
 
 
 	for r in runs:
@@ -279,6 +280,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 			minaic = np.append(minaic,np.min(aic))
 			minbic = np.append(minbic,np.min(bic))
 			minparam = np.append(minparam,param[minindexarr[0]])
+			minnnz  = np.append(minnnz,param[minindexarr[0]])
 		# 2 elements match
 		elif len(set(arr)) == 2:
 			# find the 2 mathcing elements and take values from all arrays at that index
@@ -287,11 +289,13 @@ def plotS2(jsonfile, testfile, runs, larr):
 				minaic = np.append(minaic,aic[minindexarr[0]])
 				minbic = np.append(minbic,bic[minindexarr[0]])
 				minparam = np.append(minparam,param[minindexarr[0]])
+				minnnz  = np.append(minnnz,param[minindexarr[0]])
 			elif minindexarr[1]==minindexarr[2]:
 				mintesterrArr = np.append(mintesterrArr,Z_testerr[minindexarr[1]])
 				minaic = np.append(minaic,aic[minindexarr[1]])
 				minbic = np.append(minbic,bic[minindexarr[1]])
 				minparam = np.append(minparam,param[minindexarr[1]])
+				minnnz  = np.append(minnnz,param[minindexarr[1]])
 		# no elements match. Highly unlikely that we will be here
 		else:
 			#take the case where test arr is minimum
@@ -299,6 +303,7 @@ def plotS2(jsonfile, testfile, runs, larr):
 			minaic = np.append(minaic,aic[minindexarr[0]])
 			minbic = np.append(minbic,bic[minindexarr[0]])
 			minparam = np.append(minparam,param[minindexarr[0]])
+			minnnz  = np.append(minnnz,param[minindexarr[0]])
 
 	for i in range(len(runs)):
 		pdeg = runs[i][0]
