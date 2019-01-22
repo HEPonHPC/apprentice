@@ -32,7 +32,7 @@ def readH5(fname, idx=[0], xfield="params", yfield="values"):
     Read X,Y values etc from HDF5 file.
     By default, only the first object is read.
     The X and Y-value dataset names depend on the file of course, so we allow
-    specifying wha to use. yfield can be values|errors with the test files.
+    specifying what to use. yfield can be values|errors with the test files.
     Returns a list of tuples of arrays : [ (X1, Y1), (X2, Y2), ...]
     The X-arrays are n-dimensional, the Y-arrays are always 1D
     """
@@ -80,7 +80,8 @@ def readData(fname, delimiter=","):
     D = np.loadtxt(fname, delimiter=delimiter)
     X=D[:,0:-1]
     Y=D[:,-1]
-    return X, Y
+    USE = np.where( (~np.isinf(Y))  & (~np.isnan(Y)) )
+    return X[USE], Y[USE]
 
 def readApprentice(fname):
     """
