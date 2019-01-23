@@ -35,6 +35,12 @@ def getData(X_train, fn, noisepct):
         Y_train = [testData.f15(x) for x in X_train]
     elif fn==16:
         Y_train = [testData.f16(x) for x in X_train]
+    elif fn==17:
+        Y_train = [testData.f17(x) for x in X_train]
+    elif fn==18:
+        Y_train = [testData.f18(x) for x in X_train]
+    elif fn==19:
+        Y_train = [testData.f19(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
@@ -91,26 +97,8 @@ if __name__ == "__main__":
         minarr.append(opts.MIN)
         maxarr.append(opts.MAX)
 
-    mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,minarr,maxarr,opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
-
-    # np.random.seed(opts.SEED)
-    #
-    # X = np.random.rand(opts.NPOINTS, opts.DIM)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
-    #
-    # if opts.CORNERS:
-    #     formatStr = "{0:0%db}"%(opts.DIM)
-    #     for d in range(2**opts.DIM):
-    #         binArr = [int(x) for x in formatStr.format(d)[0:]]
-    #         val = []
-    #         for i in range(opts.DIM):
-    #             if(binArr[i] == 0):
-    #                 val.append(opts.MIN)
-    #             else:
-    #                 val.append(opts.MAX)
-    #         X[d] = val
-    #
-    # if(opts.NOISEPCT < 0 or opts.NOISEPCT >1):
-    #     raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(opts.NOISEPCT))
-    # Y = getData(X, fn=opts.FUNCTION, noisepct=opts.NOISEPCT)
-    #
-    # np.savetxt(opts.OUTFILE, np.hstack((X,Y.T)), delimiter=",")
+    # Special call for f17
+    if(opts.FUNCTION ==17):
+        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,3,[80,5,90],[100,10,93],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
+    else:
+        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,minarr,maxarr,opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)

@@ -84,6 +84,29 @@ def f16(P):
     x, y = P
     return (x**4 + y**4 + x**2*y**2 + x*y)/(x**3+y**3+4)
 
+"""
+Breit-Wigner
+"""
+def f17(P):
+    E, G, M = P
+    def gamma(M, G):
+        return np.sqrt(M*M * (M*M + G*G))
+
+    def kprop(M, G):
+        y = gamma(M,G)
+        return (2*np.sqrt(2) * M * G * y ) / (np.pi * np.sqrt(M*M + y))
+
+    return kprop(M, G) / ( (E*E - M*M)*(E*E - M*M) + M*M*G )
+
+
+def f18(P):
+    # Box for P [-0.95, 0.95)
+    x1, x2, x3, x4 = P
+    return np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3)+np.arctanh(x4)/((x1**2-1)*(x2**-1))
+
+def f19(P):
+    x1, x2, x3, x4 = P
+    return np.exp(x1*x2*x3*x4)/(x1**2+x2**2-x3*x4+3)
 
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
@@ -132,6 +155,15 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==16:
         Y_train = [f16(x) for x in X_train]
         Y_test  = [f16(x) for x in X_test]
+    elif fn==17:
+        Y_train = [f17(x) for x in X_train]
+        Y_test  = [f17(x) for x in X_test]
+    elif fn==18:
+        Y_train = [f18(x) for x in X_train]
+        Y_test  = [f18(x) for x in X_test]
+    elif fn==19:
+        Y_train = [f19(x) for x in X_train]
+        Y_test  = [f19(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
