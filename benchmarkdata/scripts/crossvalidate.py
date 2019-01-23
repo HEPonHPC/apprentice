@@ -192,7 +192,7 @@ def runRappsipStrategy2(infile,runs, larr,l1strat="ho_p_q",box=np.array([[-1,1],
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
 
-def plotS0(jsonfile, testfile, runs):
+def tableS0(jsonfile, testfile, runs):
 	import json
 	if jsonfile:
 		with open(jsonfile, 'r') as fn:
@@ -257,9 +257,112 @@ def plotS0(jsonfile, testfile, runs):
 	print("\nMIN\t\t%d\t\t%d\t\t%d\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Z_testerr)+1,np.argmin(mn)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
 
 
+def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, pltdescr,outfile1,outfile2):
+	# LT, RT, LB, RB
+	X_test, Y_test = readData(testfile)
+	testerractuals = {}
+	testerrindex = {}
+	for i in range(len(jsonfilearr)):
+		jsonfile = jsonfilearr[i]
+		import json
+		if jsonfile:
+			with open(jsonfile, 'r') as fn:
+				datastore = json.load(fn)
+		testerrarr = np.zeros(shape=(6,6),dtype=np.float64)
+		for r in runs:
+			pdeg=r[0]
+			qdeg=r[1]
+			key = "p%s_q%s"%(str(pdeg),str(qdeg))
+			print(key)
+			# iterationInfo = datastore[key]["iterationinfo"]
+			# lastii = iterationInfo[len(iterationInfo)-1]
+
+			rappsip = RationalApproximationSIP(datastore[key])
+			Y_pred = rappsip(X_test)
+			testerror = np.average((Y_pred-Y_test)**2)
+			testerrarr[pdeg-1][qdeg-1] = testerror
 
 
-def plotS2(jsonfile, testfile, runs, larr):
+		testerractuals[i] = testerrarr
+		sortedindexarr = np.argsort(-testerrarr,axis=None)[::-1].argsort()
+		sortedindexarr = np.reshape(sortedindexarr,(6,6))
+		testerrindex[i] = sortedindexarr
+
+		print(testerrarr)
+		print(sortedindexarr)
+		print(np.argmin(testerrarr), np.min(testerrarr), np.max(testerrarr))
+
+	import matplotlib as mpl
+	import matplotlib.pyplot as plt
+	mpl.rc('text', usetex = True)
+	mpl.rc('font', family = 'serif', size=12)
+	mpl.style.use("ggplot")
+	cmapname   = 'viridis'
+	X,Y = np.meshgrid(range(1,7), range(1,7))
+	f, axarr = plt.subplots(2,2, sharex=True, sharey=True, figsize=(15,15))
+	f.suptitle(pltdescr + " -- log(test error)", fontsize = 28)
+	markersize = 1000
+	vmin = -8
+	vmax = -1
+
+	for i in range(2):
+		for j in range(2):
+			testerrarr = testerractuals[i*2+j]
+			sc = axarr[i][j].scatter(X,Y, marker = 's', s=markersize, c = np.ma.log10(testerrarr), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+			axarr[i][j].set_title(jsonfiledescrarr[i*2+j], fontsize = 28)
+
+	for ax in axarr.flat:
+		ax.set(xlim=(0,7),ylim=(0,7))
+		ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
+		ax.tick_params(axis = 'both', which = 'minor', labelsize = 18)
+		ax.set_xlabel('$m$', fontsize = 22)
+		ax.set_ylabel('$n$', fontsize = 22)
+	for ax in axarr.flat:
+		ax.label_outer()
+	b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
+
+    # b.set_label("Error = $log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 28)
+
+	plt.savefig(outfile1)
+
+	import matplotlib as mpl
+	import matplotlib.pyplot as plt
+	mpl.rc('text', usetex = True)
+	mpl.rc('font', family = 'serif', size=12)
+	mpl.style.use("ggplot")
+	cmapname   = 'viridis'
+	X,Y = np.meshgrid(range(1,7), range(1,7))
+	f, axarr = plt.subplots(2,2, sharex=True, sharey=True, figsize=(15,15))
+	f.suptitle(pltdescr + " -- ordered test error index", fontsize = 28)
+	markersize = 1000
+	vmin = 0
+	vmax = 36
+
+	for i in range(2):
+		for j in range(2):
+			sortedindexarr = testerrindex[i*2+j]
+			sc = axarr[i][j].scatter(X,Y, marker = 's', s=markersize, c = sortedindexarr, cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+			axarr[i][j].set_title(jsonfiledescrarr[i*2+j], fontsize = 28)
+
+	for ax in axarr.flat:
+		ax.set(xlim=(0,7),ylim=(0,7))
+		ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
+		ax.tick_params(axis = 'both', which = 'minor', labelsize = 18)
+		ax.set_xlabel('$n$', fontsize = 22)
+		ax.set_ylabel('$m$', fontsize = 22)
+	for ax in axarr.flat:
+		ax.label_outer()
+	b=f.colorbar(sc,ax=axarr.ravel().tolist(), shrink=0.95)
+
+    # b.set_label("Error = $log_{10}\\left(\\frac{\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_%i}{%i}\\right)$"%(norm,testSize), fontsize = 28)
+
+	plt.savefig(outfile2)
+
+
+
+
+
+def tableS2(jsonfile, testfile, runs, larr):
 	import json
 	# Lcurve
 	if jsonfile:
@@ -662,33 +765,57 @@ debug = 1
 infilePathNN = "../f8.txt"
 s0outfileNN = "test/f8_s0_out.299445.json"
 
-infilePath12 = "../f12_noisepct10-1.txt"
+infilePath12_10_1 = "../f12_noisepct10-1.txt"
+infilePath12_10_3 = "../f12_noisepct10-3.txt"
 s0outfile12 = "test/f12_noisepct10-1_s0_out.299445.json"
-s2outfile12 = "test/f12_noisepct10-1_s2_out.299445.json"
+s0outfile12_1x_10_1 = "test/f12_noisepct10-1_s0_out_1x.299445.json"
+s0outfile12_2x_10_1 = "test/f12_noisepct10-1_s0_out_2x.299445.json"
+s0outfile12_1x_10_3 = "test/f12_noisepct10-3_s0_out_1x.299445.json"
+s0outfile12_2x_10_3 = "test/f12_noisepct10-3_s0_out_2x.299445.json"
 testfile12 = "../f12_test.txt"
 
-infilePath13 = "../f13_noisepct10-1.txt"
+infilePath13_10_1 = "../f13_noisepct10-1.txt"
+infilePath13_10_3 = "../f13_noisepct10-3.txt"
 s0outfile13 = "test/f13_noisepct10-1_s0_out.299445.json"
-s2outfile13 = "test/f13_noisepct10-1_s2_out.299445.json"
+s0outfile13_1x_10_1 = "test/f13_noisepct10-1_s0_out_1x.299445.json"
+s0outfile13_2x_10_1 = "test/f13_noisepct10-1_s0_out_2x.299445.json"
+s0outfile13_1x_10_3 = "test/f13_noisepct10-3_s0_out_1x.299445.json"
+s0outfile13_2x_10_3 = "test/f13_noisepct10-3_s0_out_2x.299445.json"
 testfile13 = "../f13_test.txt"
 
-infilePath14 = "../f14_noisepct10-1.txt"
+infilePath14_10_1 = "../f14_noisepct10-1.txt"
+infilePath14_10_3 = "../f14_noisepct10-3.txt"
 s0outfile14 = "test/f14_noisepct10-1_s0_out.299445.json"
-s2outfile14 = "test/f14_noisepct10-1_s2_out.299445.json"
+s0outfile14_1x_10_1 = "test/f14_noisepct10-1_s0_out_1x.299445.json"
+s0outfile14_2x_10_1 = "test/f14_noisepct10-1_s0_out_2x.299445.json"
+s0outfile14_1x_10_3 = "test/f14_noisepct10-3_s0_out_1x.299445.json"
+s0outfile14_2x_10_3 = "test/f14_noisepct10-3_s0_out_2x.299445.json"
 testfile14 = "../f14_test.txt"
 
-infilePath15 = "../f15_noisepct10-1.txt"
+infilePath15_10_1 = "../f15_noisepct10-1.txt"
+infilePath15_10_3 = "../f15_noisepct10-3.txt"
 s0outfile15 = "test/f15_noisepct10-1_s0_out.299445.json"
-s2outfile15 = "test/f15_noisepct10-1_s2_out.299445.json"
+s0outfile15_1x_10_1 = "test/f15_noisepct10-1_s0_out_1x.299445.json"
+s0outfile15_2x_10_1 = "test/f15_noisepct10-1_s0_out_2x.299445.json"
+s0outfile15_1x_10_3 = "test/f15_noisepct10-3_s0_out_1x.299445.json"
+s0outfile15_2x_10_3 = "test/f15_noisepct10-3_s0_out_2x.299445.json"
 testfile15 = "../f15_test.txt"
 
-infilePath16 = "../f16_noisepct10-1.txt"
+infilePath16_10_1 = "../f16_noisepct10-1.txt"
+infilePath16_10_3 = "../f16_noisepct10-3.txt"
 s0outfile16 = "test/f16_noisepct10-1_s0_out.299445.json"
-s2outfile16 = "test/f16_noisepct10-1_s2_out.299445.json"
+s0outfile16_1x_10_1 = "test/f16_noisepct10-1_s0_out_1x.299445.json"
+s0outfile16_2x_10_1 = "test/f16_noisepct10-1_s0_out_2x.299445.json"
+s0outfile16_1x_10_3 = "test/f16_noisepct10-3_s0_out_1x.299445.json"
+s0outfile16_2x_10_3 = "test/f16_noisepct10-3_s0_out_2x.299445.json"
 testfile16 = "../f16_test.txt"
 
 # runs = [[2,2],[3,3],[4,4],[5,5]]
-runs = [[2,2],[2,3],[2,4],[2,5],[2,6],[3,2],[3,3],[3,4],[3,5],[3,6], [4,2],[4,3],[4,4],[4,5],[4,6], [5,2],[5,3],[5,4],[5,5],[5,6],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6]]
+runs = []
+for i in range(1,7):
+	for j in range(1,7):
+		runs.append([i,j])
+
 # runs = [[6,3],[7,3],[7,4],[7,5],[7,6],[7,7]]
 # larr = np.array([10**i for i in np.linspace(3,-8,23)])
 larr = np.array([10**i for i in range(2,-8,-1)])
@@ -696,33 +823,57 @@ larr = np.array([10**i for i in range(2,-8,-1)])
 # runCrossValidation(infilePath,box,cvoutfile,debug)
 
 # runRappsipBaseStrategy(infilePath12,runs, box,"1x",s0outfile12,debug)
-# plotS0(s0outfile12,testfile12,runs)
+# tableS0(s0outfile12,testfile12,runs)
 #
 # runRappsipBaseStrategy(infilePath13,runs, box,"1x",s0outfile13,debug)
-# plotS0(s0outfile13,testfile13,runs)
+# tableS0(s0outfile13,testfile13,runs)
 #
 # runRappsipBaseStrategy(infilePath14,runs, box,"1x",s0outfile14,debug)
-# plotS0(s0outfile14,testfile14,runs)
+# tableS0(s0outfile14,testfile14,runs)
 #
 #
 # runRappsipBaseStrategy(infilePath15,runs, box,"1x",s0outfile15,debug)
-# plotS0(s0outfile15,testfile15,runs)
+# tableS0(s0outfile15,testfile15,runs)
 #
 # runRappsipBaseStrategy(infilePath16,runs, box,"1x",s0outfile16,debug)
-# plotS0(s0outfile16,testfile16,runs)
+# tableS0(s0outfile16,testfile16,runs)
 
 # runRappsipStrategy2(infilePath12, runs, larr,"all_p_q", box,".5x",s2outfile12,debug)
 # runRappsipStrategy2(infilePath13, runs, larr,"all_p_q", box,"0.5x",s2outfile13,debug)
-runRappsipStrategy2(infilePath12, runs, larr,"ho_p_q", box,"1x",s2outfile12,debug)
-plotS2(s2outfile12,testfile12,runs,larr)
-runRappsipStrategy2(infilePath13, runs, larr,"ho_p_q", box,"1x",s2outfile13,debug)
-plotS2(s2outfile13,testfile13,runs,larr)
+# runRappsipStrategy2(infilePath12, runs, larr,"ho_p_q", box,"1x",s2outfile12,debug)
+# tableS0(s2outfile12,testfile12,runs,larr)
+# runRappsipStrategy2(infilePath13, runs, larr,"ho_p_q", box,"1x",s2outfile13,debug)
+# tableS0(s2outfile13,testfile13,runs,larr)
 # runRappsipStrategy2(infilePath14, runs, larr,"ho_p_q", box,"1x",s2outfile14,debug)
 # runRappsipStrategy2(infilePath13, runs, larr,"all_p_q", box,"0.5x",s2outfile13,debug)
-# plotS2(s2outfile13,testfile13,runs,larr)
+# tableS0(s2outfile13,testfile13,runs,larr)
 
 # prettyPrint(cvoutfile,s2outfile12,testfile12)
 
+# runRappsipBaseStrategy(infilePath12_10_1, runs, box, "1x", s0outfile12_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath12_10_1, runs, box, "2x", s0outfile12_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath12_10_3, runs, box, "1x", s0outfile12_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath12_10_3, runs, box, "2x", s0outfile12_2x_10_3,debug=1)
+plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs, "f12","test/f12.299445.png","test/f12_index.299445.png")
 
+# runRappsipBaseStrategy(infilePath13_10_1, runs, box, "1x", s0outfile13_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath13_10_1, runs, box, "2x", s0outfile13_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath13_10_3, runs, box, "1x", s0outfile13_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath13_10_3, runs, box, "2x", s0outfile13_2x_10_3,debug=1)
+#
+# runRappsipBaseStrategy(infilePath14_10_1, runs, box, "1x", s0outfile14_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath14_10_1, runs, box, "2x", s0outfile14_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath14_10_3, runs, box, "1x", s0outfile14_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath14_10_3, runs, box, "2x", s0outfile14_2x_10_3,debug=1)
+#
+# runRappsipBaseStrategy(infilePath15_10_1, runs, box, "1x", s0outfile15_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath15_10_1, runs, box, "2x", s0outfile15_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath15_10_3, runs, box, "1x", s0outfile15_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath15_10_3, runs, box, "2x", s0outfile15_2x_10_3,debug=1)
+#
+# runRappsipBaseStrategy(infilePath16_10_1, runs, box, "1x", s0outfile16_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath16_10_1, runs, box, "2x", s0outfile16_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath16_10_3, runs, box, "1x", s0outfile16_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath16_10_3, runs, box, "2x", s0outfile16_2x_10_3,debug=1)
 
 #end
