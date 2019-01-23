@@ -257,8 +257,11 @@ def tableS0(jsonfile, testfile, runs):
 	print("\nMIN\t\t%d\t\t%d\t\t%d\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Z_testerr)+1,np.argmin(mn)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
 
 
-def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, pltdescr,outfile1,outfile2):
+def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 	# LT, RT, LB, RB
+	outfile1 = folder+"/"+fno+".299445.png"
+	outfile2 = folder+"/"+fno+"_index.299445.png"
+	print (outfile1,outfile2)
 	X_test, Y_test = readData(testfile)
 	testerractuals = {}
 	testerrindex = {}
@@ -300,7 +303,7 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, pltdescr,outfil
 	cmapname   = 'viridis'
 	X,Y = np.meshgrid(range(1,7), range(1,7))
 	f, axarr = plt.subplots(2,2, sharex=True, sharey=True, figsize=(15,15))
-	f.suptitle(pltdescr + " -- log(test error)", fontsize = 28)
+	f.suptitle(fno + " -- log(test error)", fontsize = 28)
 	markersize = 1000
 	vmin = -8
 	vmax = -1
@@ -333,7 +336,7 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, pltdescr,outfil
 	cmapname   = 'viridis'
 	X,Y = np.meshgrid(range(1,7), range(1,7))
 	f, axarr = plt.subplots(2,2, sharex=True, sharey=True, figsize=(15,15))
-	f.suptitle(pltdescr + " -- ordered test error index", fontsize = 28)
+	f.suptitle(fno + " -- ordered test error index", fontsize = 28)
 	markersize = 1000
 	vmin = 0
 	vmax = 36
@@ -854,26 +857,29 @@ larr = np.array([10**i for i in range(2,-8,-1)])
 # runRappsipBaseStrategy(infilePath12_10_1, runs, box, "2x", s0outfile12_2x_10_1,debug=1)
 # runRappsipBaseStrategy(infilePath12_10_3, runs, box, "1x", s0outfile12_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath12_10_3, runs, box, "2x", s0outfile12_2x_10_3,debug=1)
-plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs, "f12","test/f12.299445.png","test/f12_index.299445.png")
+# plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs, "f12","test")
 
-# runRappsipBaseStrategy(infilePath13_10_1, runs, box, "1x", s0outfile13_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_1, runs, box, "2x", s0outfile13_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_3, runs, box, "1x", s0outfile13_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_3, runs, box, "2x", s0outfile13_2x_10_3,debug=1)
-#
-# runRappsipBaseStrategy(infilePath14_10_1, runs, box, "1x", s0outfile14_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_1, runs, box, "2x", s0outfile14_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs, box, "1x", s0outfile14_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs, box, "2x", s0outfile14_2x_10_3,debug=1)
-#
-# runRappsipBaseStrategy(infilePath15_10_1, runs, box, "1x", s0outfile15_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_1, runs, box, "2x", s0outfile15_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs, box, "1x", s0outfile15_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs, box, "2x", s0outfile15_2x_10_3,debug=1)
-#
-# runRappsipBaseStrategy(infilePath16_10_1, runs, box, "1x", s0outfile16_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_1, runs, box, "2x", s0outfile16_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs, box, "1x", s0outfile16_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs, box, "2x", s0outfile16_2x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath13_10_1, runs, box, "1x", s0outfile13_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath13_10_1, runs, box, "2x", s0outfile13_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath13_10_3, runs, box, "1x", s0outfile13_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath13_10_3, runs, box, "2x", s0outfile13_2x_10_3,debug=1)
+plotmntesterr([s0outfile13_1x_10_1,s0outfile13_2x_10_1,s0outfile13_1x_10_3,s0outfile13_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile13, runs, "f13","test")
 
+runRappsipBaseStrategy(infilePath14_10_1, runs, box, "1x", s0outfile14_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_1, runs, box, "2x", s0outfile14_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs, box, "1x", s0outfile14_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs, box, "2x", s0outfile14_2x_10_3,debug=1)
+plotmntesterr([s0outfile14_1x_10_1,s0outfile14_2x_10_1,s0outfile14_1x_10_3,s0outfile14_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile14, runs, "f14","test")
+
+runRappsipBaseStrategy(infilePath15_10_1, runs, box, "1x", s0outfile15_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_1, runs, box, "2x", s0outfile15_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs, box, "1x", s0outfile15_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs, box, "2x", s0outfile15_2x_10_3,debug=1)
+plotmntesterr([s0outfile15_1x_10_1,s0outfile15_2x_10_1,s0outfile15_1x_10_3,s0outfile15_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile15, runs, "f15","test")
+
+runRappsipBaseStrategy(infilePath16_10_1, runs, box, "1x", s0outfile16_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_1, runs, box, "2x", s0outfile16_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs, box, "1x", s0outfile16_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs, box, "2x", s0outfile16_2x_10_3,debug=1)
+plotmntesterr([s0outfile16_1x_10_1,s0outfile16_2x_10_1,s0outfile16_1x_10_3,s0outfile16_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile16, runs, "f16","test")
 #end

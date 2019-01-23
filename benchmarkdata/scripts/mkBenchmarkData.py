@@ -44,6 +44,34 @@ def getData(X_train, fn, noisepct):
 
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 
+def mkData(function,seed,npoints,dim,minarr,maxarr,corners,noisepct,outfile):
+    np.random.seed(seed)
+
+    Xperdim = ()
+    for d in range(dim):
+        Xperdim = Xperdim + (np.random.rand(npoints,)*(maxarr[d]-minarr[d])+minarr[d],) # Coordinates are generated in [MIN,MAX]
+
+    X = np.column_stack(Xperdim)
+
+    if corners:
+        formatStr = "{0:0%db}"%(dim)
+        for d in range(2**dim):
+            binArr = [int(x) for x in formatStr.format(d)[0:]]
+            val = []
+            for i in range(dim):
+                if(binArr[i] == 0):
+                    val.append(minarr[i])
+                else:
+                    val.append(maxarr[i])
+            X[d] = val
+
+    if(noisepct < 0 or noisepct >1):
+        raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(noisepct))
+    Y = getData(X, fn=function, noisepct=noisepct)
+
+    np.savetxt(outfile, np.hstack((X,Y.T)), delimiter=",")
+
+
 if __name__ == "__main__":
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
@@ -57,25 +85,32 @@ if __name__ == "__main__":
     op.add_option("-c", "--corners", dest="CORNERS", default=False, action="store_true",  help="Include corners (default: %default)")
     op.add_option("-d", dest="DIM", default=2, type=int,  help="Dimension (default: %default)")
     opts, args = op.parse_args()
+    minarr = []
+    maxarr = []
+    for d in range(opts.DIM):
+        minarr.append(opts.MIN)
+        maxarr.append(opts.MAX)
 
-    np.random.seed(opts.SEED)
+    mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,minarr,maxarr,opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
 
-    X = np.random.rand(opts.NPOINTS, opts.DIM)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
-
-    if opts.CORNERS:
-        formatStr = "{0:0%db}"%(opts.DIM)
-        for d in range(2**opts.DIM):
-            binArr = [int(x) for x in formatStr.format(d)[0:]]
-            val = []
-            for i in range(opts.DIM):
-                if(binArr[i] == 0):
-                    val.append(opts.MIN)
-                else:
-                    val.append(opts.MAX)
-            X[d] = val
-
-    if(opts.NOISEPCT < 0 or opts.NOISEPCT >1):
-        raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(opts.NOISEPCT))
-    Y = getData(X, fn=opts.FUNCTION, noisepct=opts.NOISEPCT)
-
-    np.savetxt(opts.OUTFILE, np.hstack((X,Y.T)), delimiter=",")
+    # np.random.seed(opts.SEED)
+    #
+    # X = np.random.rand(opts.NPOINTS, opts.DIM)*(opts.MAX-opts.MIN)+opts.MIN # Coordinates are generated in [MIN,MAX]
+    #
+    # if opts.CORNERS:
+    #     formatStr = "{0:0%db}"%(opts.DIM)
+    #     for d in range(2**opts.DIM):
+    #         binArr = [int(x) for x in formatStr.format(d)[0:]]
+    #         val = []
+    #         for i in range(opts.DIM):
+    #             if(binArr[i] == 0):
+    #                 val.append(opts.MIN)
+    #             else:
+    #                 val.append(opts.MAX)
+    #         X[d] = val
+    #
+    # if(opts.NOISEPCT < 0 or opts.NOISEPCT >1):
+    #     raise Exception("Percentage of standard normal nose should be between 0 and 1 and not %f"%(opts.NOISEPCT))
+    # Y = getData(X, fn=opts.FUNCTION, noisepct=opts.NOISEPCT)
+    #
+    # np.savetxt(opts.OUTFILE, np.hstack((X,Y.T)), delimiter=",")
