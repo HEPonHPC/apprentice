@@ -361,7 +361,7 @@ class RationalApproximationSIP():
                 x0 = np.zeros(self.dim, dtype=np.float64)
                 for d in range(self.dim):
                     x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
-            ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
+            ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B', options={'maxiter': 1000,'ftol': 1e-2, 'disp': False})
             x = ret.get('x')
             robO = ret.get('fun')
             if(minrobO > robO):
