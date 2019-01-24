@@ -224,14 +224,16 @@ class RationalApproximationSIP():
             data['iterationNo'] = iter
             ret = {}
             if(self.strategy == 2):
-                ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'iprint': 0,'ftol': 1e-6, 'disp': False})
+                ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-2, 'disp': False})
             else:
-                ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'iprint': 0,'ftol': 1e-6, 'disp': False})
+                ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-2, 'disp': False})
+            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit')}
             coeffs = ret.get('x')
             # print(ret)
             # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
             # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
             leastSq = ret.get('fun')
+            data['optimizationStatus'] = optstatus
             data['leastSqObj'] = leastSq
             data['pcoeff'] = coeffs[0:self.M].tolist()
             data['qcoeff'] = coeffs[self.M:self.M+self.N].tolist()
@@ -290,7 +292,9 @@ class RationalApproximationSIP():
             cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
 
         if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]['robOptInfo']["robustObj"]<threshold):
-            raise Exception("Could not find a robust objective")
+            import json
+            j = json.dumps(self._iterationinfo,indent=4, sort_keys=True)
+            raise Exception(j+"\nCould not find a robust objective")
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
 
