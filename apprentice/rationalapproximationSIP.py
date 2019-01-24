@@ -33,9 +33,11 @@ class RationalApproximationSIP():
                                 1: min ||f*p(x)_m/q(x)_n||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
                                 2: min ||f*p(x)_m/q(x)_n||^2_2 + lambda*||c_pq|| sub. to q(x)_n >=1
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
+                                ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
-                                mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
                                 baron: pyomo with baron
+                                ss_ms_ba: runs single start, multistart and baron and does a comparison for a certain threshold of objective values
+                                mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
             penaltyparam    --- lambda to use for strategy 2 --- if omitted: auto 0.1 used
             penaltybin      --- penalty binary array for numberator and denomintor of the bits to keep active in strategy 1 and put in penalty term for activity 2
                                 represented in a 2D array of shape(2,(m/n)+1) where for each numberator and denominator, the bits represent penalized coeffecient degrees and constant (1: not peanlized, 0 penalized)
@@ -244,16 +246,42 @@ class RationalApproximationSIP():
             # data['restartInfo'] = []
             robO = 0
             x = []
-            if(self._roboptstrategy == 'ms'):
+            if(self._roboptstrategy == 'ss'):
+                maxRestarts = 1
+                x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
+            elif(self._roboptstrategy == 'ms'):
                 maxRestarts = 10
                 x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
-                data['robOptInfo'] = restartInfo
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'mlsl'):
                 x, robO, restartInfo = self.mlslRobO(coeffs,threshold)
-                data['robOptInfo'] = restartInfo
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'baron'):
                 x, robO, restartInfo = self.baronPyomoRobO(coeffs,threshold)
-                data['robOptInfo'] = restartInfo
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
+            elif(self._roboptstrategy == 'ss_ms_ba'):
+                maxRestarts = 1
+                ssx, ssrobO, ssrestartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                maxRestarts = 10
+                msx, msrobO, msrestartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                bax, barobO, barestartInfo = self.baronPyomoRobO(coeffs,threshold)
+                robOarr = np.array([ssrobO,msrobO,barobO])
+                xdict = {0:ssx,1:msx,2:bax}
+                robO = np.min(robOarr)
+                x = xdict[np.argmin(robOarr)]
+                diffarr = np.array([])
+                if(abs(ssrobO-msrobO) > 0.1):
+                    diffarr = np.append(diffarr,"ss = %f ms = %f"%(ssrobO,msrobO))
+                if(abs(ssrobO-barobO) > 0.1):
+                    diffarr = np.append(diffarr,"ss = %f ba = %f"%(ssrobO,barobO))
+                if(abs(msrobO-barobO) > 0.1):
+                    diffarr = np.append(diffarr,"ms = %f ba = %f"%(msrobO,barobO))
+                restartInfo = {'ssInfo':ssrestartInfo,'msInfo':msrestartInfo,'baInfo':barestartInfo}
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo,'diff':diffarr.tolist()}
+
+
+
 
             self._iterationinfo.append(data)
             if(robO >= threshold):
@@ -261,7 +289,7 @@ class RationalApproximationSIP():
             q_ipo_new = monomial.recurrence(x,self._struct_q)
             cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
 
-        if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]["robustObj"]<threshold):
+        if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]['robOptInfo']["robustObj"]<threshold):
             raise Exception("Could not find a robust objective")
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
@@ -318,9 +346,9 @@ class RationalApproximationSIP():
         return x, robO, info
 
     def multipleRestartRobO(self, coeffs, maxRestarts = 10, threshold=0.2):
-        robO = 0
-        x = []
+        minx = []
         restartInfo = []
+        minrobO = np.inf
         for r in range(maxRestarts):
             x0 = []
             if(r == 0):
@@ -332,11 +360,14 @@ class RationalApproximationSIP():
             ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B')
             x = ret.get('x')
             robO = ret.get('fun')
+            if(minrobO > robO):
+                minrobO = robO
+                minx = x
             rinfo = {'robustArg':x.tolist(),'robustObj':robO}
             restartInfo.append(rinfo)
             if(robO < threshold):
                 break
-        return x, robO, restartInfo
+        return minx, minrobO, restartInfo
 
     def leastSqObj(self,coeff):
         sum = 0
