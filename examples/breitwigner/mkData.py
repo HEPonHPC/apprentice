@@ -30,5 +30,26 @@ import matplotlib.pyplot as plt
 plt.scatter(E, T)
 plt.savefig("breitwigner.pdf")
 
+
+X = np.zeros((NPOINTS, 3))
+D = np.zeros((NPOINTS, 4))
+
+X[:,0]=E
+X[:,1]=G
+X[:,2]=M
+
+
+import apprentice
+S=apprentice.Scaler(X)
+
+X_scaled = S.scale(X)
+Y = np.array([BW(*x) for x in X])
+
+D[:,[0,1,2]]=X_scaled
+D[:,3] = Y
+
 # Store as CSV
 np.savetxt("breitwigner.csv", [(e,m,g, BW(e,m,g)) for e,m,g in zip(E,M,G)], delimiter=',')
+
+# Store as CSV, write out scaled parameter points
+np.savetxt("breitwigner_scaled.csv", D, delimiter=',')
