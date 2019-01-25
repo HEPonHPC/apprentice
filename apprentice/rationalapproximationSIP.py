@@ -224,9 +224,9 @@ class RationalApproximationSIP():
             data['iterationNo'] = iter
             ret = {}
             if(self.strategy == 2):
-                ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-2, 'disp': False})
+                ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
             else:
-                ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-2, 'disp': False})
+                ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
             optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit')}
             coeffs = ret.get('x')
             # print(ret)
