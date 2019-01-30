@@ -759,6 +759,36 @@ def prettyPrint(cvjsonfile,jsonfile, testfile):
 	print(s)
 
 
+def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
+	import json
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+
+	print("Function#: %d. training scale = %s. e = %s"%(fno, trainingscale,e))
+	print("m\tn\titer#\tss\t\tms\t\tbaron")
+	for r in runs:
+		pdeg=r[0]
+		qdeg=r[1]
+		key = "p%s_q%s"%(str(pdeg),str(qdeg))
+		iterationInfo = datastore[key]["iterationinfo"]
+		for iter in iterationInfo:
+			iterno = iter['iterationNo']
+			robOptInfo = iter['robOptInfo']
+			if(len(robOptInfo['diff'])!=0):
+				ss = robOptInfo['info']['ssInfo'][0]['robustObj']
+				ba = robOptInfo['info']['baInfo'][0]['robustObj']
+				msInfo = robOptInfo['info']['msInfo']
+				ms = min([msInfo[i]['robustObj'] for i in range(len(msInfo))])
+				spl = ""
+				if ba<=0.2 and ss>0.2:
+					spl += "* #"
+				else: spl = "  #"
+				if ba<=0.2 and ms>0.2:
+					spl += " *"
+				print("%d\t%d\t%d\t%f\t%f\t%f\t%s"%(pdeg,qdeg,iterno,ss,ms,ba,spl))
+
+
 infilePath = "../f8_noisepct10-3.txt"
 
 cvoutfile = "test/f8_noisepct10-3_cv_out.299445.json"
@@ -858,8 +888,8 @@ for i in range(1,7):
 		runs2D.append([i,j])
 
 runs3D = []
-for i in range(1,7):
-	for j in range(1,7):
+for i in range(2,7):
+	for j in range(4,7):
 		constantpluslinear = 4
 		if(tools.numCoeffsPoly(3, j)-constantpluslinear<=50):
 			runs3D.append([i,j])
@@ -871,19 +901,20 @@ for i in range(1,7):
 		if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
 			runs4D.append([i,j])
 
-box17 = np.array([[80,100],[5, 10],[90, 93]])
+box17 = np.array([[-1,1],[-1,1],[-1,1]])
 box18 = np.array([[-0.95,0.95],[-0.95,0.95],[-0.95,0.95],[-0.95,0.95]])
 box19 = np.array([[-1,1],[-1,1],[-1,1],[-1,1]])
 
 larr = np.array([10**i for i in range(2,-8,-1)])
 
-roboptstrategy = "ss_ms_ba"
+roboptstrategy = "ss_ms_so_ba"
 
 # runs = [[6,3],[7,3],[7,4],[7,5],[7,6],[7,7]]
 # larr = np.array([10**i for i in np.linspace(3,-8,23)])
 
-
+##############################################
 # runCrossValidation(infilePath,box,cvoutfile,debug)
+
 
 # runRappsipBaseStrategy(infilePath12,runs2D, box,"1x",s0outfile12,debug)
 # tableS0(s0outfile12,testfile12,runs2D)
@@ -913,55 +944,82 @@ roboptstrategy = "ss_ms_ba"
 
 # prettyPrint(cvoutfile,s2outfile12,testfile12)
 
-# runRappsipBaseStrategy(infilePath12_10_1, runs2D, box, "1x", roboptstrategy, s0outfile12_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath12_10_1, runs2D, box, "2x", roboptstrategy, s0outfile12_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath12_10_3, runs2D, box, "1x", roboptstrategy, s0outfile12_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath12_10_3, runs2D, box, "2x", roboptstrategy, s0outfile12_2x_10_3,debug=1)
-# plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs2D, "f12","test")
-#
-# runRappsipBaseStrategy(infilePath13_10_1, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_1, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_3,debug=1)
-# plotmntesterr([s0outfile13_1x_10_1,s0outfile13_2x_10_1,s0outfile13_1x_10_3,s0outfile13_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile13, runs2D, "f13","test")
-#
-# runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=1)
-# plotmntesterr([s0outfile14_1x_10_1,s0outfile14_2x_10_1,s0outfile14_1x_10_3,s0outfile14_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile14, runs2D, "f14","test")
-#
-# runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_3,debug=1)
-# plotmntesterr([s0outfile15_1x_10_1,s0outfile15_2x_10_1,s0outfile15_1x_10_3,s0outfile15_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile15, runs2D, "f15","test")
-#
-# runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
-# plotmntesterr([s0outfile16_1x_10_1,s0outfile16_2x_10_1,s0outfile16_1x_10_3,s0outfile16_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile16, runs2D, "f16","test")
-
-# runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_3,debug=1)
-# plotmntesterr([s0outfile17_1x_10_1,s0outfile17_2x_10_1,s0outfile17_1x_10_3,s0outfile17_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile17, runs3D, "f17","test")
-
-
-# runRappsipBaseStrategy(infilePath18_10_1, runs4D, box18, "1x", roboptstrategy, s0outfile18_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath18_10_1, runs4D, box18, "2x", roboptstrategy, s0outfile18_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath18_10_3, runs4D, box18, "1x", roboptstrategy, s0outfile18_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath18_10_3, runs4D, box18, "2x", roboptstrategy, s0outfile18_2x_10_3,debug=1)
-# plotmntesterr([s0outfile18_1x_10_1,s0outfile18_2x_10_1,s0outfile18_1x_10_3,s0outfile18_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile18, runs4D, "f18","test")
-
+##############################################
 
 # runRappsipBaseStrategy(infilePath10_10_1, runs4D, box19, "1x", roboptstrategy, s0outfile10_1x_10_1,debug=1)
+
+##############################################
+
+runRappsipBaseStrategy(infilePath12_10_1, runs2D, box, "1x", roboptstrategy, s0outfile12_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath12_10_1, runs2D, box, "2x", roboptstrategy, s0outfile12_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath12_10_3, runs2D, box, "1x", roboptstrategy, s0outfile12_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath12_10_3, runs2D, box, "2x", roboptstrategy, s0outfile12_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath13_10_1, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath13_10_1, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath18_10_1, runs4D, box18, "1x", roboptstrategy, s0outfile18_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath18_10_1, runs4D, box18, "2x", roboptstrategy, s0outfile18_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath18_10_3, runs4D, box18, "1x", roboptstrategy, s0outfile18_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath18_10_3, runs4D, box18, "2x", roboptstrategy, s0outfile18_2x_10_3,debug=1)
 
 runRappsipBaseStrategy(infilePath19_10_1, runs4D, box19, "1x", roboptstrategy, s0outfile19_1x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath19_10_1, runs4D, box19, "2x", roboptstrategy, s0outfile19_2x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "1x", roboptstrategy, s0outfile19_1x_10_3,debug=1)
 runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s0outfile19_2x_10_3,debug=1)
+
+
+##############################################
+
+plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs2D, "f12","test")
+plotmntesterr([s0outfile13_1x_10_1,s0outfile13_2x_10_1,s0outfile13_1x_10_3,s0outfile13_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile13, runs2D, "f13","test")
+plotmntesterr([s0outfile14_1x_10_1,s0outfile14_2x_10_1,s0outfile14_1x_10_3,s0outfile14_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile14, runs2D, "f14","test")
+plotmntesterr([s0outfile15_1x_10_1,s0outfile15_2x_10_1,s0outfile15_1x_10_3,s0outfile15_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile15, runs2D, "f15","test")
+plotmntesterr([s0outfile16_1x_10_1,s0outfile16_2x_10_1,s0outfile16_1x_10_3,s0outfile16_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile16, runs2D, "f16","test")
+plotmntesterr([s0outfile17_1x_10_1,s0outfile17_2x_10_1,s0outfile17_1x_10_3,s0outfile17_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile17, runs3D, "f17","test")
+plotmntesterr([s0outfile18_1x_10_1,s0outfile18_2x_10_1,s0outfile18_1x_10_3,s0outfile18_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile18, runs4D, "f18","test")
 plotmntesterr([s0outfile19_1x_10_1,s0outfile19_2x_10_1,s0outfile19_1x_10_3,s0outfile19_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile19, runs4D, "f19","test")
+
+##############################################
+# for fno in range(12,17):
+# 	for e in ["10-1", "10-3"]:
+# 		for scale in ["1x","2x"]:
+# 			jsonfile = "test/f%d_noisepct%s_s0_out_%s.299445.json"%(fno,e,scale)
+# 			printRobOdiff(jsonfile, runs2D, fno,scale,e)
+# 			print("\n")
+#
+# for fno in range(18,19):
+# 	for e in ["10-1", "10-3"]:
+# 		for scale in ["1x","2x"]:
+# 			jsonfile = "test/f%d_noisepct%s_s0_out_%s.299445.json"%(fno,e,scale)
+# 			printRobOdiff(jsonfile, runs4D, fno,scale,e)
+# 			print("\n")
+
+
+
+
+
+
 #end
