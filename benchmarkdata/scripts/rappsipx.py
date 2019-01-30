@@ -888,18 +888,18 @@ for i in range(1,7):
 		runs2D.append([i,j])
 
 runs3D = []
-for i in range(2,7):
-	for j in range(4,7):
-		constantpluslinear = 4
-		if(tools.numCoeffsPoly(3, j)-constantpluslinear<=50):
-			runs3D.append([i,j])
+for i in range(1,7):
+	for j in range(1,7):
+		# constantpluslinear = 4
+		# if(tools.numCoeffsPoly(3, j)-constantpluslinear<=50):
+		runs3D.append([i,j])
 
 runs4D = []
 for i in range(1,7):
 	for j in range(1,7):
-		constantpluslinear = 5
-		if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
-			runs4D.append([i,j])
+		# constantpluslinear = 5
+		# if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
+		runs4D.append([i,j])
 
 box17 = np.array([[-1,1],[-1,1],[-1,1]])
 box18 = np.array([[-0.95,0.95],[-0.95,0.95],[-0.95,0.95],[-0.95,0.95]])
@@ -993,14 +993,14 @@ runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s
 
 ##############################################
 
-plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs2D, "f12","test")
-plotmntesterr([s0outfile13_1x_10_1,s0outfile13_2x_10_1,s0outfile13_1x_10_3,s0outfile13_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile13, runs2D, "f13","test")
-plotmntesterr([s0outfile14_1x_10_1,s0outfile14_2x_10_1,s0outfile14_1x_10_3,s0outfile14_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile14, runs2D, "f14","test")
-plotmntesterr([s0outfile15_1x_10_1,s0outfile15_2x_10_1,s0outfile15_1x_10_3,s0outfile15_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile15, runs2D, "f15","test")
-plotmntesterr([s0outfile16_1x_10_1,s0outfile16_2x_10_1,s0outfile16_1x_10_3,s0outfile16_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile16, runs2D, "f16","test")
-plotmntesterr([s0outfile17_1x_10_1,s0outfile17_2x_10_1,s0outfile17_1x_10_3,s0outfile17_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile17, runs3D, "f17","test")
-plotmntesterr([s0outfile18_1x_10_1,s0outfile18_2x_10_1,s0outfile18_1x_10_3,s0outfile18_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile18, runs4D, "f18","test")
-plotmntesterr([s0outfile19_1x_10_1,s0outfile19_2x_10_1,s0outfile19_1x_10_3,s0outfile19_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile19, runs4D, "f19","test")
+# plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs2D, "f12","test")
+# plotmntesterr([s0outfile13_1x_10_1,s0outfile13_2x_10_1,s0outfile13_1x_10_3,s0outfile13_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile13, runs2D, "f13","test")
+# plotmntesterr([s0outfile14_1x_10_1,s0outfile14_2x_10_1,s0outfile14_1x_10_3,s0outfile14_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile14, runs2D, "f14","test")
+# plotmntesterr([s0outfile15_1x_10_1,s0outfile15_2x_10_1,s0outfile15_1x_10_3,s0outfile15_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile15, runs2D, "f15","test")
+# plotmntesterr([s0outfile16_1x_10_1,s0outfile16_2x_10_1,s0outfile16_1x_10_3,s0outfile16_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile16, runs2D, "f16","test")
+# plotmntesterr([s0outfile17_1x_10_1,s0outfile17_2x_10_1,s0outfile17_1x_10_3,s0outfile17_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile17, runs3D, "f17","test")
+# plotmntesterr([s0outfile18_1x_10_1,s0outfile18_2x_10_1,s0outfile18_1x_10_3,s0outfile18_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile18, runs4D, "f18","test")
+# plotmntesterr([s0outfile19_1x_10_1,s0outfile19_2x_10_1,s0outfile19_1x_10_3,s0outfile19_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile19, runs4D, "f19","test")
 
 ##############################################
 # for fno in range(12,17):
