@@ -366,7 +366,15 @@ class RationalApproximationSIP():
         model.x = environ.Var(model.dimrange, bounds=self.variableBound)
         model.robO = environ.Objective(rule=self.robObjPyomo, sense=1)
         opt = environ.SolverFactory('baron')
-        ret = opt.solve(model)
+
+        pyomodebug = 0
+        if(pyomodebug == 0):
+            ret = opt.solve(model)
+        elif(pyomodebug == 1):
+            ret = opt.solve(model,tee=True)
+            model.pprint()
+            ret.write()
+
         robO = model.robO()
         x = np.array([model.x[i].value for i in range(self._dim)])
         info = [{'robustArg':x.tolist(),'robustObj':robO}]
