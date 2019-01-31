@@ -378,17 +378,36 @@ class RationalApproximationSIP():
         model.robO = environ.Objective(rule=self.robObjPyomo, sense=1)
         opt = environ.SolverFactory('baron')
 
+        """
+        Control where the log file is written by passing “logfile=<name>”
+        to the solve method.
+
+        If you want to print solver log to console, add tee=True to solve method
+
+        If you want the solution and problem files to be logged,
+        you can set keepfiles=True for that file to not be deleted.
+
+        Also, if you set keepfiles to True, you can find the location of Solver log file,
+        Solver problem files, and Solver solution file printed on console (usually
+        located in /var/folders/)
+        """
         pyomodebug = 0
         if(pyomodebug == 0):
             ret = opt.solve(model)
         elif(pyomodebug == 1):
-            ret = opt.solve(model,tee=True)
+            import uuid
+            uniquefn = str(uuid.uuid4())
+            logfn = "/tmp/%s.log"%(uniquefn)
+            print("Log file name: %s"%(logfn))
+            ret = opt.solve(model,tee=True,logfile=logfn)
             model.pprint()
             ret.write()
 
+        optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
+
         robO = model.robO()
         x = np.array([model.x[i].value for i in range(self._dim)])
-        info = [{'robustArg':x.tolist(),'robustObj':robO}]
+        info = [{'robustArg':x.tolist(),'robustObj':robO,'log':optstatus}]
 
         return x, robO, info
 
