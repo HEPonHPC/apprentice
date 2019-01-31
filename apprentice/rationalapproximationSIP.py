@@ -2,6 +2,7 @@ import numpy as np
 from apprentice import monomial
 from apprentice import tools
 from scipy.optimize import minimize
+from timeit import default_timer as timer
 
 
 # from sklearn.base import BaseEstimator, RegressorMixin
@@ -224,17 +225,20 @@ class RationalApproximationSIP():
             data = {}
             data['iterationNo'] = iter
             ret = {}
+            start = timer()
             if(self.strategy == 2):
                 ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
             else:
                 ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit')}
+            end = timer()
+            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
+
             coeffs = ret.get('x')
             # print(ret)
             # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
             # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
             leastSq = ret.get('fun')
-            data['optimizationStatus'] = optstatus
+            data['log'] = optstatus
             data['leastSqObj'] = leastSq
             data['pcoeff'] = coeffs[0:self.M].tolist()
             data['qcoeff'] = coeffs[self.M:self.M+self.N].tolist()
@@ -276,7 +280,6 @@ class RationalApproximationSIP():
                 msx, msrobO, msrestartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
 
                 # ba
-                from timeit import default_timer as timer
                 start = timer()
                 bax, barobO, barestartInfo = self.baronPyomoRobO(coeffs,threshold)
                 end = timer()
@@ -302,7 +305,7 @@ class RationalApproximationSIP():
                 diffd['so2x'] = sorobO2
                 diffd['so3x'] = sorobO3
                 diffd['so4x'] = sorobO4
-                restartInfo = {'ssInfo':ssrestartInfo,'msInfo':msrestartInfo,'baInfo':barestartInfo,'ss1xInfo':soinfo1,'ss2xInfo':soinfo2,'ss3xInfo':soinfo3,'ss4xInfo':soinfo4}
+                restartInfo = {'ssInfo':ssrestartInfo,'msInfo':msrestartInfo,'baInfo':barestartInfo,'so1xInfo':soinfo1,'so2xInfo':soinfo2,'so3xInfo':soinfo3,'so4xInfo':soinfo4}
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo,'diff':diffd}
             else: raise Exception("rob opt strategy unknown")
 
@@ -322,7 +325,8 @@ class RationalApproximationSIP():
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
 
     def solveRobO(self, coeff, threshold=0.2,maxEvals=50000):
-        info = [{'maxEvals':maxEvals}]
+        start = timer()
+        info = []
         minx = []
         minq = np.inf
         actualEvals = maxEvals
@@ -345,7 +349,8 @@ class RationalApproximationSIP():
             if(q < threshold):
                 actualEvals = r+1
                 break
-        info.append({'actualEvals':actualEvals})
+        end = timer()
+        info.append({'log':{'maxEvals':maxEvals,'actualEvals':actualEvals,'time':end-start}})
         return minx, minq, info
 
 
@@ -382,6 +387,9 @@ class RationalApproximationSIP():
         return x, robO, info
 
 
+    """
+    MLSL with LBFGS does not converge. Untested. Not fixed. DO NOT USE!!!
+    """
     def mlslRobO(self,coeffs, threshold=0.2):
         import nlopt
         localopt = nlopt.opt(nlopt.LD_LBFGS, self._dim)
@@ -420,14 +428,16 @@ class RationalApproximationSIP():
                 x0 = np.zeros(self.dim, dtype=np.float64)
                 for d in range(self.dim):
                     x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
+            start = timer()
             ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B', options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit')}
+            end = timer()
+            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
             x = ret.get('x')
             robO = ret.get('fun')
             if(minrobO > robO):
                 minrobO = robO
                 minx = x
-            rinfo = {'robustArg':x.tolist(),'robustObj':robO, 'optimizationStatus':optstatus}
+            rinfo = {'robustArg':x.tolist(),'robustObj':robO, 'log':optstatus}
             restartInfo.append(rinfo)
             if(robO < threshold):
                 break
