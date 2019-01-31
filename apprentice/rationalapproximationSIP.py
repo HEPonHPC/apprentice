@@ -91,6 +91,8 @@ class RationalApproximationSIP():
     def qcoeff(self): return self._qcoeff
     @property
     def iterationinfo(self): return self._iterationinfo
+    @property
+    def fittime(self): return self._fittime
 
     def mkFromJSON(self, fname):
         import json
@@ -106,6 +108,7 @@ class RationalApproximationSIP():
         self._n             = pdict["n"]
         self._M             = pdict["M"]
         self._N             = pdict["N"]
+        self._fittime       = pdict["log"]["fittime"]
         self._strategy      = pdict["strategy"]
         self._roboptstrategy= pdict["roboptstrategy"]
         self._box           = np.array(pdict["box"],dtype=np.float64)
@@ -179,7 +182,10 @@ class RationalApproximationSIP():
         for i in range(self.trainingsize):
             self._ipo[i][0] = monomial.recurrence(self._X[i,:],self._struct_p)
             self._ipo[i][1]= monomial.recurrence(self._X[i,:],self._struct_q)
+        start = timer()
         self.fit()
+        end = timer()
+        self._fittime = end-start
 
     def fit(self):
         # Strategies:
@@ -598,6 +604,7 @@ class RationalApproximationSIP():
         d['n'] = self._n
         d['M'] = self._M
         d['N'] = self._N
+        d["log"] = {"fittime":self._fittime}
         d['strategy'] = self._strategy
         d['roboptstrategy'] = self._roboptstrategy
         d['box'] = self._box.tolist()
