@@ -30,9 +30,9 @@ class RationalApproximationSIP():
                                 Cp is 100% of the data
             box             --- box (2D array of dim X [min,max]) within which to perform the approximation --- if omitted: auto dim X [-1, 1] used
             strategy        --- strategy to use --- if omitted: auto 0 used
-                                0: min ||f*q(x)_m - p(x)_n||^2_2 sub. to q(x)_n >=1
-                                1: min ||f*q(x)_m - p(x)_n||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
-                                2: min ||f*q(x)_m - p(x)_n||^2_2 + lambda*||c_pq||_1 sub. to q(x)_n >=1
+                                0: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1
+                                1: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
+                                2: min ||f*q(x)_n - p(x)_m||^2_2 + lambda*||c_pq||_1 sub. to q(x)_n >=1
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
