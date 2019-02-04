@@ -914,8 +914,8 @@ for i in range(1,7):
 		runs3D.append([i,j])
 
 runs4D = []
-for i in range(1,7):
-	for j in range(1,7):
+for i in range(1,6):
+	for j in range(1,6):
 		# constantpluslinear = 5
 		# if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
 		runs4D.append([i,j])
