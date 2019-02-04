@@ -261,11 +261,11 @@ class RationalApproximationSIP():
             x = []
             if(self._roboptstrategy == 'ss'):
                 maxRestarts = 1
-                x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'ms'):
                 maxRestarts = 10
-                x, robO, restartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'mlsl'):
                 x, robO, restartInfo = self.mlslRobO(coeffs,threshold)
@@ -274,29 +274,26 @@ class RationalApproximationSIP():
                 x, robO, restartInfo = self.baronPyomoRobO(coeffs,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'solve'):
-                x, robO, info = self.solveRobO(coeff=coeffs,threshold=threshold)
+                x, robO, info = self.solveForEvalsRobO(coeff=coeffs,threshold=threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':info}
             elif(self._roboptstrategy == 'ss_ms_so_ba'):
                 # ss
                 maxRestarts = 1
-                ssx, ssrobO, ssrestartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
-
-                # ms
-                maxRestarts = 10
-                msx, msrobO, msrestartInfo = self.multipleRestartRobO(coeffs,maxRestarts,threshold)
+                ssx, ssrobO, ssrestartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
+                sstime = ssrestartInfo[0]['log']['time'] #in sec
 
                 # ba
-                start = timer()
                 bax, barobO, barestartInfo = self.baronPyomoRobO(coeffs,threshold)
-                end = timer()
+                batime = barestartInfo[0]['log']['time']
+
+                # ms
+                msx, msrobO, msrestartInfo = self.multipleRestartForTimeRobO(coeffs,batime,threshold)
 
                 # so
-                onesolve = 2.74464035034e-05
-                maxEvals = int((end-start)/onesolve)
-                sox1, sorobO1, soinfo1 = self.solveRobO(coeff=coeffs,threshold=threshold, maxEvals=maxEvals)
-                sox2, sorobO2, soinfo2 = self.solveRobO(coeff=coeffs,threshold=threshold, maxEvals=2*maxEvals)
-                sox3, sorobO3, soinfo3 = self.solveRobO(coeff=coeffs,threshold=threshold, maxEvals=3*maxEvals)
-                sox4, sorobO4, soinfo4 = self.solveRobO(coeff=coeffs,threshold=threshold, maxEvals=4*maxEvals)
+                sox1, sorobO1, soinfo1 = self.solveForTimeRobO(coeff=coeffs,maxTime=batime,threshold=threshold)
+                sox2, sorobO2, soinfo2 = self.solveForTimeRobO(coeff=coeffs,maxTime=2*batime,threshold=threshold)
+                sox3, sorobO3, soinfo3 = self.solveForTimeRobO(coeff=coeffs,maxTime=3*batime,threshold=threshold)
+                sox4, sorobO4, soinfo4 = self.solveForTimeRobO(coeff=coeffs,maxTime=4*batime,threshold=threshold)
 
                 robOarr = np.array([ssrobO,msrobO,barobO,sorobO1,sorobO2,sorobO3,sorobO4])
                 xdict = {0:ssx,1:msx,2:bax,3:sox1,4:sox2,5:sox3,6:sox4}
@@ -330,34 +327,61 @@ class RationalApproximationSIP():
         self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
         self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
 
-    def solveRobO(self, coeff, threshold=0.2,maxEvals=50000):
-        start = timer()
+    def solveForTimeRobO(self, coeff, maxTime=5,threshold=0.2):
         info = []
         minx = []
         minq = np.inf
-        actualEvals = maxEvals
-        for r in range(maxEvals):
-            x=[]
-            if(r == 0):
-                x = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
-            else:
-                x = np.zeros(self.dim, dtype=np.float64)
-                for d in range(self.dim):
-                    x[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
-            q_ipo = monomial.recurrence(x,self._struct_q)
-            q = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
+        totaltime = 0
+        actualEvals = 0
+        while(totaltime < maxTime):
+            x, q, time = self.solveRobO(coeff,actualEvals)
             if(minq > q):
                 minq = q
                 minx = x
             if(q < 3*threshold):
                 rinfo = {'robustArg':x.tolist(),'robustObj':q}
                 info.append(rinfo)
+            totaltime += time
+            actualEvals += 1
+            if(q < threshold):
+                break
+        info.append({'log':{'maxEvals':actualEvals,'actualEvals':actualEvals,'time':totaltime}})
+        return minx, minq, info
+
+    def solveForEvalsRobO(self, coeff, maxEvals=50000,threshold=0.2):
+        info = []
+        minx = []
+        minq = np.inf
+        totaltime = 0
+        actualEvals = maxEvals
+        for r in range(maxEvals):
+            x, q, time = self.solveRobO(coeff,r)
+            if(minq > q):
+                minq = q
+                minx = x
+            if(q < 3*threshold):
+                rinfo = {'robustArg':x.tolist(),'robustObj':q}
+                info.append(rinfo)
+            totaltime += time
             if(q < threshold):
                 actualEvals = r+1
                 break
-        end = timer()
-        info.append({'log':{'maxEvals':maxEvals,'actualEvals':actualEvals,'time':end-start}})
+        info.append({'log':{'maxEvals':maxEvals,'actualEvals':actualEvals,'time':totaltime}})
         return minx, minq, info
+
+    def solveRobO(self, coeff,r):
+        x=[]
+        if(r == 0):
+            x = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
+        else:
+            x = np.zeros(self.dim, dtype=np.float64)
+            for d in range(self.dim):
+                x[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
+        start = timer()
+        q_ipo = monomial.recurrence(x,self._struct_q)
+        q = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
+        end = timer()
+        return x, q, end-start
 
 
     def variableBound(self, model, i):
@@ -441,24 +465,16 @@ class RationalApproximationSIP():
 
         return x, robO, info
 
-    def multipleRestartRobO(self, coeffs, maxRestarts = 10, threshold=0.2):
+    def multipleRestartForTimeRobO(self, coeffs, maxTime = 5,threshold=0.2):
         minx = []
         restartInfo = []
         minrobO = np.inf
-        for r in range(maxRestarts):
-            x0 = []
-            if(r == 0):
-                x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
-            else:
-                x0 = np.zeros(self.dim, dtype=np.float64)
-                for d in range(self.dim):
-                    x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
-            start = timer()
-            ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B', options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-            end = timer()
-            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
-            x = ret.get('x')
-            robO = ret.get('fun')
+        totaltime = 0
+        r = 0
+        while(totaltime < maxTime):
+            x, robO, optstatus = self.restartRobO(coeffs,r)
+            totaltime += optstatus['time']
+
             if(minrobO > robO):
                 minrobO = robO
                 minx = x
@@ -466,7 +482,47 @@ class RationalApproximationSIP():
             restartInfo.append(rinfo)
             if(robO < threshold):
                 break
+            r += 1
+        restartInfo.append({'log':{'time':totaltime, 'noRestarts':r}})
         return minx, minrobO, restartInfo
+
+    def multipleRestartForIterRobO(self, coeffs, maxRestarts = 10,threshold=0.2):
+        minx = []
+        restartInfo = []
+        minrobO = np.inf
+        totaltime = 0
+        norestarts = 0
+        for r in range(maxRestarts):
+            x, robO, optstatus = self.restartRobO(coeffs,r)
+            totaltime += optstatus['time']
+
+            if(minrobO > robO):
+                minrobO = robO
+                minx = x
+            rinfo = {'robustArg':x.tolist(),'robustObj':robO, 'log':optstatus}
+            restartInfo.append(rinfo)
+            if(robO < threshold):
+                break
+            norestarts += 1
+        restartInfo.append({'log':{'time':totaltime, 'noRestarts':norestarts}})
+        return minx, minrobO, restartInfo
+
+    def restartRobO(self, coeffs, r):
+        x0 = []
+        if(r == 0):
+            x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
+        else:
+            x0 = np.zeros(self.dim, dtype=np.float64)
+            for d in range(self.dim):
+                x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
+        start = timer()
+        ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B', options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        end = timer()
+        optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
+
+        x = ret.get('x')
+        robO = ret.get('fun')
+        return x, robO, optstatus
 
     def leastSqObj(self,coeff):
         sum = 0
