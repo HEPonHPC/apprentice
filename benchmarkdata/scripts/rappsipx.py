@@ -994,7 +994,7 @@ roboptstrategy = "ss_ms_so_ba"
 # runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
 
-runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_3,debug=1)
 runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_3,debug=1)
