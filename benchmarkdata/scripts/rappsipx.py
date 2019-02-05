@@ -529,6 +529,27 @@ def tableS2(jsonfile, testfile, runs, larr):
 
 	# P 0,1,2,3,5
 
+def createTable2structure(format = 'table'):
+	if(format == 'table'):
+		print("\t\tRational Approx\t\t\t\t\tPolynomial Approx")
+		print("#vars\t\tdeg num\t\tdeg denom\tDoF\t\tdeg\tDoF")
+		fmt = "%d\t\t%d\t\t%d\t\t%d\t\t%d\t%d"
+	elif(format == 'latex'):
+		print("Not implemented... Exiting Now!")
+		exit(1)
+
+	for dim in range(1,9):
+		for m in range(1,9):
+			for n in range(1,9):
+				M = tools.numCoeffsPoly(dim, m)
+				N = tools.numCoeffsPoly(dim, n)
+				o = 1
+				O = tools.numCoeffsPoly(dim, o)
+
+				while(O < M+N):
+					o += 1
+					O = tools.numCoeffsPoly(dim, o)
+				print(fmt%(dim,m,n,M+N,o,O))
 
 def createTable1(folder, format='table'):
 	import glob
@@ -668,6 +689,7 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 
 
 createTable1("test",'table')
+# createTable2structure()
 exit(1)
 infilePath = "../f8_noisepct10-3.txt"
 
