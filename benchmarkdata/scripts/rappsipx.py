@@ -530,233 +530,91 @@ def tableS2(jsonfile, testfile, runs, larr):
 	# P 0,1,2,3,5
 
 
-def prettyPrint(cvjsonfile,jsonfile, testfile):
+def createTable1(folder, format='table'):
+	import glob
 	import json
-	# if cvjsonfile:
-	# 	with open(cvjsonfile, 'r') as fn:
-	# 		datastore = json.load(fn)
-	#
-	#
-	# keylist = datastore.keys()
-	# keylist.sort()
-	# s=""
-	# s = "pq deg\tcparam\tparam\tl2term\t\tl1term\n\n"
-	# for key in keylist:
-	#
-	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
-	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-	# 	s += "%s\tmin\t%.0E\t%f\t%f\n"%(key,datastore[key]['minl'],lsqsplit['l2term'],lsqsplit['l1term'])
-	#
-	# 	iterationInfo = datastore[key]['min plus SE']["iterationinfo"]
-	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-	# 	s += "%s\tmpse\t%.0E\t%f\t%f\n"%(key,datastore[key]['mpsel'],lsqsplit['l2term'],lsqsplit['l1term'])
-	# 	s+="\naverage error\n"
-	#
-	#
-	# 	avgerror =  datastore[key]['avgerror']
-	# 	larr = np.array([10**i for i in range(3,-13,-1)])
-	# 	# for i in larr:
-	# 	# 	s += "%.1E\t"%(i)
-	# 	s+="\n"
-	# 	for i in avgerror:
-	# 		s += "%.4E\t"%(i)
-	# 	s+="\n\n"
-	#
+	import re
+	filelist = np.array(glob.glob(folder+"/*.json"))
+	filelist = np.sort(filelist)
+	currentfno = -1
+
+	sstime = 0.
+	ssfneg = 0.
+
+	mstime = 0.
+	msfneg = 0.
+
+	sotime = 0.
+	sofneg = 0.
+
+	batime = 0.
+	total = 0.
+
+	threshold = 0
+
+	if(format == 'table'):
+		print("\t\t\tSingle Start\t\t\tMulti Start\t\t\tSampling\t\t  Baron")
+		print("Function\t% False Neg\tAvg Time\t% False Neg\tAvg Time\t% False Neg\tAvg Time\tAvg Time")
+		fmt = "f%d\t\t%f\t%f\t%f\t%f\t%f\t%f\t%f"
+	elif(format == 'latex'):
+		print("&Single Start&Multi Start&Sampling&Baron")
+		print("Function&% False Neg&Avg Time&% False Neg&Avg Time&% False Neg&Avg Time&Avg Time")
+		fmt = "f%d&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f"
+
+	for file in filelist:
+		digits = [float(s) for s in re.findall(r'-?\d+\.?\d*', file)]
+		fno = int(digits[0])
+
+		if(fno != currentfno and currentfno !=-1):
+			print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+														(sofneg/total)*100,sotime/total,batime/total))
+			sstime = 0.
+			ssfneg = 0.
+
+			mstime = 0.
+			msfneg = 0.
+
+			sotime = 0.
+			sofneg = 0.
+
+			batime = 0.
+			total = 0.
+
+		currentfno = fno
+		if file:
+			with open(file, 'r') as fn:
+				datastore = json.load(fn)
+		for key in datastore.keys():
+			ii = datastore[key]['iterationinfo']
+			for iter in ii:
+				robOptInfo = iter['robOptInfo']
+				batime += robOptInfo['info']['baInfo'][0]['log']['time']
+				msinfo = robOptInfo['info']['msInfo']
+				mstime += msinfo[len(msinfo)-1]['log']['time']
+				so1xInfo = robOptInfo['info']['so1xInfo']
+				sotime += so1xInfo[len(so1xInfo)-1]['log']['time']
+				sstime += robOptInfo['info']['ssInfo'][0]['log']['time']
+				total += 1
+				diff = robOptInfo['diff']
+				ss = diff['ss']
+				ba = diff['ba']
+				ms = diff['ms']
+				so1x = diff['so1x']
+
+				if ba<=threshold and ss>threshold:
+					ssfneg += 1
+
+				if ba<=threshold and ms>threshold:
+					msfneg += 1
+
+				if ba<=threshold and so1x>threshold:
+					sofneg += 1
 
 
-
-	X_test, Y_test = readData(testfile)
-
-
-
-	# static for f8 and upto p4 and q4
-
-	# s+= "p coeffs obtained for lambda with minimum avg CV error\n"
-	# s+="origfn\t"
-	# for key in keylist:
-	# 	s+="%s\t\t"%(key)
-	# s+="\n"
-	# # P 0,1,2,3,5
-	# pcoeffO = [-1,-1,1,1,0,1]
-	# for i in range(15):
-	# 	if(i <= 3 or i == 5):
-	# 		s+= "%d\t"%(pcoeffO[i])
-	# 	else:
-	# 		s+="\t"
-	# 	for key in keylist:
-	# 		pcoeff = datastore[key]['min']["pcoeff"]
-	# 		if(i<len(pcoeff)):
-	# 			s+="%f\t"%(pcoeff[i])
-	# 		else: s+="\t\t"
-	# 	s+="\n"
-	#
-	# s+= "q coeffs obtained for lambda with minimum avg CV error\n"
-	# s+="origfn\t"
-	# for key in keylist:
-	# 	s+="%s\t\t"%(key)
-	# s+="\n"
-	# qcoeffO = [1.21,-1.1,-1.1,0,1,0]
-	# # Q 0,1,2,3,5
-	# for i in range(15):
-	# 	if(i <= 2 or i == 4):
-	# 		s+= "%.2f\t"%(qcoeffO[i])
-	# 	else:
-	# 		s+="\t"
-	# 	for key in keylist:
-	# 		qcoeff = datastore[key]['min']["qcoeff"]
-	# 		if(i < len(qcoeff)):
-	# 			s+="%f\t"%(qcoeff[i])
-	# 		else: s+="\t\t"
-	# 	s+="\n"
-	# s+="\n"
-	#
-
-	# f8
-	# pcoeffO = [-1,-1,1,1,0,1,0,0,0,0,0,0,0,0,0,0]
-	# qcoeffO = [1.21,-1.1,-1.1,0,1,0,0,0,0,0,0,0,0,0,0,0]
-
-	# f12
-	pcoeffO = [-1,-1,1,1,0,1,0,0,0,0,0,0,0,0,0,0]
-	qcoeffO = [4,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0]
+	print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+											(sofneg/total)*100,sotime/total,batime/total))
 
 
-	# for key in keylist:
-	# 	s+="\t%s\t"%(key)
-	# s+="\n"
-	#
-	# testerrarr = np.array([])
-	# s+= "testErr\t"
-	# for key in keylist:
-	# 	rappsip = RationalApproximationSIP(datastore[key]['min'])
-	# 	Y_pred = rappsip(X_test)
-	# 	# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
-	# 	error = np.average(abs(Y_pred-Y_test))
-	# 	testerrarr = np.append(testerrarr,error)
-	# 	s += "%.8f\t"%(error)
-	# s+="\n"
-	# trainerrarr = np.array([])
-	# s+= "l2term\t"
-	# for key in keylist:
-	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
-	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-	# 	trainerrarr = np.append(trainerrarr,lsqsplit['l2term'])
-	# 	s += "%f\t"%(lsqsplit['l2term'])
-	# s+="\n"
-	# s+= "l1term\t"
-	# for key in keylist:
-	# 	iterationInfo = datastore[key]['min']["iterationinfo"]
-	# 	lsqsplit = iterationInfo[len(iterationInfo)-1]["leastSqSplit"]
-	# 	s += "%f\t"%(lsqsplit['l1term'])
-	# s+="\n"
-	# s+= "param\t"
-	# for key in keylist:
-	# 	s += "%.E\t\t"%(datastore[key]['minl'])
-	# s+="\n\n"
-	#
-	# s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
-	# s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
-	#
-	# print(s)
-
-	if jsonfile:
-		with open(jsonfile, 'r') as fn:
-			datastore = json.load(fn)
-
-
-	keylist = datastore.keys()
-	keylist.sort()
-
-	s=""
-
-	s+= "p coeffs obtained \n"
-	s+="origfn\t"
-	for key in keylist:
-		s+="%s\t\t"%(key)
-	s+="\n"
-	# P 0,1,2,3,5
-
-	for i in range(28):
-		if(i>=len(pcoeffO) or pcoeffO[i] == 0):
-			s+= "\t"
-		else:
-			s+= "%d\t"%(pcoeffO[i])
-		for key in keylist:
-			pcoeff = datastore[key]["pcoeff"]
-			if(i<len(pcoeff)):
-				s+="%f\t"%(pcoeff[i])
-			else: s+="\t\t"
-		s+="\n"
-
-	s+= "q coeffs obtained \n"
-	s+="origfn\t"
-	for key in keylist:
-		s+="%s\t\t"%(key)
-	s+="\n"
-
-	# Q 0,1,2,3,5
-	for i in range(28):
-		if(i>=len(qcoeffO) or qcoeffO[i] == 0):
-			s+= "\t"
-		else:
-			s+= "%.2f\t"%(qcoeffO[i])
-		for key in keylist:
-			qcoeff = datastore[key]["qcoeff"]
-			if(i < len(qcoeff)):
-				s+="%f\t"%(qcoeff[i])
-			else: s+="\t\t"
-		s+="\n"
-	s+="\n"
-
-	for key in keylist:
-		s+="\t%s\t"%(key)
-	s+="\n"
-
-	testerrarr = np.array([])
-	s+= "testErr\t"
-	for key in keylist:
-		# print(datastore[key])
-		rappsip = RationalApproximationSIP(datastore[key])
-		Y_pred = rappsip(X_test)
-		# print(np.c_[Y_pred,Y_test,abs(Y_pred-Y_test)])
-		# print(np.c_[Y_pred,Y_test])
-		error = np.average(abs(Y_pred-Y_test))
-		testerrarr = np.append(testerrarr,error)
-		s += "%.8f\t"%(error)
-	s+="\n"
-	trainerrarr = np.array([])
-	s+= "l2term\t"
-	for key in keylist:
-		iterationInfo = datastore[key]["iterationinfo"]
-		lastii = iterationInfo[len(iterationInfo)-1]
-		trainerr = 0
-		if lastii.get("leastSqSplit") is not None:
-			trainerr = lastii["leastSqSplit"]["l2term"]
-		else:
-			trainerr = lastii["leastSqObj"]
-		trainerrarr = np.append(trainerrarr,trainerr)
-		s += "%f\t"%(trainerr)
-	s+="\n"
-
-	regerrarr = np.array([])
-	s+= "l1term\t"
-	for key in keylist:
-		iterationInfo = datastore[key]["iterationinfo"]
-		lastii = iterationInfo[len(iterationInfo)-1]
-		if lastii.get("leastSqSplit") is not None:
-			regerr = lastii["leastSqSplit"]["l1term"]
-			regerrarr = np.append(regerrarr,regerr)
-			s += "%f\t"%(regerr)
-		else:
-			s += "\t"
-	s+="\n\n"
-
-
-	s+="Min testing error was at %s with value %f.\n"%(keylist[np.argmin(testerrarr)],np.min(testerrarr))
-	s+="Min training error was at %s with value %f.\n"%(keylist[np.argmin(trainerrarr)],np.min(trainerrarr))
-	if(len(regerrarr)>0):
-		s+="Min Regularization error was at %s with value %f.\n"%(keylist[np.argmin(regerrarr)],np.min(regerrarr))
-
-	print(s)
 
 
 def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
@@ -767,6 +625,7 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 
 	print("Function#: %d. training scale = %s. e = %s"%(fno, trainingscale,e))
 	print("m\tn\titer#\tss\t\tms\t\tso1x\t\tso2x\t\tso3x\t\tso4x\t\tbaron")
+	threshold = 0
 	for r in runs:
 		pdeg=r[0]
 		qdeg=r[1]
@@ -786,28 +645,30 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 				so3x = diff['so3x']
 				so4x = diff['so4x']
 				spl = "\t\t\t"
-				if ba<=0.2 and ss>0.2:
+				if ba<=threshold and ss>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=0.2 and ms>0.2:
+				if ba<=threshold and ms>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=0.2 and so1x>0.2:
+				if ba<=threshold and so1x>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=0.2 and so2x>0.2:
+				if ba<=threshold and so2x>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=0.2 and so3x>0.2:
+				if ba<=threshold and so3x>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=0.2 and so4x>0.2:
+				if ba<=threshold and so4x>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
 
 				print("%d\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n%s"%(pdeg,qdeg,iterno,ss,ms,so1x,so2x,so3x,so4x,ba,spl))
 
 
+createTable1("test",'table')
+exit(1)
 infilePath = "../f8_noisepct10-3.txt"
 
 cvoutfile = "test/f8_noisepct10-3_cv_out.299445.json"
@@ -1043,6 +904,7 @@ runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s
 # 			printRobOdiff(jsonfile, runs4D, fno,scale,e)
 # 			print("\n")
 
+##############################################
 
 
 
