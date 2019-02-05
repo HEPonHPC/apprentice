@@ -291,12 +291,28 @@ class RationalApproximationSIP():
 
                 # so
                 sox1, sorobO1, soinfo1 = self.solveForTimeRobO(coeff=coeffs,maxTime=batime,threshold=threshold)
-                sox2, sorobO2, soinfo2 = self.solveForTimeRobO(coeff=coeffs,maxTime=2*batime,threshold=threshold)
-                sox3, sorobO3, soinfo3 = self.solveForTimeRobO(coeff=coeffs,maxTime=3*batime,threshold=threshold)
-                sox4, sorobO4, soinfo4 = self.solveForTimeRobO(coeff=coeffs,maxTime=4*batime,threshold=threshold)
+                # sox2, sorobO2, soinfo2 = self.solveForTimeRobO(coeff=coeffs,maxTime=2*batime,threshold=threshold)
+                # sox3, sorobO3, soinfo3 = self.solveForTimeRobO(coeff=coeffs,maxTime=3*batime,threshold=threshold)
+                # sox4, sorobO4, soinfo4 = self.solveForTimeRobO(coeff=coeffs,maxTime=4*batime,threshold=threshold)
 
-                robOarr = np.array([ssrobO,msrobO,barobO,sorobO1,sorobO2,sorobO3,sorobO4])
-                xdict = {0:ssx,1:msx,2:bax,3:sox1,4:sox2,5:sox3,6:sox4}
+                robOarr = np.array([
+                    ssrobO,
+                    msrobO,
+                    barobO,
+                    sorobO1,
+                    # sorobO2,
+                    # sorobO3,
+                    # sorobO4
+                ])
+                xdict = {
+                    0:ssx,
+                    1:msx,
+                    2:bax,
+                    3:sox1,
+                    # 4:sox2,
+                    # 5:sox3,
+                    # 6:sox4
+                }
                 robO = np.min(robOarr)
                 x = xdict[np.argmin(robOarr)]
 
@@ -305,10 +321,18 @@ class RationalApproximationSIP():
                 diffd["ms"] = msrobO
                 diffd['ba'] = barobO
                 diffd['so1x'] = sorobO1
-                diffd['so2x'] = sorobO2
-                diffd['so3x'] = sorobO3
-                diffd['so4x'] = sorobO4
-                restartInfo = {'ssInfo':ssrestartInfo,'msInfo':msrestartInfo,'baInfo':barestartInfo,'so1xInfo':soinfo1,'so2xInfo':soinfo2,'so3xInfo':soinfo3,'so4xInfo':soinfo4}
+                # diffd['so2x'] = sorobO2
+                # diffd['so3x'] = sorobO3
+                # diffd['so4x'] = sorobO4
+                restartInfo = {
+                    'ssInfo':ssrestartInfo,
+                    'msInfo':msrestartInfo,
+                    'baInfo':barestartInfo,
+                    'so1xInfo':soinfo1,
+                    # 'so2xInfo':soinfo2,
+                    # 'so3xInfo':soinfo3,
+                    # 'so4xInfo':soinfo4
+                }
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo,'diff':diffd}
             else: raise Exception("rob opt strategy unknown")
 
