@@ -231,6 +231,7 @@ class RationalApproximationSIP():
             data = {}
             data['iterationNo'] = iter
             ret = {}
+            self.printDebug("Starting lsq for iter %d"%(iter))
             start = timer()
             if(self.strategy == 2):
                 ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
@@ -278,15 +279,18 @@ class RationalApproximationSIP():
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':info}
             elif(self._roboptstrategy == 'ss_ms_so_ba'):
                 # ss
+                self.printDebug("Starting ss")
                 maxRestarts = 1
                 ssx, ssrobO, ssrestartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 sstime = ssrestartInfo[0]['log']['time'] #in sec
 
                 # ba
+                self.printDebug("Starting ba")
                 bax, barobO, barestartInfo = self.baronPyomoRobO(coeffs,threshold)
                 batime = barestartInfo[0]['log']['time']
 
                 # ms
+                self.printDebug("Starting ms")
                 msx, msrobO, msrestartInfo = self.multipleRestartForTimeRobO(coeffs,batime,threshold)
                 #overriding msrestartInfo to contain the size of the output JSON file
                 d = msrestartInfo[len(msrestartInfo)-1]
@@ -295,6 +299,7 @@ class RationalApproximationSIP():
                 msrestartInfo = [d]
 
                 # so
+                self.printDebug("Starting so")
                 sox1, sorobO1, soinfo1 = self.solveForTimeRobO(coeff=coeffs,maxTime=batime,threshold=threshold)
                 # sox2, sorobO2, soinfo2 = self.solveForTimeRobO(coeff=coeffs,maxTime=2*batime,threshold=threshold)
                 # sox3, sorobO3, soinfo3 = self.solveForTimeRobO(coeff=coeffs,maxTime=3*batime,threshold=threshold)
@@ -432,7 +437,7 @@ class RationalApproximationSIP():
         opt = environ.SolverFactory('baron')
 
         """
-        Control where the log file is written by passing “logfile=<name>”
+        Control where the log file is written by passing logfile=<name>
         to the solve method.
 
         If you want to print solver log to console, add tee=True to solve method
@@ -737,6 +742,10 @@ class RationalApproximationSIP():
         import json
         with open(fname, "w") as f:
             json.dump(self.asDict, f,indent=indent, sort_keys=sort_keys)
+
+    def printDebug(self, msg):
+        import datetime
+        print("[d%d p%d q%d ts%s] [[%s]] %s"%(self._dim,self._m,self._n,self._trainingscale, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), msg))
 
 if __name__=="__main__":
     import sys
