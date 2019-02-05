@@ -288,6 +288,11 @@ class RationalApproximationSIP():
 
                 # ms
                 msx, msrobO, msrestartInfo = self.multipleRestartForTimeRobO(coeffs,batime,threshold)
+                #overriding msrestartInfo to contain the size of the output JSON file
+                d = msrestartInfo[len(msrestartInfo)-1]
+                d['robustArg'] = msx.tolist()
+                d['robustObj'] = msrobO
+                msrestartInfo = [d]
 
                 # so
                 sox1, sorobO1, soinfo1 = self.solveForTimeRobO(coeff=coeffs,maxTime=batime,threshold=threshold)
