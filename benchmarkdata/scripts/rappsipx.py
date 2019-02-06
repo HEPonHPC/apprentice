@@ -688,9 +688,9 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 				print("%d\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n%s"%(pdeg,qdeg,iterno,ss,ms,so1x,so2x,so3x,so4x,ba,spl))
 
 
-createTable1("test",'table')
+# createTable1("test",'table')
 # createTable2structure()
-exit(1)
+# exit(1)
 infilePath = "../f8_noisepct10-3.txt"
 
 cvoutfile = "test/f8_noisepct10-3_cv_out.299445.json"
@@ -877,7 +877,7 @@ roboptstrategy = "ss_ms_so_ba"
 # runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
 
-# runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_3,debug=1)
 runRappsipBaseStrategy(infilePath17_10_3, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_3,debug=1)
