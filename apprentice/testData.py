@@ -96,13 +96,13 @@ def f17(P):
         y = gamma(M,G)
         return (2*np.sqrt(2) * M * G * y ) / (np.pi * np.sqrt(M*M + y))
 
-    return kprop(M, G) / ( (E*E - M*M)*(E*E - M*M) + M*M*G )
+    return kprop(M, G) / ( (E*E - M*M)*(E*E - M*M) + M*M*G*G )
 
 
 def f18(P):
     # Box for P [-0.95, 0.95)
     x1, x2, x3, x4 = P
-    return np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3)+np.arctanh(x4)/((x1**2-1)*(x2**-1))
+    return np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3)+np.arctanh(x4)/((x1**2-1)*(x2**2-1))
 
 def f19(P):
     x1, x2, x3, x4 = P
