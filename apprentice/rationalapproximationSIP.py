@@ -758,17 +758,18 @@ if __name__=="__main__":
                                 trainingscale="1x",
                                 box=np.array([[-1,1]]),
                                 # box=np.array([[-1,1],[-1,1]]),
-                                strategy=2,
+                                roboptstrategy = 'ss',
+                                strategy=0,
                                 penaltyparam=10**-1,
                                 ppenaltybin=[1,0,0],
                                 qpenaltybin=[1,0,0,0]
     )
     # r.save("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
 
-    r2 = RationalApproximationSIP(r.asDict)
-    print(r2.asJSON)
-    print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
-    print(r2(X[0:4,:])) #calls predict
+    # r2 = RationalApproximationSIP(r.asDict)
+    print(r.asJSON)
+    # print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
+    # print(r2(X[0:4,:])) #calls predict
 
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
     # print(r1.asJSON)
