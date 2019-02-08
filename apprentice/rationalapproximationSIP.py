@@ -33,10 +33,13 @@ class RationalApproximationSIP():
                                 0: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1
                                 1: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
                                 2: min ||f*q(x)_n - p(x)_m||^2_2 + lambda*||c_pq||_1 sub. to q(x)_n >=1
+            fitstrategy     --- strategy to perform the fitting (least squares and sparse) --- if omitted: auto 'scipy' used
+                                scipy: SLSQP optimization solver in scipy (scipy.SLSQP)
+                                filter: filterSQP solver through pyomo (REQUIRED: pyomo and filter executable in PATH)
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
-                                baron: pyomo with baron
+                                baron: baron through pyomo (REQUIRED: Pyomo and baron executable in PATH)
                                 solve: solve q(x) at random points in the box of X
                                 ss_ms_so_ba: runs single start, multistart, baron and solve, and logs the different objective function values obtained
                                 mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
@@ -80,6 +83,8 @@ class RationalApproximationSIP():
     @property
     def roboptstrategy(self): return self._roboptstrategy
     @property
+    def fitstrategy(self): return self._fitstrategy
+    @property
     def penaltyparam(self): return self._penaltyparam
     @property
     def ppenaltybin(self): return self._ppenaltybin
@@ -111,6 +116,7 @@ class RationalApproximationSIP():
         self._fittime       = pdict["log"]["fittime"]
         self._strategy      = pdict["strategy"]
         self._roboptstrategy= pdict["roboptstrategy"]
+        self._fitstrategy   = pdict["fitstrategy"]
         self._box           = np.array(pdict["box"],dtype=np.float64)
         self._trainingscale = pdict["trainingscale"]
         self._trainingsize  = pdict["trainingsize"]
@@ -140,6 +146,7 @@ class RationalApproximationSIP():
         self._N                 = tools.numCoeffsPoly(self.dim, self.n)
         self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
+        self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
         self._box               = np.empty(shape=(0,2))
 
         if(kwargs.get("box") is not None):
@@ -187,41 +194,63 @@ class RationalApproximationSIP():
         end = timer()
         self._fittime = end-start
 
+    def runscipyfit(self, coeffs0,cons):
+        start = timer()
+        if(self.strategy == 2):
+            ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        else:
+            ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        end = timer()
+        optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
+
+        coeffs = ret.get('x')
+        # print(ret)
+        # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
+        # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
+        leastSq = ret.get('fun')
+        return coeffs,leastSq,optstatus
+
     def fit(self):
         # Strategies:
         # 0: LSQ with SIP and without penalty
         # 1: LSQ with SIP and some coeffs set to 0 (using constraints)
         # 2: LSQ with SIP, penaltyParam > 0 and all or some coeffs in L1 term
 
-
-        cons = np.empty(self.trainingsize, "object")
-        for trainingIndex in range(self.trainingsize):
-            q_ipo = self._ipo[trainingIndex][1]
-            cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
-
         p_penaltyIndex = []
         q_penaltyIndex = []
         if(self.strategy ==1 or self.strategy == 2):
             p_penaltyIndex, q_penaltyIndex = self.createPenaltyIndexArr()
-        coeff0 = []
-        if(self.strategy == 0):
-            coeffs0 = np.zeros((self.M+self.N))
-        elif(self.strategy == 1):
-            coeffs0 = np.zeros((self.M+self.N))
-            for index in p_penaltyIndex:
-                cons = np.append(cons,{'type': 'eq', 'fun':self.coeffSetTo0, 'args':(index, "p")})
-            for index in q_penaltyIndex:
-                cons = np.append(cons,{'type': 'eq', 'fun':self.coeffSetTo0, 'args':(index, "q")})
-        elif(self.strategy == 2):
-            coeffs0 = np.zeros(2*(self.M+self.N))
-            for index in p_penaltyIndex:
-                cons = np.append(cons,{'type': 'ineq', 'fun':self.abs1, 'args':(index, "p")})
-                cons = np.append(cons,{'type': 'ineq', 'fun':self.abs2, 'args':(index, "p")})
-            for index in q_penaltyIndex:
-                cons = np.append(cons,{'type': 'ineq', 'fun':self.abs1, 'args':(index, "q")})
-                cons = np.append(cons,{'type': 'ineq', 'fun':self.abs2, 'args':(index, "q")})
-        else:
-            raise Exception("fit() strategy %i not implemented"%self.strategy)
+
+        cons = np.empty(self.trainingsize, "object")
+        coeffs0 = []
+
+        if(self._fitstrategy == 'scipy'):
+            for trainingIndex in range(self.trainingsize):
+                q_ipo = self._ipo[trainingIndex][1]
+                cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
+
+            if(self.strategy == 0):
+                coeffs0 = np.zeros((self.M+self.N))
+            elif(self.strategy == 1):
+                coeffs0 = np.zeros((self.M+self.N))
+                for index in p_penaltyIndex:
+                    cons = np.append(cons,{'type': 'eq', 'fun':self.coeffSetTo0, 'args':(index, "p")})
+                for index in q_penaltyIndex:
+                    cons = np.append(cons,{'type': 'eq', 'fun':self.coeffSetTo0, 'args':(index, "q")})
+            elif(self.strategy == 2):
+                coeffs0 = np.zeros(2*(self.M+self.N))
+                for index in p_penaltyIndex:
+                    cons = np.append(cons,{'type': 'ineq', 'fun':self.abs1, 'args':(index, "p")})
+                    cons = np.append(cons,{'type': 'ineq', 'fun':self.abs2, 'args':(index, "p")})
+                for index in q_penaltyIndex:
+                    cons = np.append(cons,{'type': 'ineq', 'fun':self.abs1, 'args':(index, "q")})
+                    cons = np.append(cons,{'type': 'ineq', 'fun':self.abs2, 'args':(index, "q")})
+            else:
+                raise Exception("strategy %i not implemented"%self.strategy)
+        elif(self._fitstrategy == 'filter'):
+            print('do something here')
+        else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
+
 
         maxIterations = 100 # hardcode for now. Param later?
         maxRestarts = 10    # hardcode for now. Param later?
@@ -230,21 +259,11 @@ class RationalApproximationSIP():
         for iter in range(1,maxIterations+1):
             data = {}
             data['iterationNo'] = iter
-            ret = {}
             self.printDebug("Starting lsq for iter %d"%(iter))
-            start = timer()
-            if(self.strategy == 2):
-                ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-            else:
-                ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-            end = timer()
-            optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
-
-            coeffs = ret.get('x')
-            # print(ret)
-            # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
-            # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
-            leastSq = ret.get('fun')
+            if(self._fitstrategy == 'scipy'):
+                coeffs,leastSq,optstatus = self.runscipyfit(coeffs0,cons)
+            elif(self._fitstrategy == 'filter'):
+                print('do something here')
             data['log'] = optstatus
             data['leastSqObj'] = leastSq
             data['pcoeff'] = coeffs[0:self.M].tolist()
@@ -346,13 +365,14 @@ class RationalApproximationSIP():
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo,'diff':diffd}
             else: raise Exception("rob opt strategy unknown")
 
-
-
             self._iterationinfo.append(data)
             if(robO >= threshold):
                 break
-            q_ipo_new = monomial.recurrence(x,self._struct_q)
-            cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
+            if(self._fitstrategy == 'scipy'):
+                q_ipo_new = monomial.recurrence(x,self._struct_q)
+                cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
+            elif(self._fitstrategy == 'filter'):
+                print('do something here')
 
         if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]['robOptInfo']["robustObj"]<threshold):
             import json
@@ -716,6 +736,7 @@ class RationalApproximationSIP():
         d["log"] = {"fittime":self._fittime}
         d['strategy'] = self._strategy
         d['roboptstrategy'] = self._roboptstrategy
+        d['fitstrategy'] = self._fitstrategy
         d['box'] = self._box.tolist()
         d['trainingscale'] = self._trainingscale
         d['trainingsize'] = self._trainingsize
@@ -758,7 +779,8 @@ if __name__=="__main__":
                                 trainingscale="1x",
                                 box=np.array([[-1,1]]),
                                 # box=np.array([[-1,1],[-1,1]]),
-                                roboptstrategy = 'ss',
+                                roboptstrategy = 'ms',
+                                fitstrategy = 'scipy',
                                 strategy=0,
                                 penaltyparam=10**-1,
                                 ppenaltybin=[1,0,0],
