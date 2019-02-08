@@ -194,7 +194,7 @@ class RationalApproximationSIP():
         end = timer()
         self._fittime = end-start
 
-    def runscipyfit(self, coeffs0,cons):
+    def scipyfit(self, coeffs0,cons):
         start = timer()
         if(self.strategy == 2):
             ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
@@ -261,7 +261,7 @@ class RationalApproximationSIP():
             data['iterationNo'] = iter
             self.printDebug("Starting lsq for iter %d"%(iter))
             if(self._fitstrategy == 'scipy'):
-                coeffs,leastSq,optstatus = self.runscipyfit(coeffs0,cons)
+                coeffs,leastSq,optstatus = self.scipyfit(coeffs0,cons)
             elif(self._fitstrategy == 'filter'):
                 print('do something here')
             data['log'] = optstatus
