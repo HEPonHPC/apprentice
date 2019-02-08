@@ -1,4 +1,5 @@
 import numpy as np
+import apprentice
 
 #https://medium.com/pythonhive/python-decorator-to-measure-the-execution-time-of-methods-fa04cb6bb36d
 def timeit(method):
@@ -17,7 +18,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1):
         """
         Multivariate polynomial approximation
 
@@ -36,7 +37,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self.mkFromJSON(fname)
         elif X is not None and Y is not None:
             self._m=order
-            self._X   = np.array(X, dtype=np.float64)
+            self._scaler = apprentice.Scaler(np.array(X, dtype=np.float64), a=xmin, b=xmax)
+            self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
@@ -103,7 +105,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the numer poly at X.
         """
-        X=np.array(X)
+        X=self._scaler.scale(np.array(X))
         from apprentice import monomial
         rec_p = np.array(monomial.recurrence(X, self._struct_p))
         p=self._pcoeff.dot(rec_p)
@@ -131,6 +133,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         d["trainingsize"] = self.trainingsize
         d["m"]      = self.m
         d["pcoeff"] = list(self._pcoeff)
+        d["scaler"] = self._scaler.asDict
         return d
 
     def save(self, fname):
@@ -147,6 +150,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         self._pcoeff     = np.array(pdict["pcoeff"])
         self._m = int(pdict["m"])
         self._dim=int(pdict["dim"])
+        self._scaler = apprentice.Scaler(pdict["scaler"])
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
@@ -160,48 +164,33 @@ if __name__=="__main__":
 
     def mkTestData(NX, dim=1):
         def anthonyFunc(x):
-            return x**5-x**2
+            return x**3-x**2
         NR = 1
         np.random.seed(555)
-        X = np.random.rand(NX, dim)
+        X = 10*np.random.rand(NX, dim) -1
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
     X, Y = mkTestData(200)
-    # from apprentice import scaler
-    # S=scaler.Scaler(X)
 
-
-    # r=PolynomialApproximation(X=S.scaledPoints, Y=Y, order=3)
-
-    # r.save("testpoly.json")
-    # r=PolynomialApproximation(fname="testpoly.json")
-
-    # import pylab
-    # pylab.plot(S.scaledPoints, Y, marker="*", linestyle="none", label="Data")
-    # TX = sorted(S.scaledPoints)
-    # YW = [r(p) for p in TX]
-
-    # pylab.plot(TX, YW, label="Polynomial approx m={}".format(3))
-    # pylab.legend()
-    # pylab.xlabel("x")
-    # pylab.ylabel("f(x)")
-    # pylab.savefig("demopoly.pdf")
-
-    r =PolynomialApproximation(X=X, Y=Y, order=3, strategy=1)
-    r2=PolynomialApproximation(X=X, Y=Y, order=3, strategy=2)
+    p1 =PolynomialApproximation(X=X, Y=Y, order=3, strategy=1)
+    p2 =PolynomialApproximation(X=X, Y=Y, order=3, strategy=2)
+    p2.save("polytest.json")
+    p3 =PolynomialApproximation(fname="polytest.json")
 
     import pylab
     pylab.clf()
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
     TX = sorted(X)
-    YW  = [r(p)  for p in TX]
-    YW2 = [r2(p) for p in TX]
+    Y1  = [p1(p) for p in TX]
+    Y2 =  [p2(p) for p in TX]
+    Y3 =  [p3(p) for p in TX]
 
-    pylab.plot(TX, YW, label="Polynomial approx m={} strategy 1".format(3))
-    pylab.plot(TX, YW, label="Polynomial approx m={} strategy 2".format(3))
+    pylab.plot(TX, Y1, label="Polynomial approx m={} strategy 1".format(3))
+    pylab.plot(TX, Y2, label="Polynomial approx m={} strategy 2".format(3))
+    pylab.plot(TX, Y3, "m--", label="Restored polynomial approx m={} strategy 2".format(3))
     pylab.legend()
     pylab.xlabel("x")
     pylab.ylabel("f(x)")
-    pylab.savefig("demopolynoscale.pdf")
+    pylab.savefig("demopoly.pdf")
     sys.exit(0)
