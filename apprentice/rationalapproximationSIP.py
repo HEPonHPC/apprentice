@@ -437,13 +437,23 @@ class RationalApproximationSIP():
         end = timer()
         return x, q, end-start
 
-
-    def variableBound(self, model, i):
-        b = (self._box[i][0], self._box[i][1])
-        return b
-
     def baronPyomoRobO(self, coeffs, threshold=0.2):
         from pyomo import environ
+
+        def robObjPyomo(model):
+            dim = len(model.dimrange)
+            res = 0
+            for mon in model.coeffinfo:
+                term = 1
+                for d in model.dimrange:
+                    term *= model.x[d] ** mon[d]
+                res += mon[dim] * term
+            return res
+
+        def variableBound(model, i):
+            b = (model.box[i][0], model.box[i][1])
+            return b
+
         info = np.zeros(shape=(len(self._struct_q),self._dim+1),dtype=np.float64)
         for l in range(len(self._struct_q)):
             for d in range(self._dim):
@@ -451,9 +461,10 @@ class RationalApproximationSIP():
             info[l][self._dim] = coeffs[l+self._M]
         model = environ.ConcreteModel()
         model.dimrange = range(self._dim)
-        model.coeffinfo = info
-        model.x = environ.Var(model.dimrange, bounds=self.variableBound)
-        model.robO = environ.Objective(rule=self.robObjPyomo, sense=1)
+        model.box = self.box.tolist()
+        model.coeffinfo = info.tolist()
+        model.x = environ.Var(model.dimrange, bounds=variableBound)
+        model.robO = environ.Objective(rule=robObjPyomo, sense=1)
         opt = environ.SolverFactory('baron')
 
         """
@@ -633,16 +644,6 @@ class RationalApproximationSIP():
 
     def robustSample(self,coeff, q_ipo):
         return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])-1
-
-    def robObjPyomo(self, model):
-        dim = len(model.dimrange)
-        res = 0
-        for mon in model.coeffinfo:
-            term = 1
-            for d in model.dimrange:
-                term *= model.x[d] ** mon[d]
-            res += mon[dim] * term
-        return res
 
     def robustObjWithGrad(self, x, grad, coeff):
         if grad.size > 0:
