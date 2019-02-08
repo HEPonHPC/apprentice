@@ -514,9 +514,9 @@ class RationalApproximationSIP():
                 minx = x
             rinfo = {'robustArg':x.tolist(),'robustObj':robO, 'log':optstatus}
             restartInfo.append(rinfo)
+            r += 1
             if(robO < threshold):
                 break
-            r += 1
         restartInfo.append({'log':{'time':totaltime, 'noRestarts':r}})
         return minx, minrobO, restartInfo
 
@@ -535,9 +535,9 @@ class RationalApproximationSIP():
                 minx = x
             rinfo = {'robustArg':x.tolist(),'robustObj':robO, 'log':optstatus}
             restartInfo.append(rinfo)
+            norestarts += 1
             if(robO < threshold):
                 break
-            norestarts += 1
         restartInfo.append({'log':{'time':totaltime, 'noRestarts':norestarts}})
         return minx, minrobO, restartInfo
 
