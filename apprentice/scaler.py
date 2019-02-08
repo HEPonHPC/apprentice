@@ -1,12 +1,14 @@
 import numpy as np
 
 class Scaler(object):
-    def __init__(self, data, a=-1, b=1):
+    def __init__(self, data, a=-1, b=1, pnames=None):
         """
         data   ... np array of points in the original parameter space, file name or dictionary to restore from
         [a,b]  ... target scaling interval
 
         a, b can be floats or lists.
+
+        pnmames: optional argument to store parameter names, useful at time --- should be a list of strings
 
         Examples:
 
@@ -43,6 +45,10 @@ class Scaler(object):
                 if self._b[i] <= self._a[i]:
                     raise Exception("Error in defining scale boundaries in coordinate {}: b[{}]={} !> a[{}]={} in Scaler.__init__".format(i,i,b[i],i, a[i]))
 
+            if pnames is not None:
+                assert(len(pnames) == self.dim) # Assertion test
+                self._pnames=pnames
+
             self.mkFromPoints(data)
 
         else:
@@ -60,6 +66,7 @@ class Scaler(object):
         self._Xmin = np.amin(X, axis=0)
         self._Xmax = np.amax(X, axis=0)
         self._scaleTerm = (self._b - self._a)/(self._Xmax - self._Xmin)
+        self._scaledPoints = self.scale(X)
 
     def mkFromDict(self, ScalerDict):
         """
@@ -69,6 +76,7 @@ class Scaler(object):
         """
 
         self._Xmin      = np.array(ScalerDict["Xmin"])
+        self._Xmax      = np.array(ScalerDict["Xmax"])
         self._dim       = len(self._Xmin)
         self._scaleTerm = np.array(ScalerDict["scaleTerm"])
         self._a        = np.array(ScalerDict["a"])
@@ -83,6 +91,24 @@ class Scaler(object):
         with open(fname, "r") as f:
             self.mkFromDict( json.load(f) )
 
+    # NOTE: only works when mkFromPoints was called
+    @property
+    def scaledPoints(self):
+        if hasattr(self, '_scaledPoints'):
+            return self._scaledPoints
+        else:
+            raise Exception("Bla")
+
+    @property
+    def pnames(self):
+        """
+        Parameter names
+        """
+        if hasattr(self, "_pnames"):
+            return self._pnames
+        else:
+            return None
+
     @property
     def asDict(self):
         """
@@ -92,7 +118,9 @@ class Scaler(object):
                 "a": self._a.tolist(),
                 "b": self._b.tolist(),
                 "Xmin": self._Xmin.tolist(),
+                "Xmax": self._Xmax.tolist(),
                 "scaleTerm":self._scaleTerm.tolist(),
+                "pnames" : self.pnames
                 }
 
     def save(self, fname):
@@ -116,7 +144,11 @@ class Scaler(object):
     def __str__(self):
         s="Scaler --- translating {}-dimensional points into {}x{}".format(self._dim, self._a, self._b)
         s+="\nOriginal parameter bounds:"
-        for a,b in zip(self._Xmin, self._Xmax): s+="\n\t[%f ... %f]"%(a,b)
+        if hasattr(self, "_pnames"):
+            for p, a, b in zip(self._pnames, self._Xmin, self._Xmax): s+="\n{}\t[{} ... {}]".format(p,a,b)
+        else:
+            for a, b in zip(self._Xmin, self._Xmax): s+="\n\t[{} ... {}]".format(a,b)
+
         return s
 
     @property
@@ -144,7 +176,8 @@ class Scaler(object):
 
 if __name__== "__main__":
     D=np.array([[1.,2.,3.],[4.,5.,6.],[7.,8.,9.],[1,4,7],[5,3,9]])
-    S=Scaler(D)
+    S = Scaler(D, pnames=["Alice", "Bob", "Chris"])
+
     S.save("testsavescaler.json")
     SS = Scaler("testsavescaler.json")
     assert(all([a==b for a,b in zip(S.scale([3,2,1]), SS.scale([3,2,1]))]))

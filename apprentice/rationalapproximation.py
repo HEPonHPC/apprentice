@@ -1,5 +1,7 @@
 import numpy as np
 
+import apprentice
+
 #https://medium.com/pythonhive/python-decorator-to-measure-the-execution-time-of-methods-fa04cb6bb36d
 def timeit(method):
     import time
@@ -17,7 +19,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class RationalApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2):
+    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, xmin=-1, xmax=1):
         """
         Multivariate rational approximation f(x)_mn =  g(x)_m/h(x)_n
 
@@ -35,7 +37,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         elif X is not None and Y is not None:
             self._m=order[0]
             self._n=order[1]
-            self._X   = np.array(X, dtype=np.float64)
+            self._scaler = apprentice.Scaler(np.array(X, dtype=np.float64), a=xmin, b=xmax)
+            self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
@@ -163,7 +166,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         Return the prediction of the RationalApproximation at X.
         """
-        X=np.array(X)
+        X=self._scaler.scale(np.array(X))
         return self.P(X)/self.Q(X)
 
     def __call__(self, X):
@@ -190,6 +193,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         d["n"]      = self.n
         d["pcoeff"] = list(self._pcoeff)
         d["qcoeff"] = list(self._qcoeff)
+        d["scaler"] = self._scaler.asDict
         return d
 
     def save(self, fname):
@@ -203,6 +207,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         self._m      = int(pdict["m"])
         self._n      = int(pdict["n"])
         self._dim    = int(pdict["dim"])
+        self._scaler = apprentice.Scaler(pdict["scaler"])
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
@@ -238,6 +243,12 @@ if __name__=="__main__":
         YW = [r(p) for p in TX]
 
         pylab.plot(TX, YW, label="Rational approx m={} n={} strategy {}".format(2,2,s))
+
+    # Store the last and restore immediately, plot to see if all is good
+    r.save("rapptest.json")
+    r=RationalApproximation(fname="rapptest.json")
+    YW = [r(p) for p in TX]
+    pylab.plot(TX, YW, "m--", label="Restored m={} n={} strategy {}".format(2,2,s))
     pylab.legend()
     pylab.xlabel("x")
     pylab.ylabel("f(x)")
