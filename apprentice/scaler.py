@@ -81,6 +81,7 @@ class Scaler(object):
         self._scaleTerm = np.array(ScalerDict["scaleTerm"])
         self._a        = np.array(ScalerDict["a"])
         self._b        = np.array(ScalerDict["b"])
+        if "pnames" in ScalerDict: self._pnames  = ScalerDict["pnames"]
 
     def mkFromFile(self, fname):
         """
@@ -153,23 +154,34 @@ class Scaler(object):
 
     @property
     def center(self):
-        return self._ab[:,0] + 0.5*(self._ab[:,1] - self._ab[:,0])
+        """
+        The center of the real world parameter space
+        """
+        return self._Xmin + 0.5*(self._Xmax - self._Xmin)
+
+    @property
+    def center_scaled(self):
+        """
+        The center of the parameter space in the scaled world
+        """
+        return self.scale(self.center)
 
     @property
     def dim(self): return self._dim
-
-    @property
-    def sbox(self): return self._ab
 
     @property
     def box(self):
         """
         The real world parameter box
         """
-        _b = np.empty((self.dim, 2))
-        _b[:,0]= self(self._ab[:,0])
-        _b[:,1]= self(self._ab[:,1])
-        return _b
+        return np.column_stack((self._Xmin, self._Xmax))
+
+    @property
+    def box_scaled(self):
+        """
+        The scaled world box
+        """
+        return np.column_stack((self._a, self._b))
 
 
 
