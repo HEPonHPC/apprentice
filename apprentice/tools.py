@@ -67,6 +67,17 @@ def readH5(fname, idx=[0], xfield="params", yfield="values"):
 
     return ret
 
+def readPnamesH5(fname, xfield):
+    """
+    Get the parameter names from the hdf5 files params dataset attribute
+    """
+    import numpy as np
+    import h5py
+
+    with h5py.File(fname, "r") as f:
+        pnames = [p.astype(str) for p in f.get(xfield).attrs["names"]]
+
+    return pnames
 
 def readData(fname, delimiter=","):
     """
