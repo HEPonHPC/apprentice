@@ -518,28 +518,29 @@ class RationalApproximationSIP():
         from pyomo import environ
 
         def robObjPyomo(model):
-            dim = len(model.dimrange)
             res = 0
-            for mon in model.coeffinfo:
+            for l in range(len(model.struct_q)):
+                mon = model.struct_q[l]
                 term = 1
                 for d in model.dimrange:
-                    term *= model.x[d] ** mon[d]
-                res += mon[dim] * term
+                    try:
+                        exp = mon[d]
+                    except:
+                        exp = mon
+                    term *= model.x[d] ** exp
+                res += model.coeffs[l+model.M] * term
             return res
 
         def variableBound(model, i):
             b = (model.box[i][0], model.box[i][1])
             return b
 
-        info = np.zeros(shape=(len(self._struct_q),self._dim+1),dtype=np.float64)
-        for l in range(len(self._struct_q)):
-            for d in range(self._dim):
-                info[l][d] = self._struct_q[l][d]
-            info[l][self._dim] = coeffs[l+self._M]
         model = environ.ConcreteModel()
+        model.struct_q = self._struct_q.tolist()
+        model.coeffs = coeffs.tolist()
         model.dimrange = range(self._dim)
         model.box = self.box.tolist()
-        model.coeffinfo = info.tolist()
+        model.M = self._M
         model.x = environ.Var(model.dimrange, bounds=variableBound)
         model.robO = environ.Objective(rule=robObjPyomo, sense=1)
         opt = environ.SolverFactory('baron')
