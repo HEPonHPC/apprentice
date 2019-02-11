@@ -210,6 +210,82 @@ class RationalApproximationSIP():
         leastSq = ret.get('fun')
         return coeffs,leastSq,optstatus
 
+    # Does 1 fitting for now
+    def filterpyomofit(self,iterationNo):
+        from pyomo import environ
+
+        def lsqObjPyomo(model):
+            sum = 0
+            for index in range(model.trainingsize):
+                p_ipo = model.pipo[index]
+                q_ipo = model.qipo[index]
+
+                P=0
+                for i in model.prange:
+                    P += model.coeff[i]*p_ipo[i]
+
+                Q=0
+                for i in model.qrange:
+                    Q += model.coeff[i]*q_ipo[i-model.M]
+
+                sum += (model.Y[index] * Q - P)**2
+            return sum
+
+        def robustConstrPyomo(model,index):
+            q_ipo = model.qipo[index]
+
+            Q=0
+            for i in model.qrange:
+                Q += model.coeff[i]*q_ipo[i-model.M]
+            return Q >= 1
+
+        if(self._strategy != 0):
+            raise Exception("strategy %d for fitstrategy, %s not yet implemented"%(self.strategy, self.fitstrategy))
+
+        # concrete model
+        model = environ.ConcreteModel()
+        model.dimrange = range(self._dim)
+        model.prange = range(self.M)
+        model.qrange = range(self.M,self.M+self.N)
+        model.coeffrange = range(self.M+self.N)
+        model.M = self._M
+        model.N = self._N
+        model.trainingsize = self.trainingsize
+        model.trainingsizerangeforconstr = range(self._trainingsize+iterationNo)
+
+
+        model.pipo = self._ipo[:,0].tolist()
+        model.qipo = self._ipo[:,1].tolist()
+
+        model.Y = self._Y.tolist()
+
+        model.coeff = environ.Var(model.coeffrange)
+
+        model.lsqfit = environ.Objective(rule=lsqObjPyomo, sense=1)
+
+        model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
+
+        opt = environ.SolverFactory('filter')
+
+        pyomodebug = 0
+        if(pyomodebug == 0):
+            ret = opt.solve(model)
+        elif(pyomodebug == 1):
+            import uuid
+            uniquefn = str(uuid.uuid4())
+            logfn = "/tmp/%s.log"%(uniquefn)
+            print("Log file name: %s"%(logfn))
+            ret = opt.solve(model,tee=True,logfile=logfn)
+            model.pprint()
+            ret.write()
+
+        optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
+
+        coeffs = np.array([model.coeff[i].value for i in range(self._M + self._N)])
+        leastSq = model.lsqfit()
+
+        return coeffs,leastSq,optstatus
+
     def fit(self):
         # Strategies:
         # 0: LSQ with SIP and without penalty
@@ -247,10 +323,6 @@ class RationalApproximationSIP():
                     cons = np.append(cons,{'type': 'ineq', 'fun':self.abs2, 'args':(index, "q")})
             else:
                 raise Exception("strategy %i not implemented"%self.strategy)
-        elif(self._fitstrategy == 'filter'):
-            print('do something here')
-        else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
-
 
         maxIterations = 100 # hardcode for now. Param later?
         maxRestarts = 10    # hardcode for now. Param later?
@@ -260,10 +332,13 @@ class RationalApproximationSIP():
             data = {}
             data['iterationNo'] = iter
             self.printDebug("Starting lsq for iter %d"%(iter))
+
             if(self._fitstrategy == 'scipy'):
                 coeffs,leastSq,optstatus = self.scipyfit(coeffs0,cons)
             elif(self._fitstrategy == 'filter'):
-                print('do something here')
+                coeffs,leastSq,optstatus = self.filterpyomofit(iter-1)
+            else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
+
             data['log'] = optstatus
             data['leastSqObj'] = leastSq
             data['pcoeff'] = coeffs[0:self.M].tolist()
@@ -368,11 +443,13 @@ class RationalApproximationSIP():
             self._iterationinfo.append(data)
             if(robO >= threshold):
                 break
+
+            q_ipo_new = monomial.recurrence(x,self._struct_q)
             if(self._fitstrategy == 'scipy'):
-                q_ipo_new = monomial.recurrence(x,self._struct_q)
                 cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
             elif(self._fitstrategy == 'filter'):
-                print('do something here')
+                self._ipo = np.vstack([self._ipo, np.empty((1,2),"object")])
+                self._ipo[self.trainingsize+iter-1][1] = q_ipo_new
 
         if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]['robOptInfo']["robustObj"]<threshold):
             import json
@@ -441,28 +518,29 @@ class RationalApproximationSIP():
         from pyomo import environ
 
         def robObjPyomo(model):
-            dim = len(model.dimrange)
             res = 0
-            for mon in model.coeffinfo:
+            for l in range(len(model.struct_q)):
+                mon = model.struct_q[l]
                 term = 1
                 for d in model.dimrange:
-                    term *= model.x[d] ** mon[d]
-                res += mon[dim] * term
+                    try:
+                        exp = mon[d]
+                    except:
+                        exp = mon
+                    term *= model.x[d] ** exp
+                res += model.coeffs[l+model.M] * term
             return res
 
         def variableBound(model, i):
             b = (model.box[i][0], model.box[i][1])
             return b
 
-        info = np.zeros(shape=(len(self._struct_q),self._dim+1),dtype=np.float64)
-        for l in range(len(self._struct_q)):
-            for d in range(self._dim):
-                info[l][d] = self._struct_q[l][d]
-            info[l][self._dim] = coeffs[l+self._M]
         model = environ.ConcreteModel()
+        model.struct_q = self._struct_q.tolist()
+        model.coeffs = coeffs.tolist()
         model.dimrange = range(self._dim)
         model.box = self.box.tolist()
-        model.coeffinfo = info.tolist()
+        model.M = self._M
         model.x = environ.Var(model.dimrange, bounds=variableBound)
         model.robO = environ.Objective(rule=robObjPyomo, sense=1)
         opt = environ.SolverFactory('baron')
