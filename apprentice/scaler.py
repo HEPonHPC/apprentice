@@ -184,6 +184,8 @@ class Scaler(object):
         return np.column_stack((self._a, self._b))
 
 
+    def drawSamples(self, nsamples):
+        return np.random.uniform(low=self._Xmin, high=self._Xmax,size=(nsamples,self.dim))
 
 
 if __name__== "__main__":
