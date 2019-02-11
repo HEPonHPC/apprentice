@@ -219,6 +219,27 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         d = json.load(open(fname))
         self.mkFromDict(d)
 
+    def fmin(self, multistart=None):
+        from scipy import optimize
+        if multistart is None:
+            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            return fmin["fun"]
+        else:
+            _P = self._scaler.drawSamples(multistart)
+            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            return min(_fmin)
+
+    def fmax(self, multistart=None):
+        from scipy import optimize
+        if multistart is None:
+            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            return -fmax["fun"]
+        else:
+            _P = self._scaler.drawSamples(multistart)
+            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            return -min(_fmax)
+
+
 if __name__=="__main__":
 
     import sys
