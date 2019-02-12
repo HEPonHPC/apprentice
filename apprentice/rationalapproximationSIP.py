@@ -3,7 +3,7 @@ from apprentice import monomial
 from apprentice import tools
 from scipy.optimize import minimize
 from timeit import default_timer as timer
-
+import apprentice
 
 # from sklearn.base import BaseEstimator, RegressorMixin
 # class RationalApproximationSIP(BaseEstimator, RegressorMixin):
@@ -61,8 +61,14 @@ class RationalApproximationSIP():
             elif type(args[0]) == str:
                 self.mkFromJSON(args[0])
             else:
-                self._X   = np.array(args[0], dtype=np.float64)
-                self._Y   = np.array(args[1], dtype=np.float64)
+                # Scaler related kwargs
+                _pnames      = kwargs["pnames"]    if kwargs.get("pnames")    is not None else None
+                _scale_min   = kwargs["scale_min"] if kwargs.get("scale_min") is not None else -1
+                _scale_max   = kwargs["scale_max"] if kwargs.get("scale_max") is not None else  1
+                self._scaler = apprentice.Scaler(np.array(args[0], dtype=np.float64), a=_scale_min, b=_scale_max, pnames=_pnames)
+                self._X      = self._scaler.scaledPoints
+
+                self._Y      = np.array(args[1], dtype=np.float64)
                 self.mkFromData(kwargs=kwargs)
 
     @property
@@ -80,7 +86,7 @@ class RationalApproximationSIP():
     @property
     def trainingsize(self): return self._trainingsize
     @property
-    def box(self): return self._box
+    def box(self): return self._scaler.box_scaled
     @property
     def strategy(self): return self._strategy
     @property
@@ -110,8 +116,9 @@ class RationalApproximationSIP():
         self.mkFromDict(d)
 
     def mkFromDict(self, pdict):
-        self._pcoeff        = np.array(pdict["pcoeff"]).tolist()
-        self._qcoeff        = np.array(pdict["qcoeff"]).tolist()
+        self._scaler        = apprentice.Scaler(pdict["scaler"])
+        self._pcoeff        = np.array(pdict["pcoeff"])
+        self._qcoeff        = np.array(pdict["qcoeff"])
         self._iterationinfo = pdict["iterationinfo"]
         self._dim           = pdict["dim"]
         self._m             = pdict["m"]
@@ -123,7 +130,6 @@ class RationalApproximationSIP():
         self._roboptstrategy= pdict["roboptstrategy"]
         self._localoptsolver= pdict["localoptsolver"]
         self._fitstrategy   = pdict["fitstrategy"]
-        self._box           = np.array(pdict["box"],dtype=np.float64)
         self._trainingscale = pdict["trainingscale"]
         self._trainingsize  = pdict["trainingsize"]
         self._penaltyparam  = 0.0
@@ -137,7 +143,6 @@ class RationalApproximationSIP():
 
         self._struct_p      = monomial.monomialStructure(self.dim, self.m)
         self._struct_q      = monomial.monomialStructure(self.dim, self.n)
-        # self.setStructures(pdict["m"], pdict["n"])
 
     def mkFromData(self, kwargs):
         """
@@ -154,16 +159,6 @@ class RationalApproximationSIP():
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
-        self._box               = np.empty(shape=(0,2))
-
-        if(kwargs.get("box") is not None):
-            for arr in kwargs.get("box"):
-                newArr =np.array([[arr[0],arr[1]]],dtype=np.float64)
-                self._box = np.concatenate((self._box,newArr),axis=0)
-        else:
-            for i in range(self.dim):
-                newArr = np.array([[-1,1]],dtype=np.float64)
-                self._box = np.concatenate((self._box,newArr),axis=0)
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
         if(self.trainingscale == ".5x" or self.trainingscale == "0.5x"):
@@ -473,8 +468,8 @@ class RationalApproximationSIP():
             import json
             j = json.dumps(self._iterationinfo,indent=4, sort_keys=True)
             raise Exception(j+"\nCould not find a robust objective")
-        self._pcoeff = self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"]
-        self._qcoeff = self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"]
+        self._pcoeff = np.array(self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"])
+        self._qcoeff = np.array(self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"])
 
     def solveForTimeRobO(self, coeff, maxTime=5,threshold=0.2):
         info = []
@@ -609,14 +604,14 @@ class RationalApproximationSIP():
     def mlslRobO(self,coeffs, threshold=0.2):
         import nlopt
         localopt = nlopt.opt(nlopt.LD_LBFGS, self._dim)
-        localopt.set_lower_bounds(self._box[:,0])
-        localopt.set_upper_bounds(self._box[:,1])
+        localopt.set_lower_bounds(self.box[:,0])
+        localopt.set_upper_bounds(self.box[:,1])
         localopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
         localopt.set_xtol_rel(1e-4)
 
         mlslopt = nlopt.opt(nlopt.G_MLSL_LDS, self._dim)
-        mlslopt.set_lower_bounds(self._box[:,0])
-        mlslopt.set_upper_bounds(self._box[:,1])
+        mlslopt.set_lower_bounds(self.box[:,0])
+        mlslopt.set_upper_bounds(self.box[:,1])
         mlslopt.set_min_objective(lambda x,grad: self.robustObjWithGrad(x,grad,coeffs))
         mlslopt.set_local_optimizer(localopt)
         mlslopt.set_stopval(1e-20)
@@ -626,9 +621,6 @@ class RationalApproximationSIP():
         x = mlslopt.optimize(x0)
         robO = mlslopt.last_optimum_value()
         info = [{'robustArg':x.tolist(),'robustObj':robO}]
-
-        # print(info)
-        # exit(1)
 
         return x, robO, info
 
@@ -703,7 +695,7 @@ class RationalApproximationSIP():
         start = timer()
         ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = solver, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
-        optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
+        optstatus = {'message':ret.get('message').decode(),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
         x = ret.get('x')
         robO = ret.get('fun')
@@ -812,26 +804,25 @@ class RationalApproximationSIP():
         """
         Evaluation of the denom poly at X.
         """
-        ipo = np.empty(len(X),"object")
-        for i in range(len(X)):
-            ipo[i] = monomial.recurrence(X[i,0:self.dim],self._struct_p)
-            ipo[i] = ipo[i].dot(self._pcoeff)
-        return ipo
+        from apprentice import monomial
+        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        p = self._pcoeff.dot(rec_p)
+        return p
 
     def denom(self, X):
         """
         Evaluation of the numer poly at X.
         """
-        ipo = np.empty(len(X),"object")
-        for i in range(len(X)):
-            ipo[i] = monomial.recurrence(X[i,0:self.dim],self._struct_q)
-            ipo[i] = ipo[i].dot(self._qcoeff)
-        return ipo
+        from apprentice import monomial
+        rec_q = np.array(monomial.recurrence(X, self._struct_q))
+        q = self._qcoeff.dot(rec_q)
+        return q
 
     def predict(self, X):
         """
         Return the prediction of the RationalApproximation at X.
         """
+        X=self._scaler.scale(np.array(X))
         return self.numer(X)/self.denom(X)
 
     def __call__(self, X):
@@ -846,8 +837,8 @@ class RationalApproximationSIP():
         Store all info in dict as basic python objects suitable for JSON
         """
         d={}
-        d['pcoeff']                 = self._pcoeff
-        d['qcoeff']                 = self._qcoeff
+        d['pcoeff']                 = self._pcoeff.tolist()
+        d['qcoeff']                 = self._qcoeff.tolist()
         d['iterationinfo']    = self._iterationinfo
         d['dim']              = self._dim
         d['m'] = self._m
@@ -861,7 +852,6 @@ class RationalApproximationSIP():
             d['localoptsolver'] = self._localoptsolver
         else: d['localoptsolver'] = "N/A"
         d['fitstrategy'] = self._fitstrategy
-        d['box'] = self._box.tolist()
         d['trainingscale'] = self._trainingscale
         d['trainingsize'] = self._trainingsize
 
@@ -872,6 +862,7 @@ class RationalApproximationSIP():
 
         if(self.strategy==2):
             d['lambda'] = self._penaltyparam
+        d["scaler"] = self._scaler.asDict
         return d
 
     @property
@@ -901,8 +892,6 @@ if __name__=="__main__":
                                 m=2,
                                 n=3,
                                 trainingscale="1x",
-                                box=np.array([[-1,1]]),
-                                # box=np.array([[-1,1],[-1,1]]),
                                 roboptstrategy = 'ms',
                                 localoptsolver = 'scipy',
                                 fitstrategy = 'scipy',
@@ -914,12 +903,31 @@ if __name__=="__main__":
     # r.save("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
 
     # r2 = RationalApproximationSIP(r.asDict)
-    print(r.asJSON)
+    # print(r.asJSON)
     # print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
     # print(r2(X[0:4,:])) #calls predict
 
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
-    # print(r1.asJSON)
+    print(r.asJSON)
+    #
+    import pylab
+    pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
+    TX = sorted(X)
+    YW = [r(p) for p in TX]
+
+    pylab.plot(TX, YW, label="Rational approximation")
+
+    # Store the last and restore immediately, plot to see if all is good
+    r.save("siptest.json")
+    r=RationalApproximationSIP("siptest.json")
+    YW = [r(p) for p in TX]
+    pylab.plot(TX, YW, "m--", label="Restored approx.")
+    pylab.legend()
+    pylab.xlabel("x")
+    pylab.ylabel("f(x)")
+    pylab.savefig("demoSIP.pdf")
+
+    sys.exit(0)
 
 
 
