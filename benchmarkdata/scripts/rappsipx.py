@@ -127,6 +127,8 @@ def runRappsipBaseStrategy(infile,runs, box=np.array([[-1,1],[-1,1]]),trainingSc
 										Y,
 										m=pdeg,
 										n=qdeg,
+										fitstrategy = 'filter',
+										localoptsolver = 'scipy',
 										trainingscale=trainingScale,
 										roboptstrategy=roboptstrategy,
 										box=box,
@@ -273,6 +275,9 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 			with open(jsonfile, 'r') as fn:
 				datastore = json.load(fn)
 		testerrarr = np.zeros(shape=(maxpq[0],maxpq[1]),dtype=np.float64)
+		testerrarr2n = np.zeros(shape=(maxpq[0],maxpq[1]),dtype=np.float64)
+		testerrarr1n = np.zeros(shape=(maxpq[0],maxpq[1]),dtype=np.float64)
+		testerrarrinfn = np.zeros(shape=(maxpq[0],maxpq[1]),dtype=np.float64)
 		for r in runs:
 			pdeg=r[0]
 			qdeg=r[1]
@@ -285,6 +290,10 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 			Y_pred = rappsip(X_test)
 			testerror = np.average((Y_pred-Y_test)**2)
 			testerrarr[pdeg-1][qdeg-1] = testerror
+			testerrarr2n[pdeg-1][qdeg-1] = np.sqrt(np.sum((Y_pred-Y_test)**2))
+			testerrarr1n[pdeg-1][qdeg-1] = np.sum(np.absolute((Y_pred-Y_test)))
+			testerrarrinfn[pdeg-1][qdeg-1] = np.max(np.absolute((Y_pred-Y_test)))
+
 
 
 		testerractuals[i] = testerrarr
@@ -293,8 +302,12 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 		testerrindex[i] = sortedindexarr
 
 		print(testerrarr)
+		print(testerrarr1n)
+		print(testerrarr2n)
+		print(testerrarrinfn)
 		print(sortedindexarr)
-		print(np.argmin(testerrarr), np.min(testerrarr), np.max(testerrarr))
+		print(np.argmin(testerrarr), np.min(testerrarr),np.min(testerrarr1n),np.min(testerrarr2n),np.min(testerrarrinfn))
+		print(np.max(testerrarr))
 
 	import matplotlib as mpl
 	import matplotlib.pyplot as plt
@@ -305,7 +318,7 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 	# X,Y = np.meshgrid(range(1,maxpq[0]+1), range(1,maxpq[1]+1))
 	X,Y = np.meshgrid(range(1,maxpq[1]+1), range(1,maxpq[0]+1))
 	f, axarr = plt.subplots(2,2, sharex=True, sharey=True, figsize=(15,15))
-	f.suptitle(fno + " -- log(test error)", fontsize = 28)
+	f.suptitle(fno + " -- log(average test error)", fontsize = 28)
 	markersize = 1000
 	vmin = -6
 	vmax = -1
@@ -580,7 +593,7 @@ def createTable1(folder, format='table'):
 	elif(format == 'latex'):
 		print("&Single Start&Multi Start&Sampling&Baron")
 		print("Function&% False Neg&Avg Time&% False Neg&Avg Time&% False Neg&Avg Time&Avg Time")
-		fmt = "f%d&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f"
+		fmt = "\\multicolumn{1}{|c|}{f%d}&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f\\\\"
 
 	for file in filelist:
 		digits = [float(s) for s in re.findall(r'-?\d+\.?\d*', file)]
@@ -662,9 +675,9 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 				ba = diff['ba']
 				ms = diff['ms']
 				so1x = diff['so1x']
-				so2x = diff['so2x']
-				so3x = diff['so3x']
-				so4x = diff['so4x']
+				# so2x = diff['so2x']
+				# so3x = diff['so3x']
+				# so4x = diff['so4x']
 				spl = "\t\t\t"
 				if ba<=threshold and ss>threshold:
 					spl += "********\t"
@@ -675,20 +688,26 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 				if ba<=threshold and so1x>threshold:
 					spl += "********\t"
 				else: spl += "\t\t"
-				if ba<=threshold and so2x>threshold:
-					spl += "********\t"
-				else: spl += "\t\t"
-				if ba<=threshold and so3x>threshold:
-					spl += "********\t"
-				else: spl += "\t\t"
-				if ba<=threshold and so4x>threshold:
-					spl += "********\t"
-				else: spl += "\t\t"
+				# if ba<=threshold and so2x>threshold:
+				# 	spl += "********\t"
+				# else: spl += "\t\t"
+				# if ba<=threshold and so3x>threshold:
+				# 	spl += "********\t"
+				# else: spl += "\t\t"
+				# if ba<=threshold and so4x>threshold:
+				# 	spl += "********\t"
+				# else: spl += "\t\t"
 
-				print("%d\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n%s"%(pdeg,qdeg,iterno,ss,ms,so1x,so2x,so3x,so4x,ba,spl))
+				# print("%d\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n%s"%(pdeg,qdeg,iterno,ss,ms,so1x,so2x,so3x,so4x,ba,spl))
+				print("%d\t%d\t%d\t%f\t%f\t%f\t%f\n%s"%(pdeg,qdeg,iterno,ss,ms,so1x,ba,spl))
 
 
+
+# from apprentice import tools
+# tools.numCoeffsPoly(self.dim, self.m)
+# print(tools.numCoeffsPoly(23, 2) + tools.numCoeffsPoly(23, 2))
 # createTable1("test",'table')
+# createTable1("test",'latex')
 # createTable2structure()
 # exit(1)
 infilePath = "../f8_noisepct10-3.txt"
@@ -803,6 +822,7 @@ for i in range(1,6):
 		# if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
 		runs4D.append([i,j])
 
+box14 = np.array([[1,3],[1,3]])
 box17 = np.array([[-1,1],[-1,1],[-1,1]])
 box18 = np.array([[-0.95,0.95],[-0.95,0.95],[-0.95,0.95],[-0.95,0.95]])
 box19 = np.array([[-1,1],[-1,1],[-1,1],[-1,1]])
@@ -862,20 +882,20 @@ roboptstrategy = "ss_ms_so_ba"
 # runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_3,debug=1)
 #
-# runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_1, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath14_10_3, runs2D, box, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=1)
-#
-# runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_3,debug=1)
-#
-# runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_1,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
-# runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=0)
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=0)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=0)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=0)
+
+runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath15_10_3, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_3,debug=1)
+
+runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_1, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "1x", roboptstrategy, s0outfile16_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath16_10_3, runs2D, box, "2x", roboptstrategy, s0outfile16_2x_10_3,debug=1)
 
 runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "1x", roboptstrategy, s0outfile17_1x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath17_10_1, runs3D, box17, "2x", roboptstrategy, s0outfile17_2x_10_1,debug=1)
@@ -906,6 +926,7 @@ runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s
 
 ##############################################
 # for fno in range(12,17):
+# for fno in range(14,17):
 # 	for e in ["10-1", "10-3"]:
 # 		for scale in ["1x","2x"]:
 # 			jsonfile = "test/f%d_noisepct%s_s0_out_%s.299445.json"%(fno,e,scale)
@@ -918,7 +939,7 @@ runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s
 # 			jsonfile = "test/f%d_noisepct%s_s0_out_%s.299445.json"%(fno,e,scale)
 # 			printRobOdiff(jsonfile, runs3D, fno,scale,e)
 # 			print("\n")
-#
+
 # for fno in range(18,20):
 # 	for e in ["10-1", "10-3"]:
 # 		for scale in ["1x","2x"]:
