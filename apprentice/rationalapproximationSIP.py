@@ -43,6 +43,9 @@ class RationalApproximationSIP():
                                 solve: solve q(x) at random points in the box of X
                                 ss_ms_so_ba: runs single start, multistart, baron and solve, and logs the different objective function values obtained
                                 mlsl: multi-level single-linkage multistart algorithm from nlopt using nlopt.LD_LBFGS local optimizer
+            localoptsolver  --- strategy to perform local optimization in robust optimization with single start and multistart approaches --- if omitted: auto 'scipy' used
+                                scipy: L-BFGS-B optimization solver in scipy (scipy.L-BFGS-B)
+                                filter: filterSQP solver through pyomo (REQUIRED: pyomo and filter executable in PATH)
             penaltyparam    --- lambda to use for strategy 2 --- if omitted: auto 0.1 used
             penaltybin      --- penalty binary array for numberator and denomintor of the bits to keep active in strategy 1 and put in penalty term for activity 2
                                 represented in a 2D array of shape(2,(m/n)+1) where for each numberator and denominator, the bits represent penalized coeffecient degrees and constant (1: not peanlized, 0 penalized)
@@ -83,6 +86,8 @@ class RationalApproximationSIP():
     @property
     def roboptstrategy(self): return self._roboptstrategy
     @property
+    def localoptsolver(self): return self._localoptsolver
+    @property
     def fitstrategy(self): return self._fitstrategy
     @property
     def penaltyparam(self): return self._penaltyparam
@@ -116,6 +121,7 @@ class RationalApproximationSIP():
         self._fittime       = pdict["log"]["fittime"]
         self._strategy      = pdict["strategy"]
         self._roboptstrategy= pdict["roboptstrategy"]
+        self._localoptsolver= pdict["localoptsolver"]
         self._fitstrategy   = pdict["fitstrategy"]
         self._box           = np.array(pdict["box"],dtype=np.float64)
         self._trainingscale = pdict["trainingscale"]
@@ -146,6 +152,7 @@ class RationalApproximationSIP():
         self._N                 = tools.numCoeffsPoly(self.dim, self.n)
         self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
+        self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
         self._box               = np.empty(shape=(0,2))
 
@@ -356,19 +363,24 @@ class RationalApproximationSIP():
             x = []
             if(self._roboptstrategy == 'ss'):
                 maxRestarts = 1
+                self.printDebug("Starting ss")
                 x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'ms'):
                 maxRestarts = 10
+                self.printDebug("Starting ms")
                 x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'mlsl'):
                 x, robO, restartInfo = self.mlslRobO(coeffs,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'baron'):
-                x, robO, restartInfo = self.baronPyomoRobO(coeffs,threshold)
+                self.printDebug("Starting ba")
+                x, robO, optInfo = self.pyomoRobO(coeffs,threshold,'baron')
+                restartInfo = [{'robustArg':x.tolist(),'robustObj':robO,'log':optInfo}]
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'solve'):
+                self.printDebug("Starting so")
                 x, robO, info = self.solveForEvalsRobO(coeff=coeffs,threshold=threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':info}
             elif(self._roboptstrategy == 'ss_ms_so_ba'):
@@ -380,8 +392,9 @@ class RationalApproximationSIP():
 
                 # ba
                 self.printDebug("Starting ba")
-                bax, barobO, barestartInfo = self.baronPyomoRobO(coeffs,threshold)
-                batime = barestartInfo[0]['log']['time']
+                bax, barobO, baOptInfo = self.pyomoRobO(coeffs,threshold,'baron')
+                barestartInfo = [{'robustArg':bax.tolist(),'robustObj':barobO,'log':baOptInfo}]
+                batime = baOptInfo['time']
 
                 # ms
                 self.printDebug("Starting ms")
@@ -399,6 +412,11 @@ class RationalApproximationSIP():
                 # sox3, sorobO3, soinfo3 = self.solveForTimeRobO(coeff=coeffs,maxTime=3*batime,threshold=threshold)
                 # sox4, sorobO4, soinfo4 = self.solveForTimeRobO(coeff=coeffs,maxTime=4*batime,threshold=threshold)
 
+                soinfo1.append({'robustArg':sox1.tolist(),'robustObj':sorobO1})
+                # soinfo2.append({'robustArg':sox2.tolist(),'robustObj':sorobO2})
+                # soinfo3.append({'robustArg':sox3.tolist(),'robustObj':sorobO3})
+                # soinfo4.append({'robustArg':sox4.tolist(),'robustObj':sorobO4})
+                #
                 robOarr = np.array([
                     ssrobO,
                     msrobO,
@@ -514,7 +532,7 @@ class RationalApproximationSIP():
         end = timer()
         return x, q, end-start
 
-    def baronPyomoRobO(self, coeffs, threshold=0.2):
+    def pyomoRobO(self, coeffs, threshold=0.2,solver='filter',r=0):
         from pyomo import environ
 
         def robObjPyomo(model):
@@ -542,8 +560,14 @@ class RationalApproximationSIP():
         model.box = self.box.tolist()
         model.M = self._M
         model.x = environ.Var(model.dimrange, bounds=variableBound)
+        if(r == 0):
+            for d in range(self.dim):
+                model.x[d].value = (self.box[d][0]+self.box[d][1])/2
+        else:
+            for d in range(self.dim):
+                model.x[d].value = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
         model.robO = environ.Objective(rule=robObjPyomo, sense=1)
-        opt = environ.SolverFactory('baron')
+        opt = environ.SolverFactory(solver)
 
         """
         Control where the log file is written by passing logfile=<name>
@@ -574,9 +598,9 @@ class RationalApproximationSIP():
 
         robO = model.robO()
         x = np.array([model.x[i].value for i in range(self._dim)])
-        info = [{'robustArg':x.tolist(),'robustObj':robO,'log':optstatus}]
+        # info = [{'robustArg':x.tolist(),'robustObj':robO,'log':optstatus}]
 
-        return x, robO, info
+        return x, robO, optstatus
 
 
     """
@@ -614,8 +638,17 @@ class RationalApproximationSIP():
         minrobO = np.inf
         totaltime = 0
         r = 0
+        localoptfunc = ""
+        if(self._localoptsolver == 'scipy'):
+            solver = 'L-BFGS-B'
+            localoptfunc = self.restartRobO
+        elif(self._localoptsolver == 'filter'):
+            solver = 'filter'
+            localoptfunc = self.pyomoRobO
+        else:raise Exception("localoptsolver, %s unknown"%self._localoptsolver)
+
         while(totaltime < maxTime):
-            x, robO, optstatus = self.restartRobO(coeffs,r)
+            x, robO, optstatus = localoptfunc(coeffs,threshold,solver,r)
             totaltime += optstatus['time']
 
             if(minrobO > robO):
@@ -635,8 +668,17 @@ class RationalApproximationSIP():
         minrobO = np.inf
         totaltime = 0
         norestarts = 0
+        localoptfunc = ""
+        if(self._localoptsolver == 'scipy'):
+            solver = 'L-BFGS-B'
+            localoptfunc = self.restartRobO
+        elif(self._localoptsolver == 'filter'):
+            solver = 'filter'
+            localoptfunc = self.pyomoRobO
+        else:raise Exception("localoptsolver, %s unknown"%self._localoptsolver)
+
         for r in range(maxRestarts):
-            x, robO, optstatus = self.restartRobO(coeffs,r)
+            x, robO, optstatus = localoptfunc(coeffs,threshold,solver,r)
             totaltime += optstatus['time']
 
             if(minrobO > robO):
@@ -650,7 +692,7 @@ class RationalApproximationSIP():
         restartInfo.append({'log':{'time':totaltime, 'noRestarts':norestarts}})
         return minx, minrobO, restartInfo
 
-    def restartRobO(self, coeffs, r):
+    def restartRobO(self, coeffs, threshold, solver, r):
         x0 = []
         if(r == 0):
             x0 = np.array([(self.box[i][0]+self.box[i][1])/2 for i in range(self.dim)], dtype=np.float64)
@@ -659,7 +701,7 @@ class RationalApproximationSIP():
             for d in range(self.dim):
                 x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
         start = timer()
-        ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = 'L-BFGS-B', options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = solver, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
@@ -815,6 +857,9 @@ class RationalApproximationSIP():
         d["log"] = {"fittime":self._fittime}
         d['strategy'] = self._strategy
         d['roboptstrategy'] = self._roboptstrategy
+        if self._roboptstrategy in ['ss','ms','ss_ms_so_ba']:
+            d['localoptsolver'] = self._localoptsolver
+        else: d['localoptsolver'] = "N/A"
         d['fitstrategy'] = self._fitstrategy
         d['box'] = self._box.tolist()
         d['trainingscale'] = self._trainingscale
@@ -859,6 +904,7 @@ if __name__=="__main__":
                                 box=np.array([[-1,1]]),
                                 # box=np.array([[-1,1],[-1,1]]),
                                 roboptstrategy = 'ms',
+                                localoptsolver = 'scipy',
                                 fitstrategy = 'scipy',
                                 strategy=0,
                                 penaltyparam=10**-1,
