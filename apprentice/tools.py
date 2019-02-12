@@ -138,3 +138,26 @@ def getPolyGradient(coeff, X, dim=2, n=2):
                 der.append(term)
         grad[coord] = np.dot(der, coeff)
     return grad
+
+def possibleOrders(N, dim, mirror=False):
+    """
+    Utility function to find all possible polynomials
+    orders for dataset with N points in N dimension
+    """
+    from scipy.special import comb
+    omax = 0
+    while comb(dim + omax+1, omax+1) + 1 <= N: # The '+1' stands for a order 0 polynomial's dof
+        omax+=1
+
+    combs = []
+    for m in reversed(range(omax+1)):
+        for n in reversed(range(m+1)):
+            if comb(dim + m, m) + comb(dim+n,n) <= N:
+                combs.append((m,n))
+
+    if mirror:
+        temp=[tuple(reversed(i)) for i in combs]
+        for t in temp:
+            if not t in combs:
+                combs.append(t)
+    return combs
