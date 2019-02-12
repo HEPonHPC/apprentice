@@ -882,10 +882,10 @@ roboptstrategy = "ss_ms_so_ba"
 # runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "1x", roboptstrategy, s0outfile13_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath13_10_3, runs2D, box, "2x", roboptstrategy, s0outfile13_2x_10_3,debug=1)
 #
-runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=0)
-runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=0)
-runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=0)
-runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=0)
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_1, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_1,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "1x", roboptstrategy, s0outfile14_1x_10_3,debug=1)
+runRappsipBaseStrategy(infilePath14_10_3, runs2D, box14, "2x", roboptstrategy, s0outfile14_2x_10_3,debug=1)
 
 runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "1x", roboptstrategy, s0outfile15_1x_10_1,debug=1)
 runRappsipBaseStrategy(infilePath15_10_1, runs2D, box, "2x", roboptstrategy, s0outfile15_2x_10_1,debug=1)
