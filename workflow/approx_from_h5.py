@@ -120,7 +120,7 @@ if __name__ == "__main__":
     scl = []
     t1=time.time()
     for num, (X, Y) in  enumerate(DATA):
-        ras.append(mkBestRA(X,Y, pnames, f_plot="{}.pdf".format(binids[num].replace("/","_").encode("utf-8"))))
+        ras.append(mkBestRA(X,Y, pnames, f_plot="{}.pdf".format(binids[num].replace("/","_"))))
         # ras.append(apprentice.RationalApproximation(X, Y, order=(3,0), pnames=pnames))
 
     t2=time.time()
