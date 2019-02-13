@@ -29,6 +29,9 @@ class RationalApproximationSIP():
                                 2x is twice the number of coeffecients,
                                 Cp is 100% of the data
             box             --- box (2D array of dim X [min,max]) within which to perform the approximation --- if omitted: auto dim X [-1, 1] used
+            pnames          --- list of parameter names to pass to the scaler to scale
+            scalemin        --- scalar or list of shape = dimension of minimum scale value for X --- if omitted: auto -1 used on all dimensions
+            scalemax        --- scalar or list of shape = dimension of maximum scale value for X --- if omitted: auto 1 used on all dimensions
             strategy        --- strategy to use --- if omitted: auto 0 used
                                 0: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1
                                 1: min ||f*q(x)_n - p(x)_m||^2_2 sub. to q(x)_n >=1 and some p and/or q coeffecients set to 0
@@ -62,9 +65,9 @@ class RationalApproximationSIP():
                 self.mkFromJSON(args[0])
             else:
                 # Scaler related kwargs
-                _pnames      = kwargs["pnames"]    if kwargs.get("pnames")    is not None else None
-                _scale_min   = kwargs["scale_min"] if kwargs.get("scale_min") is not None else -1
-                _scale_max   = kwargs["scale_max"] if kwargs.get("scale_max") is not None else  1
+                _pnames      = kwargs["pnames"]   if kwargs.get("pnames")   is not None else None
+                _scale_min   = kwargs["scalemin"] if kwargs.get("scalemin") is not None else -1
+                _scale_max   = kwargs["scalemax"] if kwargs.get("scalemax") is not None else  1
                 self._scaler = apprentice.Scaler(np.array(args[0], dtype=np.float64), a=_scale_min, b=_scale_max, pnames=_pnames)
                 self._X      = self._scaler.scaledPoints
 
@@ -804,7 +807,6 @@ class RationalApproximationSIP():
         """
         Evaluation of the denom poly at X.
         """
-        from apprentice import monomial
         rec_p = np.array(monomial.recurrence(X, self._struct_p))
         p = self._pcoeff.dot(rec_p)
         return p
@@ -813,7 +815,6 @@ class RationalApproximationSIP():
         """
         Evaluation of the numer poly at X.
         """
-        from apprentice import monomial
         rec_q = np.array(monomial.recurrence(X, self._struct_q))
         q = self._qcoeff.dot(rec_q)
         return q
@@ -824,6 +825,12 @@ class RationalApproximationSIP():
         """
         X=self._scaler.scale(np.array(X))
         return self.numer(X)/self.denom(X)
+
+    def predictOverArray(self, Xarr):
+        """
+        Return array of Rational Aptoximation predictions over an array X.
+        """
+        return [self.predict(X) for X in Xarr]
 
     def __call__(self, X):
         """
@@ -900,6 +907,7 @@ if __name__=="__main__":
                                 ppenaltybin=[1,0,0],
                                 qpenaltybin=[1,0,0,0]
     )
+    # print(r.predictOverArray(X))
     # r.save("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
 
     # r2 = RationalApproximationSIP(r.asDict)
