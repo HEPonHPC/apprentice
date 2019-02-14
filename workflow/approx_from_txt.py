@@ -47,21 +47,24 @@ def raNorm(ra, X, Y, norm=2):
         nrm+= abs(ra.predict(x) - Y[num])**norm
     return nrm
 
-def mkBestRASIP(X, Y, pnames=None, split=0.7, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234):
+def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234):
     """
     """
     np.random.seed(seed)
     _N, _dim = X.shape
 
-    i_train = sorted(list(np.random.choice(range(_N), int(np.ceil(split*_N)))))
-    i_test = [i for i in range(_N) if not i in i_train]
+    i_train = [i for i in range(_N)]
+    i_test = [i for i in range(_N)]
 
-    N_train = len(i_train)
-    N_test  = len(i_test)
+    # i_train = sorted(list(np.random.choice(range(_N), int(np.ceil(split*_N)))))
+    # i_test = [i for i in range(_N) if not i in i_train]
 
-    orders = apprentice.tools.possibleOrders(N_train, _dim, mirror=True)
-    if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
-    if m_max is not None: orders = [ o for o in orders if o[0] <= m_max]
+    # N_train = len(i_train)
+    # N_test  = len(i_test)
+
+    # orders = apprentice.tools.possibleOrders(N_train, _dim, mirror=True)
+    # if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
+    # if m_max is not None: orders = [ o for o in orders if o[0] <= m_max]
 
 
     FS = ["filter", "scipy"]
@@ -70,7 +73,7 @@ def mkBestRASIP(X, Y, pnames=None, split=0.7, norm=2, m_max=None, n_max=None, f_
     import json
     for fs in FS:
         for rs in RS:
-            rrr = apprentice.RationalApproximationSIP(X[i_train], Y[i_train], m=2, n=1, pnames=pnames, fitstrategy=fs, trainingscale="1x", roboptsolver=rs)
+            rrr = apprentice.RationalApproximationSIP(X[i_train], Y[i_train], m=2, n=1, pnames=pnames, fitstrategy=fs, trainingscale="Cp", roboptsolver=rs)
             print("Test error FS {} RS {}: {}".format(fs, rs, raNorm(rrr, X[i_test], Y[i_test])))
 
             with open("test2D_{}_{}.json".format(fs,rs), "w") as f: json.dump(rrr.asDict, f, indent=4)
