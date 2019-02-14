@@ -1,8 +1,11 @@
+from numba import jit, njit
+
+@njit(fastmath=True, parallel=True)
 def mono_next_grlex(m, x):
     #  Author:
     #
     #    John Burkardt
-    #     
+    #
     #     TODO --- figure out the licensing thing https://people.sc.fsu.edu/~jburkardt/py_src/monomial/monomial.html
 
     #  Find I, the index of the rightmost nonzero entry of X.
@@ -48,6 +51,7 @@ def monomialStructure(dim, order):
     if dim==1:
         return structure.ravel()
     return structure
+
 
 def recurrence(X, structure):
     """
