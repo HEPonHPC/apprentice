@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
   name = 'apprentice',
-  version = '0.0.3',
+  version = '0.1.0',
   description = 'The apprentice',
   url = 'https://xgitlab.cels.anl.gov/mkrishnamoorthy/apprentice',
   author = 'Mohan Krishnamoorthy, Holger Schulz',
@@ -11,7 +11,8 @@ setup(
   install_requires = [
     'numpy',
     'scipy',
-    'sklearn'
+    'sklearn',
+    'numba'
     # 'sobol',
     # 'pyDOE'
   ],
