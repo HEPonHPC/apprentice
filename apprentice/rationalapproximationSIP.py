@@ -5,6 +5,48 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
+from numba import jit, njit
+
+
+
+@njit(fastmath=True, parallel=True)
+def fast_robustSample(coeff, q_ipo, M, N):
+    mysum=0.0
+    for i in range(M, M+N):
+        mysum += coeff[i]*q_ipo[i-M]
+    return mysum - 1.0
+
+
+@njit(fastmath=True, parallel=True)
+def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
+    mysum = 0.0
+    for index in range(trainingsize):
+        p_ipo = ipop[index]
+        q_ipo = ipoq[index]
+
+        myP = 0.0
+        for i in range(M):
+            myP += coeff[i]*p_ipo[i]
+
+        myQ = 0.0
+        for i in range(M, M+N):
+            myQ += coeff[i]*q_ipo[i-M]
+
+        mysum += (Y[index] * myQ - myP)**2
+    return mysum
+
+@njit(fastmath=True, parallel=True)
+def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
+    h = 1.5e-8
+    jac = np.zeros_like(coeff)
+    f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
+    for i in range(len(coeff)):
+        x_d = np.copy(coeff)
+        x_d[i] += h
+        f_d = fast_leastSqObj(x_d, trainingsize, ipop, ipoq, M, N, Y)
+        jac[i] = (f_d - f_0) / h
+    return jac
+
 # from sklearn.base import BaseEstimator, RegressorMixin
 # class RationalApproximationSIP(BaseEstimator, RegressorMixin):
 class RationalApproximationSIP():
@@ -162,7 +204,7 @@ class RationalApproximationSIP():
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
         if(self.trainingscale == ".5x" or self.trainingscale == "0.5x"):
-            self.trainingscale = ".5x"
+            self._trainingscale = ".5x"
             self._trainingsize = int(0.5*(self.M+self.N))
         elif(self.trainingscale == "1x"):
             self._trainingsize = self.M+self.N
@@ -187,10 +229,10 @@ class RationalApproximationSIP():
         self._struct_p      = monomial.monomialStructure(self.dim, self.m)
         self._struct_q      = monomial.monomialStructure(self.dim, self.n)
 
-        self._ipo            = np.empty((self.trainingsize,2),"object")
+        self._ipo            = np.empty((self.trainingsize,2), "object")
         for i in range(self.trainingsize):
             self._ipo[i][0] = monomial.recurrence(self._X[i,:],self._struct_p)
-            self._ipo[i][1]= monomial.recurrence(self._X[i,:],self._struct_q)
+            self._ipo[i][1] = monomial.recurrence(self._X[i,:],self._struct_q)
         start = timer()
         self.fit()
         end = timer()
@@ -198,17 +240,14 @@ class RationalApproximationSIP():
 
     def scipyfit(self, coeffs0,cons):
         start = timer()
-        if(self.strategy == 2):
-            ret = minimize(self.leastSqObjWithPenalty, coeffs0, args = (p_penaltyIndex,q_penaltyIndex),method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-        else:
-            ret = minimize(self.leastSqObj, coeffs0 ,method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
+        ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
+        # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), jac=fast_jac, method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
         coeffs = ret.get('x')
-        # print(ret)
-        # print(np.c_[coeffs[self.M+self.N:self.M+self.N+self.M],coeffs[0:self.M], coeffs[self.M+self.N:self.M+self.N+self.M]-coeffs[0:self.M] ])
-        # print(np.c_[coeffs[self.M+self.N+self.M:self.M+self.N+self.M+self.N],coeffs[self.M:self.M+self.N]])
         leastSq = ret.get('fun')
         return coeffs,leastSq,optstatus
 
@@ -305,7 +344,8 @@ class RationalApproximationSIP():
         if(self._fitstrategy == 'scipy'):
             for trainingIndex in range(self.trainingsize):
                 q_ipo = self._ipo[trainingIndex][1]
-                cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
+                cons[trainingIndex] = {'type': 'ineq', 'fun':fast_robustSample, 'args':(q_ipo, self.M, self.N)}
+                # cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
 
             if(self.strategy == 0):
                 coeffs0 = np.zeros((self.M+self.N))
@@ -327,7 +367,7 @@ class RationalApproximationSIP():
                 raise Exception("strategy %i not implemented"%self.strategy)
 
         maxIterations = 100 # hardcode for now. Param later?
-        maxRestarts = 10    # hardcode for now. Param later?
+        maxRestarts = 100    # hardcode for now. Param later?
         threshold = 0.02
         self._iterationinfo = []
         for iter in range(1,maxIterations+1):
@@ -362,7 +402,7 @@ class RationalApproximationSIP():
                 x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'ms'):
-                maxRestarts = 10
+                maxRestarts = 100
                 self.printDebug("Starting ms")
                 x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
@@ -725,6 +765,7 @@ class RationalApproximationSIP():
                 l1Term += term
         return l1Term
 
+    # @jit
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         sum = self.leastSqObj(coeff)
         l1Term = self.penaltyparam * self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
