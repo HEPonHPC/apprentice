@@ -82,15 +82,15 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=3:
+    if len(sys.argv)!=2:
         print("Usage: {} input.hf output.json".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
         print("Input file '{}' not found.".format(sys.argv[1]))
 
-    # Prevent overwriting of input data
-    assert(sys.argv[2]!=sys.argv[1])
+    # # Prevent overwriting of input data
+    # assert(sys.argv[2]!=sys.argv[1])
 
 
     # TODO rethink data read in --- this is obviously a bit stupid
