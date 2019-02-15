@@ -11,28 +11,42 @@ from numba import jit, njit
 
 @njit(fastmath=True, parallel=True)
 def fast_robustSample(coeff, q_ipo, M, N):
+    # c=""
     mysum=0.0
     for i in range(M, M+N):
         mysum += coeff[i]*q_ipo[i-M]
+        # c+= " {}*coeff[{}]".format(q_ipo[i-M], i)
+    # c+=" -1"
+    # print(c)
     return mysum - 1.0
 
 
 @njit(fastmath=True, parallel=True)
 def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
     mysum = 0.0
+
+    # s=""
     for index in range(trainingsize):
         p_ipo = ipop[index]
         q_ipo = ipoq[index]
 
+        # sp = ""
         myP = 0.0
         for i in range(M):
             myP += coeff[i]*p_ipo[i]
+            # sp+= " + coeff[{}]*({})".format(i+1, p_ipo[i])
 
+        # sq = ""
         myQ = 0.0
         for i in range(M, M+N):
             myQ += coeff[i]*q_ipo[i-M]
+            # sq+= " + coeff[{}]*({})".format(i+1, q_ipo[i-M])
 
         mysum += (Y[index] * myQ - myP)**2
+        # s+= "({} * ({}) - ({}))**2".format(Y[index], sq, sp)
+    # print(s)
+    # import sys
+    # sys.exit(1)
     return mysum
 
 @njit(fastmath=True, parallel=True)
@@ -241,12 +255,18 @@ class RationalApproximationSIP():
         end = timer()
         self._fittime = end-start
 
-    def scipyfit(self, coeffs0,cons):
+    def scipyfit(self, coeffs0, cons):
         start = timer()
         ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
         ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
+        ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
+                jac=fast_jac, method = 'SLSQP', constraints=cons,
+                options={'maxiter': 100000, 'ftol': 1e-6, 'disp': False})
+        # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
+                # jac=fast_jac, method = 'trust-constr', constraints=cons)
+                # options={'maxiter': 1000, , 'disp': False})
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), jac=fast_jac, method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
-        ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
@@ -304,12 +324,14 @@ class RationalApproximationSIP():
         model.Y = self._Y.tolist()
 
         model.coeff = environ.Var(model.coeffrange)
+        for d in range(self.M + self.N): model.coeff[d].value = 0
 
         model.lsqfit = environ.Objective(rule=lsqObjPyomo, sense=1)
 
         model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
 
         opt = environ.SolverFactory('filter')
+        # opt.options['eps'] = 1e-10
 
         pyomodebug = 0
         if(pyomodebug == 0):
@@ -379,7 +401,7 @@ class RationalApproximationSIP():
             self.printDebug("Starting lsq for iter %d"%(iter))
 
             if(self._fitstrategy == 'scipy'):
-                coeffs,leastSq,optstatus = self.scipyfit(coeffs0,cons)
+                coeffs,leastSq,optstatus = self.scipyfit(coeffs0, cons)
             elif(self._fitstrategy == 'filter'):
                 coeffs,leastSq,optstatus = self.filterpyomofit(iter-1)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
@@ -768,7 +790,6 @@ class RationalApproximationSIP():
                 l1Term += term
         return l1Term
 
-    # @jit
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         sum = self.leastSqObj(coeff)
         l1Term = self.penaltyparam * self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
@@ -933,8 +954,8 @@ class RationalApproximationSIP():
 
 if __name__=="__main__":
     import sys
-    infilePath11 = "../benchmarkdata/f11_noise_0.1.txt"
-    infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
+    infilePath11 = "../benchmarkdata/f16.txt"
+    # infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
     X, Y = tools.readData(infilePath11)
     r = RationalApproximationSIP(X,Y,
                                 m=2,
@@ -943,6 +964,18 @@ if __name__=="__main__":
                                 roboptstrategy = 'ms',
                                 localoptsolver = 'scipy',
                                 fitstrategy = 'scipy',
+                                strategy=0,
+                                penaltyparam=10**-1,
+                                ppenaltybin=[1,0,0],
+                                qpenaltybin=[1,0,0,0]
+    )
+    rf = RationalApproximationSIP(X,Y,
+                                m=2,
+                                n=3,
+                                trainingscale="1x",
+                                roboptstrategy = 'ms',
+                                localoptsolver = 'scipy',
+                                fitstrategy = 'filter',
                                 strategy=0,
                                 penaltyparam=10**-1,
                                 ppenaltybin=[1,0,0],
@@ -959,24 +992,26 @@ if __name__=="__main__":
     # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
     print(r.asJSON)
     #
-    import pylab
-    pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
-    TX = sorted(X)
-    YW = [r(p) for p in TX]
+    # import pylab
+    # pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
+    # TX = sorted(X)
+    # YW = [r(p) for p in TX]
+    # YF = [rf(p) for p in TX]
 
-    pylab.plot(TX, YW, label="Rational approximation")
+    # pylab.plot(TX, YW, label="Rational approximation")
+    # pylab.plot(TX, YF, label="Rational approximation filter")
 
-    # Store the last and restore immediately, plot to see if all is good
-    r.save("siptest.json")
-    r=RationalApproximationSIP("siptest.json")
-    YW = [r(p) for p in TX]
-    pylab.plot(TX, YW, "m--", label="Restored approx.")
-    pylab.legend()
-    pylab.xlabel("x")
-    pylab.ylabel("f(x)")
-    pylab.savefig("demoSIP.pdf")
+    # # Store the last and restore immediately, plot to see if all is good
+    # r.save("siptest.json")
+    # r=RationalApproximationSIP("siptest.json")
+    # YW = [r(p) for p in TX]
+    # pylab.plot(TX, YW, "m--", label="Restored approx.")
+    # pylab.legend()
+    # pylab.xlabel("x")
+    # pylab.ylabel("f(x)")
+    # pylab.savefig("demoSIP.pdf")
 
-    sys.exit(0)
+    # sys.exit(0)
 
 
 
