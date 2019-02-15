@@ -53,7 +53,7 @@ def raNormInf(ra, X, Y):
         nrm = max(nrm,abs(ra.predict(x) - Y[num]))
     return nrm
 
-def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234):
+def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234, ts = "1x"):
     """
     """
     np.random.seed(seed)
@@ -81,7 +81,7 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
     for fs in FS:
         for rs in RS:
             rrr = apprentice.RationalApproximationSIP(X[i_train], Y[i_train], 
-                    m=3, n=3, pnames=pnames, fitstrategy=fs, trainingscale="1x", 
+                    m=3, n=3, pnames=pnames, fitstrategy=fs, trainingscale=ts, 
                     roboptstrategy=rs)
             print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs, 
                             raNorm(rrr, X[i_test], Y[i_test],1),
@@ -95,7 +95,7 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=3:
+    if len(sys.argv)!=4:
         print("Usage: {} input.hf output.json".format(sys.argv[0]))
         sys.exit(1)
 
@@ -116,4 +116,5 @@ if __name__ == "__main__":
         X, Y= DATA[0]
 
 
-    mkBestRASIP(X, Y, m_max=4, n_max=2, seed=int(sys.argv[2]) )
+    mkBestRASIP(X, Y, m_max=4, n_max=2, seed=int(sys.argv[2]), ts=sys.argv[3])
+
