@@ -7,7 +7,40 @@ import apprentice
 
 from numba import jit, njit
 
+def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
+    s = "minimize lsq: \n"
+    for index in range(trainingsize):
+        p_ipo = ipop[index]
+        q_ipo = ipoq[index]
 
+        s += "(%f * ("%(Y[index])
+        for i in range(M, M+N):
+            if(i!=M): s+=" + "
+            s += "coeff[%d]*%f"%(i+1,q_ipo[i-M])
+
+
+        s+= ") - ("
+        for i in range(M):
+            if(i!=0): s+=" + "
+            s += "coeff[%d]*%f"%(i+1,p_ipo[i])
+        s+="))**2"
+        if(index != trainingsize-1 and Y[index+1]>=0):
+            s+="+"
+    s+=";"
+    s+="\nsubject to \n"
+    for index in range(trainingsize):
+        q_ipo = ipoq[index]
+
+        s+="%c: "%(chr(65+index))
+        for i in range(M, M+N):
+            if(i!=M): s+=" + "
+            s += "coeff[%d]*%f"%(i+1,q_ipo[i-M])
+
+        s+=">=1;\n"
+
+
+
+    print(s)
 
 @njit(fastmath=True, parallel=True)
 def fast_robustSample(coeff, q_ipo, M, N):
@@ -268,6 +301,7 @@ class RationalApproximationSIP():
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), jac=fast_jac, method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
+        printscipymodel(self.trainingsize,ipop, ipoq, self.M, self.N, self._Y)
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
         coeffs = ret.get('x')
