@@ -96,6 +96,11 @@ if __name__ == "__main__":
     # TODO rethink data read in --- this is obviously a bit stupid
     # if rank==0:
     # This reads the data for all bins
-    X,Y = apprentice.tools.readData(sys.argv[1])
+    try:
+        X,Y = apprentice.tools.readData(sys.argv[1])
+    except:
+        DATA = apprentice.tools.readH5(sys.argv[1], [0])
+        X, Y= DATA[0]
 
-    mkBestRASIP(X, Y, m_max=4, n_max=2, seed=int(sys.argv[2]) )
+
+    mkBestRASIP(X, Y, m_max=4, n_max=2)
