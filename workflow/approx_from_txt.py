@@ -47,6 +47,12 @@ def raNorm(ra, X, Y, norm=2):
         nrm+= abs(ra.predict(x) - Y[num])**norm
     return nrm
 
+def raNormInf(ra, X, Y):
+    nrm = 0
+    for num, x in enumerate(X):
+        nrm = max(nrm,abs(ra.predict(x) - Y[num]))
+    return nrm
+
 def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234):
     """
     """
@@ -68,13 +74,19 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
 
 
     FS = ["filter", "scipy"]
-    RS = ["scipy", "baron"]
+    RS = ["ms", "baron"]
 
     import json
     for fs in FS:
         for rs in RS:
-            rrr = apprentice.RationalApproximationSIP(X[i_train], Y[i_train], m=2, n=1, pnames=pnames, fitstrategy=fs, trainingscale="Cp", roboptsolver=rs)
-            print("Test error FS {} RS {}: {}".format(fs, rs, raNorm(rrr, X[i_test], Y[i_test])))
+            rrr = apprentice.RationalApproximationSIP(X[i_train], Y[i_train], 
+                    m=3, n=3, pnames=pnames, fitstrategy=fs, trainingscale="1x", 
+                    roboptstrategy=rs)
+            print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs, 
+                            raNorm(rrr, X[i_test], Y[i_test],1),
+                            np.sqrt(raNorm(rrr, X[i_test], Y[i_test],2)),
+                            raNormInf(rrr, X[i_test], Y[i_test])))
+            print("Total Approximation time {}\n".format(rrr.fittime))
 
             with open("test2D_{}_{}.json".format(fs,rs), "w") as f: json.dump(rrr.asDict, f, indent=4)
 
