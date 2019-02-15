@@ -301,7 +301,7 @@ class RationalApproximationSIP():
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), jac=fast_jac, method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y), method = 'SLSQP', constraints=cons, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
-        printscipymodel(self.trainingsize,ipop, ipoq, self.M, self.N, self._Y)
+       # printscipymodel(self.trainingsize,ipop, ipoq, self.M, self.N, self._Y)
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
         coeffs = ret.get('x')
