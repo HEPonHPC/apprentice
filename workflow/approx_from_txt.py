@@ -75,6 +75,7 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
 
     FS = ["filter", "scipy"]
     #RS = ["ms", "baron"]
+    # FS = ['filter']
     # FS = ["scipy"]
     RS = ["ms"]
 
