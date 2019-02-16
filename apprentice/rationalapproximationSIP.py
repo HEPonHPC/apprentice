@@ -43,6 +43,22 @@ def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
     print(s)
 
 @njit(fastmath=True, parallel=True)
+def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
+    # c=""
+
+    ret = np.zeros(trainingsize,dtype=np.float64)
+    for ts in range(trainingsize):
+        mysum = 0
+        q_ipo = ipoq[ts]
+        for i in range(M, M+N):
+            mysum += coeff[i]*q_ipo[i-M]
+            # c+= " {}*coeff[{}]".format(q_ipo[i-M], i)
+        # c+=" -1"
+        # print(c)
+        ret[ts] = mysum - 1.0
+    return ret
+
+@njit(fastmath=True, parallel=True)
 def fast_robustSample(coeff, q_ipo, M, N):
     # c=""
     mysum=0.0
@@ -288,6 +304,22 @@ class RationalApproximationSIP():
         end = timer()
         self._fittime = end-start
 
+    def scipyfit2(self,coeffs0):
+        from scipy.optimize import fmin_slsqp
+        start = timer()
+        ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
+        ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
+        ret = fmin_slsqp
+        out,fx,its,imode,smode = fmin_slsqp(fast_leastSqObj, coeffs0 ,
+                    args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
+                    f_ieqcons=fast_robustSample_for_fmin_slsqp,fprime=fast_jac,
+                    iter=100000,iprint=3,full_output=True, disp=3)
+        print(out)
+        print(fx)
+        print(its,imode,smode)
+        exit(1)
+
+
     def scipyfit(self, coeffs0, cons):
         start = timer()
         ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
@@ -358,7 +390,8 @@ class RationalApproximationSIP():
         model.Y = self._Y.tolist()
 
         model.coeff = environ.Var(model.coeffrange)
-        for d in range(self.M + self.N): model.coeff[d].value = 0
+        for d in range(self.M + self.N): model.coeff[d].value = 1
+        model.coeff[self.M].value = 2
 
         model.lsqfit = environ.Objective(rule=lsqObjPyomo, sense=1)
 
@@ -366,6 +399,7 @@ class RationalApproximationSIP():
 
         opt = environ.SolverFactory('filter')
         # opt.options['eps'] = 1e-10
+        # opt.options['iprint'] = 1
 
         pyomodebug = 0
         if(pyomodebug == 0):
@@ -407,7 +441,8 @@ class RationalApproximationSIP():
                 # cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
 
             if(self.strategy == 0):
-                coeffs0 = np.zeros((self.M+self.N))
+                coeffs0 = np.ones((self.M+self.N))
+                coeffs0[self.M] = 2
             elif(self.strategy == 1):
                 coeffs0 = np.zeros((self.M+self.N))
                 for index in p_penaltyIndex:
@@ -436,6 +471,7 @@ class RationalApproximationSIP():
 
             if(self._fitstrategy == 'scipy'):
                 coeffs,leastSq,optstatus = self.scipyfit(coeffs0, cons)
+                # coeffs,leastSq,optstatus = self.scipyfit2(coeffs0)
             elif(self._fitstrategy == 'filter'):
                 coeffs,leastSq,optstatus = self.filterpyomofit(iter-1)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
