@@ -18,7 +18,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1, scale_min=-1, scale_max=1, pnames=None):
         """
         Multivariate polynomial approximation
 
@@ -37,11 +37,14 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self.mkFromJSON(fname)
         elif X is not None and Y is not None:
             self._m=order
-            self._scaler = apprentice.Scaler(np.array(X, dtype=np.float64), a=xmin, b=xmax)
+            self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
+            self._X   = self._scaler.scaledPoints
             self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
+            if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+            else           : self.recurrence=apprentice.monomial.recurrence
             self.fit(strategy=strategy)
         else:
             raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
@@ -106,8 +109,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Evaluation of the numer poly at X.
         """
         X=self._scaler.scale(np.array(X))
-        from apprentice import monomial
-        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        rec_p = np.array(self.recurrence(X, self._struct_p))
         p=self._pcoeff.dot(rec_p)
         return p
 
@@ -151,12 +153,33 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         self._m = int(pdict["m"])
         self._dim=int(pdict["dim"])
         self._scaler = apprentice.Scaler(pdict["scaler"])
+        if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+        else           : self.recurrence=apprentice.monomial.recurrence
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
             pass
         self.setStructures()
 
+    def fmin(self, multistart=None):
+        from scipy import optimize
+        if multistart is None:
+            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            return fmin["fun"]
+        else:
+            _P = self._scaler.drawSamples(multistart)
+            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            return min(_fmin)
+
+    def fmax(self, multistart=None):
+        from scipy import optimize
+        if multistart is None:
+            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            return -fmax["fun"]
+        else:
+            _P = self._scaler.drawSamples(multistart)
+            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            return -min(_fmax)
 
 if __name__=="__main__":
 
