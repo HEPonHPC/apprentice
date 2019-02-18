@@ -187,6 +187,8 @@ class Scaler(object):
     def drawSamples(self, nsamples):
         return np.random.uniform(low=self._Xmin, high=self._Xmax,size=(nsamples,self.dim))
 
+    def drawSamples_scaled(self, nsamples):
+        return np.random.uniform(low=self._a, high=self._b,size=(nsamples,self.dim))
 
 if __name__== "__main__":
     D=np.array([[1.,2.,3.],[4.,5.,6.],[7.,8.,9.],[1,4,7],[5,3,9]])
