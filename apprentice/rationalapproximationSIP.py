@@ -329,7 +329,7 @@ class RationalApproximationSIP():
     def callbackF(self, coeff):
         ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
         ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
-        print '{0:4d}   {1: .6E}'.format(self.Nfeval, fast_leastSqObj(coeff, self.trainingsize, ipop, ipoq, self.M, self.N, self._Y))
+        #print '{0:4d}   {1: .6E}'.format(self.Nfeval, fast_leastSqObj(coeff, self.trainingsize, ipop, ipoq, self.M, self.N, self._Y))
         self.Nfeval += 1
 
 
