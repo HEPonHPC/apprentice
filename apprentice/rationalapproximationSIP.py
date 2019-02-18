@@ -480,7 +480,7 @@ class RationalApproximationSIP():
             else:
                 raise Exception("strategy %i not implemented"%self.strategy)
 
-        maxIterations = 100 # hardcode for now. Param later?
+        maxIterations = 10000 # hardcode for now. Param later?
         maxRestarts = 100    # hardcode for now. Param later?
         threshold = 0.02
         self._iterationinfo = []
