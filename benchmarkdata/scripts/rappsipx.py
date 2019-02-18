@@ -627,7 +627,12 @@ def createTable1(folder, format='table'):
 				msinfo = robOptInfo['info']['msInfo']
 				mstime += msinfo[len(msinfo)-1]['log']['time']
 				so1xInfo = robOptInfo['info']['so1xInfo']
-				sotime += so1xInfo[len(so1xInfo)-1]['log']['time']
+				try:
+					sotime += so1xInfo[len(so1xInfo)-1]['log']['time']
+				except:
+					for s in so1xInfo:
+						if('log' in s):
+							sotime += s['log']['time']
 				sstime += robOptInfo['info']['ssInfo'][0]['log']['time']
 				total += 1
 				diff = robOptInfo['diff']
