@@ -1,5 +1,4 @@
 import numpy as np
-from apprentice import monomial
 from apprentice import tools
 from scipy.optimize import minimize
 from timeit import default_timer as timer
@@ -175,8 +174,10 @@ class RationalApproximationSIP():
                 _scale_max   = kwargs["scalemax"] if kwargs.get("scalemax") is not None else  1
                 self._scaler = apprentice.Scaler(np.array(args[0], dtype=np.float64), a=_scale_min, b=_scale_max, pnames=_pnames)
                 self._X      = self._scaler.scaledPoints
-
+                self._dim = self._X[0].shape[0]
                 self._Y      = np.array(args[1], dtype=np.float64)
+                if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+                else           : self.recurrence=apprentice.monomial.recurrence
                 self.mkFromData(kwargs=kwargs)
 
     @property
@@ -229,6 +230,8 @@ class RationalApproximationSIP():
         self._qcoeff        = np.array(pdict["qcoeff"])
         self._iterationinfo = pdict["iterationinfo"]
         self._dim           = pdict["dim"]
+        if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+        else           : self.recurrence=apprentice.monomial.recurrence
         self._m             = pdict["m"]
         self._n             = pdict["n"]
         self._M             = pdict["M"]
@@ -249,8 +252,8 @@ class RationalApproximationSIP():
         if(self.strategy == 2):
             self._penaltyparam = pdict['lambda']
 
-        self._struct_p      = monomial.monomialStructure(self.dim, self.m)
-        self._struct_q      = monomial.monomialStructure(self.dim, self.n)
+        self._struct_p      = apprentice.monomialStructure(self.dim, self.m)
+        self._struct_q      = apprentice.monomialStructure(self.dim, self.n)
 
     def mkFromData(self, kwargs):
         """
@@ -292,13 +295,13 @@ class RationalApproximationSIP():
             raise Exception("Binary Penalty for denomintor equired for strategy 1 and 2")
 
 
-        self._struct_p      = monomial.monomialStructure(self.dim, self.m)
-        self._struct_q      = monomial.monomialStructure(self.dim, self.n)
+        self._struct_p      = apprentice.monomialStructure(self.dim, self.m)
+        self._struct_q      = apprentice.monomialStructure(self.dim, self.n)
 
         self._ipo            = np.empty((self.trainingsize,2), "object")
         for i in range(self.trainingsize):
-            self._ipo[i][0] = monomial.recurrence(self._X[i,:],self._struct_p)
-            self._ipo[i][1] = monomial.recurrence(self._X[i,:],self._struct_q)
+            self._ipo[i][0] = self.recurrence(self._X[i,:],self._struct_p)
+            self._ipo[i][1] = self.recurrence(self._X[i,:],self._struct_q)
         start = timer()
         self.fit()
         end = timer()
@@ -609,7 +612,7 @@ class RationalApproximationSIP():
             if(robO >= threshold):
                 break
 
-            q_ipo_new = monomial.recurrence(x,self._struct_q)
+            q_ipo_new = self.recurrence(x,self._struct_q)
             if(self._fitstrategy == 'scipy'):
                 cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
             elif(self._fitstrategy == 'filter'):
@@ -674,7 +677,7 @@ class RationalApproximationSIP():
             for d in range(self.dim):
                 x[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
         start = timer()
-        q_ipo = monomial.recurrence(x,self._struct_q)
+        q_ipo = self.recurrence(x,self._struct_q)
         q = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
         end = timer()
         return x, q, end-start
@@ -914,13 +917,13 @@ class RationalApproximationSIP():
             g = tools.getPolyGradient(coeff=coeff[self.M:self.M+self.N],X=x, dim=self._dim,n=self._n)
             for i in range(grad.size): grad[i] = g[i]
 
-        q_ipo = monomial.recurrence(x,self._struct_q)
+        q_ipo = self.recurrence(x,self._struct_q)
 
         res = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
         return res
 
     def robustObj(self,x,coeff):
-        q_ipo = monomial.recurrence(x,self._struct_q)
+        q_ipo = self.recurrence(x,self._struct_q)
         return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
 
     def createPenaltyIndexArr(self):
@@ -956,7 +959,7 @@ class RationalApproximationSIP():
         """
         Evaluation of the denom poly at X.
         """
-        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        rec_p = np.array(self.recurrence(X, self._struct_p))
         p = self._pcoeff.dot(rec_p)
         return p
 
@@ -964,7 +967,7 @@ class RationalApproximationSIP():
         """
         Evaluation of the numer poly at X.
         """
-        rec_q = np.array(monomial.recurrence(X, self._struct_q))
+        rec_q = np.array(self.recurrence(X, self._struct_q))
         q = self._qcoeff.dot(rec_q)
         return q
 
