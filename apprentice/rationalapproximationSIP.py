@@ -304,6 +304,10 @@ class RationalApproximationSIP():
         end = timer()
         self._fittime = end-start
 
+    """
+    Test function that uses fmin_slsqp for fitting. The function is slow  but
+    is good for debugging - Do not reomve
+    """
     def scipyfit2(self,coeffs0):
         from scipy.optimize import fmin_slsqp
         start = timer()
@@ -319,6 +323,15 @@ class RationalApproximationSIP():
         print(its,imode,smode)
         exit(1)
 
+    """
+    Callback function to print obj value per iteration - Do not remove
+    """
+    def callbackF(self, coeff):
+        ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
+        ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
+        print '{0:4d}   {1: .6E}'.format(self.Nfeval, fast_leastSqObj(coeff, self.trainingsize, ipop, ipoq, self.M, self.N, self._Y))
+        self.Nfeval += 1
+
 
     def scipyfit(self, coeffs0, cons):
         start = timer()
@@ -327,6 +340,10 @@ class RationalApproximationSIP():
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
                 options={'maxiter': 100000, 'ftol': 1e-6, 'disp': False})
+        # self.Nfeval=0
+        # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
+        #         jac=fast_jac, method = 'SLSQP', constraints=cons,callback=self.callbackF,
+        #         options={'maxiter': 100000, 'ftol': 1e-6, 'disp': True})
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 # jac=fast_jac, method = 'trust-constr', constraints=cons)
                 # options={'maxiter': 1000, , 'disp': False})
