@@ -37,11 +37,13 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         elif X is not None and Y is not None:
             self._m=order[0]
             self._n=order[1]
-            self._scaler = apprentice.Scaler(np.array(X, dtype=np.float64), a=scale_min, b=scale_max, pnames=pnames)
+            self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
             self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
+            if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+            else           : self.recurrence=apprentice.monomial.recurrence
             self.fit(strategy=strategy)
         else:
             raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
@@ -134,9 +136,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         self.setStructures()
 
         from apprentice import monomial
-        VanderMonde=monomial.vandermonde(self._X, self._K)
-        VM = VanderMonde[:, 0:(self._M)]
-        VN = VanderMonde[:, 0:(self._N)]
+        VM = monomial.vandermonde(self._X, self._m)
+        VN = monomial.vandermonde(self._X, self._n)
         strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 1
         if   strategy==1: self.coeffSolve( VM, VN)
         elif strategy==2: self.coeffSolve2(VM, VN)
@@ -148,17 +149,21 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the denom poly at X.
         """
-        from apprentice import monomial
-        rec_q = np.array(monomial.recurrence(X, self._struct_q))
+        rec_q = np.array(self.recurrence(X, self._struct_q))
         q = self._qcoeff.dot(rec_q)
         return q
+
+    def denom(self, X):
+        """
+        Alias for Q, for compatibility
+        """
+        return self.Q(X)
 
     def P(self, X):
         """
         Evaluation of the numer poly at X.
         """
-        from apprentice import monomial
-        rec_p = np.array(monomial.recurrence(X, self._struct_p))
+        rec_p = np.array(self.recurrence(X, self._struct_p))
         p = self._pcoeff.dot(rec_p)
         return p
 
@@ -208,6 +213,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         self._n      = int(pdict["n"])
         self._dim    = int(pdict["dim"])
         self._scaler = apprentice.Scaler(pdict["scaler"])
+        if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
+        else           : self.recurrence=apprentice.monomial.recurrence
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
