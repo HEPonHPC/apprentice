@@ -62,9 +62,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     def n(self): return self._n
 
     def setStructures(self):
-        from apprentice import monomial
-        self._struct_p = monomial.monomialStructure(self.dim, self.m)
-        self._struct_q = monomial.monomialStructure(self.dim, self.n)
+        self._struct_p = apprentice.monomialStructure(self.dim, self.m)
+        self._struct_q = apprentice.monomialStructure(self.dim, self.n)
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
         self._N        = tools.numCoeffsPoly(self.dim, self.n)

@@ -59,8 +59,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
     def m(self): return self._m
 
     def setStructures(self):
-        from apprentice import monomial
-        self._struct_p = monomial.monomialStructure(self.dim, self.m)
+        self._struct_p = apprentice.monomialStructure(self.dim, self.m)
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
 
