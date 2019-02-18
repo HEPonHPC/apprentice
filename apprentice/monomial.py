@@ -1,3 +1,4 @@
+import numpy as np
 from numba import jit, njit
 
 @njit(fastmath=True, parallel=True)
@@ -53,19 +54,28 @@ def monomialStructure(dim, order):
     return structure
 
 
+def recurrence1D(X, structure):
+    return X**structure
+
+@njit#(fastmath=True)
 def recurrence(X, structure):
     """
     Create the parameter combination vector for a particular structure,
     or in more mathy terms, the recurrence relation for X in a monomial basis
     structure.
     """
-    import numpy as np
-    if X.shape[0]==1:
-        return X**structure
-    try:
-        return np.prod(X**structure, axis=1)
-    except:
-        return np.prod(X**structure, axis=0) # this is for order 0 things
+    temp = X**structure
+    ret = np.zeros(structure.shape[0])
+    for i in range(len(temp)):
+        _= 1.0
+        for t in temp[i]: _*=t
+        ret[i] = _
+    return ret
+    # import sys
+    # sys.exit(1)
+    # return np.prod(X**structure, axis=1)
+    # except:
+        # return np.prod(X**structure, axis=0) # this is for order 0 things
 
 def vandermonde(params, order):
     """
@@ -80,7 +90,10 @@ def vandermonde(params, order):
     from apprentice import tools
     V = np.zeros((len(params), tools.numCoeffsPoly(dim, order)), dtype=np.float64)
     s = monomialStructure(dim, order)
-    for a, p in enumerate(params): V[a]=recurrence(p, s)
+    if len(params[0]) == 1:
+        for a, p in enumerate(params): V[a]=recurrence1D(p, s)
+    else:
+        for a, p in enumerate(params): V[a]=recurrence(p, s)
     return V
 
 if __name__=="__main__":
