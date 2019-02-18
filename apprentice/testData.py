@@ -108,6 +108,13 @@ def f19(P):
     x1, x2, x3, x4 = P
     return np.exp(x1*x2*x3*x4)/(x1**2+x2**2-x3*x4+3)
 
+"""
+Tom's sinc function
+"""
+def f20(P):
+    x1, x2, x3, x4,x5,x6,x7 = P
+    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4 * np.sin(x5)/x5 * np.sin(x6)/x6 * np.sin(x7)/x7
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -164,6 +171,9 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==19:
         Y_train = [f19(x) for x in X_train]
         Y_test  = [f19(x) for x in X_test]
+    elif fn==20:
+        Y_train = [f20(x) for x in X_train]
+        Y_test  = [f20(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
