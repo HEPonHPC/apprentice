@@ -10,9 +10,9 @@ def numCoeffsPoly(dim, order):
 
 def numCoeffsRapp(dim, order):
     """
-    Number of coefficients a dim-dimensional polynomial of order order has.
+    Number of coefficients a dim-dimensional rational approximation of order (m,n) has.
     """
-    return 1 + numCoeffsPoly(dim, order[0]) + numCoeffsPoly(dim, order[1])
+    return numCoeffsPoly(dim, order[0]) + numCoeffsPoly(dim, order[1])
 
 def maxOrder(N, dim):
     """
