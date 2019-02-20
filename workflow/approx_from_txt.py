@@ -74,20 +74,30 @@ def mkBestRASIP(X, Y, pnames=None, split=0.5, norm=2, m_max=None, n_max=None, f_
 
 
     FS = ["filter", "scipy"]
-    #RS = ["ms", "baron"]
+    # RS = ["ms", "baron"]
     # FS = ['filter']
     # FS = ["scipy"]
     RS = ["ms"]
 
+    """
+    Mohan: trying with unscaled dims
+    """
     Xtrain = X[i_train]
     Ytrain = Y[i_train]
+    scalemin = []
+    scalemax = []
+    for d in range(Xtrain[0].shape[0]):
+        scalemin.append(-1)
+        scalemax.append(1)
+        # scalemin.append(min(Xtrain[:,d]))
+        # scalemax.append(max(Xtrain[:,d]))
 
     import json
     for fs in FS:
         for rs in RS:
             rrr = apprentice.RationalApproximationSIP(Xtrain, Ytrain,
                     m=3, n=3, pnames=pnames, fitstrategy=fs, trainingscale=ts,
-                    roboptstrategy=rs)
+                    roboptstrategy=rs,scalemin=scalemin,scalemax=scalemax)
             print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs,
                             raNorm(rrr, X[i_test], Y[i_test],1),
                             np.sqrt(raNorm(rrr, X[i_test], Y[i_test],2)),
