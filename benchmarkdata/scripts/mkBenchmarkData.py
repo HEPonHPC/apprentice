@@ -41,6 +41,8 @@ def getData(X_train, fn, noisepct):
         Y_train = [testData.f18(x) for x in X_train]
     elif fn==19:
         Y_train = [testData.f19(x) for x in X_train]
+    elif fn==20:
+        Y_train = [testData.f20(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
@@ -99,6 +101,10 @@ if __name__ == "__main__":
 
     # Special call for f17
     if(opts.FUNCTION ==17):
-        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,3,[80,5,90],[100,10,93],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
+        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,[80,5,90],[100,10,93],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
+    elif(opts.FUNCTION ==20):
+        a = -4*np.pi
+        b = 4*np.pi
+        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,[a,a,a,a,a,a,a],[b,b,b,b,b,b,b],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
     else:
         mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,minarr,maxarr,opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
