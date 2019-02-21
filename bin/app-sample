@@ -63,6 +63,10 @@ if __name__=="__main__":
     import sys
     PP = sample(sys.argv[1], int(sys.argv[2]))
 
+    # First arg: json with param box
+    # 2nd arg: number of points to sample i.e. number of sub directories to create
+    # 3rd arg: template
+
     import os
     tname = os.path.basename(sys.argv[3])
     TEMPLATES={}
