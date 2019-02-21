@@ -1,3 +1,37 @@
+def numNonZeroCoeff(app, threshold=1e-6):
+    """
+    Determine the number of non-zero coefficients for an approximation app.
+    """
+    n=0
+    for p in app._pcoeff:
+        if abs(p)>threshold: n+=1
+
+    if hasattr(app, '_qcoeff'):
+        for q in app._qcoeff:
+            if abs(q)>threshold: n+=1
+
+    return n
+
+
+def numNLPoly(dim, order):
+    if order <2: return 0
+    else:
+        return numCoeffsPoly(dim, order) - numCoeffsPoly(dim, 1)
+
+def numNL(dim, order):
+    """
+    Number of non-linearities.
+    """
+    m, n = order
+    if n ==0 : return numNLPoly(dim, m)
+    if m <2 and n <2: return 0
+    elif m<2 and n>=2:
+        return numCoeffsPoly(dim, n) - numCoeffsPoly(dim, 1)
+    elif n<2 and m>=2:
+        return numCoeffsPoly(dim, m) - numCoeffsPoly(dim, 1)
+    else:
+        return numCoeffsRapp(dim, order) -  numCoeffsRapp(dim, (1,1))
+
 def numCoeffsPoly(dim, order):
     """
     Number of coefficients a dim-dimensional polynomial of order order has.
