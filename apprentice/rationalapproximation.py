@@ -245,6 +245,23 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
             return -min(_fmax)
 
+    @property
+    def coeffNorm(self):
+        nrm = 0
+        for p in self._pcoeff:
+            nrm+= abs(p)
+        for q in self._qcoeff:
+            nrm+= abs(q)
+        return nrm
+
+    @property
+    def coeff2Norm(self):
+        nrm = 0
+        for p in self._pcoeff:
+            nrm+= p*p
+        for q in self._qcoeff:
+            nrm+= q*q
+        return np.sqrt(nrm)
 
 if __name__=="__main__":
 

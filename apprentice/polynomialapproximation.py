@@ -180,6 +180,20 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
             return -min(_fmax)
 
+    @property
+    def coeffNorm(self):
+        nrm = 0
+        for p in self._pcoeff:
+            nrm+= abs(p)
+        return nrm
+
+    @property
+    def coeff2Norm(self):
+        nrm = 0
+        for p in self._pcoeff:
+            nrm+= p*p
+        return np.sqrt(nrm)
+
 if __name__=="__main__":
 
     import sys
