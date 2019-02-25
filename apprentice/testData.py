@@ -121,14 +121,7 @@ Tom's sinc function - 2D
 """
 def f21(P):
     x1, x2 = P
-    return 10 * np.sin(x1)/x1 * 10* np.sin(x2)/x2
-
-"""
-Tom's sinc function - 7D - magnified
-"""
-def f22(P):
-    x1, x2, x3, x4,x5,x6,x7 = P
-    return 10**7 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4 * np.sin(x5)/x5 * np.sin(x6)/x6 * np.sin(x7)/x7
+    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2
 
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
@@ -192,9 +185,6 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==21:
         Y_train = [f21(x) for x in X_train]
         Y_test  = [f21(x) for x in X_test]
-    elif fn==22:
-        Y_train = [f22(x) for x in X_train]
-        Y_test  = [f22(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
