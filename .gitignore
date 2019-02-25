@@ -6,4 +6,6 @@ build
 dist
 *.egg-info
 *.json
+*.log
+*.png
 *.299445.*
