@@ -6,6 +6,9 @@ import apprentice
 
 from numba import jit, njit
 
+"""
+Print scipy model
+"""
 def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
     s = "minimize lsq: \n"
     for index in range(trainingsize):
@@ -146,6 +149,7 @@ class RationalApproximationSIP():
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
+                                msbarontime: multistart algorithm using scipy.L-BFGS-B local optimizer that restarts for the amount of time baron would run for the no. of nonlinearities
                                 baron: baron through pyomo (REQUIRED: Pyomo and baron executable in PATH)
                                 solve: solve q(x) at random points in the box of X
                                 ss_ms_so_ba: runs single start, multistart, baron and solve, and logs the different objective function values obtained
@@ -270,6 +274,12 @@ class RationalApproximationSIP():
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
+
+        self._filterpyomodebug = kwargs["filterpyomodebug"] if kwargs.get("filterpyomodebug") is not None else 0
+        if self._filterpyomodebug == 2:
+            self._debugfolder      = kwargs["debugfolder"]
+            self._fnname           = kwargs["fnname"]
+
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
         if(self.trainingscale == ".5x" or self.trainingscale == "0.5x"):
@@ -421,7 +431,7 @@ class RationalApproximationSIP():
         # opt.options['eps'] = 1e-10
         # opt.options['iprint'] = 1
 
-        pyomodebug = 0
+        pyomodebug = self._filterpyomodebug
         if(pyomodebug == 0):
             ret = opt.solve(model)
         elif(pyomodebug == 1):
@@ -432,6 +442,11 @@ class RationalApproximationSIP():
             ret = opt.solve(model,tee=True,logfile=logfn)
             model.pprint()
             ret.write()
+        elif(pyomodebug==2):
+            opt.options['iprint'] = 1
+            logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
+            ret = opt.solve(model,logfile=logfn)
+
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
@@ -441,6 +456,12 @@ class RationalApproximationSIP():
         return coeffs,leastSq,optstatus
 
     def fit(self):
+        def calcualteNonLin(dim, n):
+            if(n==0):
+                return 0
+            N = tools.numCoeffsPoly(dim, n)
+
+            return N - (dim + 1)
         # Strategies:
         # 0: LSQ with SIP and without penalty
         # 1: LSQ with SIP and some coeffs set to 0 (using constraints)
@@ -532,6 +553,18 @@ class RationalApproximationSIP():
             elif(self._roboptstrategy == 'solve'):
                 self.printDebug("Starting so")
                 x, robO, info = self.solveForEvalsRobO(coeff=coeffs,threshold=threshold)
+                data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':info}
+            elif(self._roboptstrategy == 'msbarontime'):
+                self.printDebug("Starting msbarontime")
+                a = 9.12758564
+                b = 0.03065447
+                nnl = calcualteNonLin(self.dim,self.n)
+                time = a*np.exp(b * nnl)
+                x, robO, info = self.multipleRestartForTimeRobO(coeffs,time,threshold)
+                d = info[len(info)-1]
+                d['robustArg'] = x.tolist()
+                d['robustObj'] = robO
+                info = [d]
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':info}
             elif(self._roboptstrategy == 'ss_ms_so_ba'):
                 # ss
@@ -1007,7 +1040,7 @@ class RationalApproximationSIP():
         d["log"] = {"fittime":self._fittime}
         d['strategy'] = self._strategy
         d['roboptstrategy'] = self._roboptstrategy
-        if self._roboptstrategy in ['ss','ms','ss_ms_so_ba']:
+        if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
             d['localoptsolver'] = self._localoptsolver
         else: d['localoptsolver'] = "N/A"
         d['fitstrategy'] = self._fitstrategy
