@@ -99,6 +99,31 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
     plt.title(desc)
     plt.savefig(outfilepng)
 
+    keys = []
+    l1arr = np.array([])
+    l2arr = np.array([])
+    linfarr = np.array([])
+    for key in stats:
+        keys.append(key)
+        l1arr = np.append(l1arr,stats[key]['l1'])
+        l2arr = np.append(l2arr,stats[key]['l2'])
+        linfarr = np.append(linfarr,stats[key]['linf'])
+
+    minstats = {}
+    minstats["l1"] = {}
+    minstats["l1"]["val"] = np.min(l1arr)
+    minstats["l1"]["loc"] = keys[np.argmin(l1arr)]
+
+    minstats["l2"] = {}
+    minstats["l2"]["val"] = np.min(l2arr)
+    minstats["l2"]["loc"] = keys[np.argmin(l2arr)]
+
+    minstats["linf"] = {}
+    minstats["linf"]["val"] = np.min(linfarr)
+    minstats["linf"]["loc"] = keys[np.argmin(linfarr)]
+    
+    stats["minstats"] = minstats
+
     import json
     with open(outfilestats, "w") as f:
         json.dump(stats, f,indent=4, sort_keys=True)
