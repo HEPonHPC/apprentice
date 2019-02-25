@@ -4,9 +4,6 @@ from sklearn.model_selection import KFold
 from apprentice import tools, readData
 import os
 
-def plotsurface(infolder,desc, outfolder):
-    print("test")
-
 def plotmntesterr(folder,testfile, desc,bottom_or_all):
     import glob
     import json
@@ -115,7 +112,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
 
 
 
-
+# python plotmntesterror.py f21_2x ../benchmarkdata/f21_test.txt f21 all
 
 if __name__ == "__main__":
     import os, sys
