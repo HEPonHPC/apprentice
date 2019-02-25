@@ -115,9 +115,11 @@ def runCrossValidation(infile,box=np.array([[-1,1],[-1,1]]),outfile="out.json",d
 	with open(outfile, "w") as f:
 		json.dump(outJSON, f,indent=4, sort_keys=True)
 
-def runRappsipBaseStrategy(infile,runs, box=np.array([[-1,1],[-1,1]]),trainingScale="1x", roboptstrategy="ms",outfile="out.json",debug=0):
-
+def runRappsipBaseStrategy(infile,runs, box=np.array([[-1,1],[-1,1]]),trainingScale="1x", roboptstrategy="ms",outfile="out.json",debug=0,debugfile="/tmp/s0_latest.json"):
 	X, Y = tools.readData(infile)
+	return runRappsipBaseStrategyFromPoints(X,Y,runs, box,trainingScale, roboptstrategy,outfile,debug,debugfile)
+
+def runRappsipBaseStrategyFromPoints(X, Y,runs, box=np.array([[-1,1],[-1,1]]),trainingScale="1x", roboptstrategy="ms",outfile="out.json",debug=0,debugfile="/tmp/s0_latest.json"):
 	outJSON = {}
 	for r in runs:
 		pdeg=r[0]
@@ -258,6 +260,101 @@ def tableS0(jsonfile, testfile, runs):
 		print("%d\tp%dq%d\t%f\t%f\t%d\t%d\t%f\t%f"%(i+1,pdeg,qdeg,X_l2[i],Z_testerr[i],mn[i],karr[i],aic[i],bic[i]))
 
 	print("\nMIN\t\t%d\t\t%d\t\t%d\t%d\t\t%d\t\t%d\n"%(np.argmin(X_l2)+1,np.argmin(Z_testerr)+1,np.argmin(mn)+1,np.argmin(karr)+1,np.argmin(aic)+1,np.argmin(bic)+1))
+
+
+def plotmntesterrperfile(jsonfile,testfile, desc,folder):
+	minp = np.inf
+	minq = np.inf
+	maxp = 0
+	maxq = 0
+
+	minl1 = np.inf
+	minl2 = np.inf
+	minlinf = np.inf
+	pp = 0
+	qq =0
+
+	outfile1 = folder+"/"+desc+".299445.png"
+	# outfile2 = folder+"/"+fno+"_index.299445.png"
+	X_test, Y_test = readData(testfile)
+	import json
+	if jsonfile:
+		with open(jsonfile, 'r') as fn:
+			datastore = json.load(fn)
+	from apprentice import monomial
+	import apprentice
+
+	for key in sorted(datastore.keys()):
+		pdeg = datastore[key]['m']
+		qdeg = datastore[key]['n']
+		if(pdeg<minp):
+			minp=pdeg
+		if(qdeg<minq):
+			minq=qdeg
+		if pdeg > maxp:
+			maxp = pdeg
+		if qdeg > maxq:
+			maxq = qdeg
+	print(minp,maxp,minq,maxq)
+	error = np.zeros(shape = (maxp-minp+1,maxq-minq+1))
+	for key in sorted(datastore.keys()):
+		pdeg = datastore[key]['m']
+		qdeg = datastore[key]['n']
+		Y_pred = np.array([],dtype=np.float64)
+		if('scaler' in datastore[key]):
+			rappsip = RationalApproximationSIP(datastore[key])
+			Y_pred = rappsip.predictOverArray(X_test)
+			print(Y_pred)
+		else:
+			structp = apprentice.monomialStructure(datastore[key]['dim'], pdeg)
+			structq = apprentice.monomialStructure(datastore[key]['dim'], qdeg)
+			for x in X_test:
+				nnn = np.array(monomial.recurrence(x, structp))
+				p = np.array(datastore[key]['pcoeff']).dot(nnn)
+				ddd = np.array(monomial.recurrence(x, structq))
+				q = np.array(datastore[key]['qcoeff']).dot(ddd)
+				Y_pred = np.append(Y_pred,(p/q))
+		# print(np.c_[Y_pred,Y_test])
+
+		l1 = np.sum(np.absolute(Y_pred-Y_test))
+		# print(l1)
+		l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
+		linf = np.max(np.absolute(Y_pred-Y_test))
+		error[pdeg-minp][qdeg-minq] = l2
+		if(minl2>l2):
+			minl2 = l2
+			minl1 = l1
+			minlinf = linf
+			print(linf)
+			pp = pdeg
+			qq = qdeg
+
+	import matplotlib as mpl
+	import matplotlib.pyplot as plt
+
+	mpl.rc('text', usetex = True)
+	mpl.rc('font', family = 'serif', size=12)
+	mpl.style.use("ggplot")
+	cmapname   = 'viridis'
+	plt.clf()
+	print(error)
+
+	markersize = 1000
+	vmin = -4
+	vmax = 2
+	X,Y = np.meshgrid(range(minq,maxq+1),range(minp,maxp+1))
+	# plt.scatter(X,Y , marker = 's', s=markersize, c = np.ma.log10(error), cmap = cmapname, vmin=vmin, vmax=vmax, alpha = 1)
+	plt.scatter(X,Y , marker = 's', s=markersize, c = error, cmap = cmapname, alpha = 1)
+	plt.xlabel("$n$")
+	plt.ylabel("$m$")
+	plt.xlim((minq-1,maxq+1))
+	plt.ylim((minp-1,maxp+1))
+	b=plt.colorbar()
+	# b.set_label("$\log_{10}\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
+	b.set_label("$\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
+	plt.title("%s. l1 = %f, l2 = %f, linf = %f found at (%d,%d)"%(desc,minl1,minl2,minlinf,pp,qq))
+	plt.savefig(outfile1)
+	# plt.show()
 
 
 def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
@@ -566,6 +663,12 @@ def createTable2structure(format = 'table'):
 				print(fmt%(dim,m,n,M+N,o,O))
 
 def createTable1(folder, format='table'):
+	def calcualteNonLin(dim, n):
+		if(n==0):
+			return 0
+		N = tools.numCoeffsPoly(dim, n)
+		return N - (dim+1)
+
 	import glob
 	import json
 	import re
@@ -573,6 +676,9 @@ def createTable1(folder, format='table'):
 	filelist = np.sort(filelist)
 	currentfno = -1
 
+	dim = 0
+	nnlmin = np.inf
+	nnlmax = 0
 	sstime = 0.
 	ssfneg = 0.
 
@@ -587,22 +693,31 @@ def createTable1(folder, format='table'):
 
 	threshold = 0
 
+	minconsideredn = 1
+	maxconsideredn = 3
+	print("N considered in [%d, %d]"%(minconsideredn,maxconsideredn))
+
 	if(format == 'table'):
-		print("\t\t\tSingle Start\t\t\tMulti Start\t\t\tSampling\t\t  Baron")
-		print("Function\t% False Neg\tAvg Time\t% False Neg\tAvg Time\t% False Neg\tAvg Time\tAvg Time")
-		fmt = "f%d\t\t%f\t%f\t%f\t%f\t%f\t%f\t%f"
+		print("\t\t\t\t\t\tSingle Start\t\t\tMulti Start\t\t\tSampling\t\t  Baron")
+		print("Function\tdim\tnnl range\t% False Neg\tAvg Time\t% False Neg\tAvg Time\t% False Neg\tAvg Time\tAvg Time")
+		fmt = "f%d\t\t%d\t(%d-%d)\t\t%f\t%f\t%f\t%f\t%f\t%f\t%f"
 	elif(format == 'latex'):
 		print("&Single Start&Multi Start&Sampling&Baron")
 		print("Function&% False Neg&Avg Time&% False Neg&Avg Time&% False Neg&Avg Time&Avg Time")
-		fmt = "\\multicolumn{1}{|c|}{f%d}&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f\\\\"
+		fmt = "\\multicolumn{1}{|c|}{f%d}&\\multicolumn{1}{|c|}{%d}&\\multicolumn{1}{|c|}{(%d-%d)}&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f\\\\"
 
 	for file in filelist:
 		digits = [float(s) for s in re.findall(r'-?\d+\.?\d*', file)]
 		fno = int(digits[0])
 
 		if(fno != currentfno and currentfno !=-1):
-			print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+			# if(format == 'table'):
+			print(fmt%(currentfno,dim,nnlmin,nnlmax,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
 														(sofneg/total)*100,sotime/total,batime/total))
+			# elif(format == 'latex'):
+				# print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+														# (sofneg/total)*100,sotime/total,batime/total))
+			dim = 0
 			sstime = 0.
 			ssfneg = 0.
 
@@ -614,14 +729,27 @@ def createTable1(folder, format='table'):
 
 			batime = 0.
 			total = 0.
+			nnlmin = np.inf
+			nnlmax = 0
 
 		currentfno = fno
 		if file:
 			with open(file, 'r') as fn:
 				datastore = json.load(fn)
 		for key in datastore.keys():
+			dim = datastore[key]['dim']
 			ii = datastore[key]['iterationinfo']
+			m = datastore[key]['m']
+			n = datastore[key]['n']
+			if((n < minconsideredn or n > maxconsideredn)):
+				# print(m,n)
+				continue
+			nnl = calcualteNonLin(dim,n)
+			if(nnl < nnlmin): nnlmin = nnl
+			if(nnl > nnlmax): nnlmax = nnl
 			for iter in ii:
+				if iter['log']['status'] != 0 and iter['log']['status'] != 'ok':
+					continue
 				robOptInfo = iter['robOptInfo']
 				batime += robOptInfo['info']['baInfo'][0]['log']['time']
 				msinfo = robOptInfo['info']['msInfo']
@@ -651,8 +779,12 @@ def createTable1(folder, format='table'):
 					sofneg += 1
 
 
-	print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
-											(sofneg/total)*100,sotime/total,batime/total))
+	# if(format == 'table'):
+	print(fmt%(currentfno,dim,nnlmin,nnlmax,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+												(sofneg/total)*100,sotime/total,batime/total))
+	# elif(format == 'latex'):
+		# print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+												# (sofneg/total)*100,sotime/total,batime/total))
 
 
 
@@ -709,13 +841,28 @@ def printRobOdiff(jsonfile, runs, fno, trainingscale, e):
 
 
 
-# from apprentice import tools
-# tools.numCoeffsPoly(self.dim, self.m)
+from apprentice import tools
+# tools.numCoeffsPoly(self.dim, self.n)
+print(tools.numCoeffsPoly(4, 3))
+print(tools.numCoeffsPoly(6, 3))
+print(tools.numCoeffsPoly(7, 3))
+
+print("----")
+print(tools.numCoeffsPoly(4, 4))
+print(tools.numCoeffsPoly(6, 4))
+print(tools.numCoeffsPoly(7, 4))
+
+
+
 # print(tools.numCoeffsPoly(23, 2) + tools.numCoeffsPoly(23, 2))
 # createTable1("test",'table')
 # createTable1("test",'latex')
 # createTable2structure()
 # exit(1)
+
+# plotmntesterrperfile("test/f18_noisepct10-1_s0_out_1x.299445.json", "../f18_test.txt","f19", "test")
+plotmntesterrperfile("test/f20_noisepct10-1_s0_out_2x.299445.json", "../f20_test.txt","f20", "test")
+exit(1)
 infilePath = "../f8_noisepct10-3.txt"
 
 cvoutfile = "test/f8_noisepct10-3_cv_out.299445.json"
@@ -844,6 +991,13 @@ for i in range(0,5):
 		# if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
 		runs7D.append([i,j])
 
+runs6D = []
+for i in range(0,5):
+	for j in range(0,4):
+		# constantpluslinear = 5
+		# if(tools.numCoeffsPoly(4, j)-constantpluslinear<=50):
+		runs6D.append([i,j])
+
 box14 = np.array([[1,3],[1,3]])
 box17 = np.array([[-1,1],[-1,1],[-1,1]])
 box18 = np.array([[-0.95,0.95],[-0.95,0.95],[-0.95,0.95],[-0.95,0.95]])
@@ -937,11 +1091,30 @@ roboptstrategy = "ss_ms_so_ba"
 # runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "1x", roboptstrategy, s0outfile19_1x_10_3,debug=1)
 # runRappsipBaseStrategy(infilePath19_10_3, runs4D, box19, "2x", roboptstrategy, s0outfile19_2x_10_3,debug=1)
 
-runRappsipBaseStrategy(infilePath20_10_1, runs7D, box20, "1x", roboptstrategy, s0outfile20_1x_10_1,debug=1)
-runRappsipBaseStrategy(infilePath20_10_1, runs7D, box20, "2x", roboptstrategy, s0outfile20_2x_10_1,debug=1)
-runRappsipBaseStrategy(infilePath20_10_3, runs7D, box20, "1x", roboptstrategy, s0outfile20_1x_10_3,debug=1)
-runRappsipBaseStrategy(infilePath20_10_3, runs7D, box20, "2x", roboptstrategy, s0outfile20_2x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath20_10_1, runs7D, box20, "1x", roboptstrategy, s0outfile20_1x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath20_10_1, runs7D, box20, "2x", roboptstrategy, s0outfile20_2x_10_1,debug=1)
+# runRappsipBaseStrategy(infilePath20_10_3, runs7D, box20, "1x", roboptstrategy, s0outfile20_1x_10_3,debug=1)
+# runRappsipBaseStrategy(infilePath20_10_3, runs7D, box20, "2x", roboptstrategy, s0outfile20_2x_10_3,debug=1)
 
+##############################################
+# 6D function test
+s0outfile6D_1x = "test/f6D_s0_out_1x.299445.json"
+s0outfile6D_2x = "test/f6D_s0_out_2x.299445.json"
+# s0outfile6D_1x = "test/f6D_s0_out_1x_unscaled.299445.json"
+# s0outfile6D_2x = "test/f6D_s0_out_2x.unscaled.299445.json"
+sixDdata = "../../workflow/data/DM_6D.h5"
+import apprentice
+try:
+	X,Y = apprentice.tools.readData(sixDdata)
+except:
+	DATA = apprentice.tools.readH5(sixDdata, [0])
+	X, Y= DATA[0]
+a = -1
+b = 1
+box6D = np.array([[a,b],[a,b],[a,b],[a,b],[a,b],[a,b]])
+box6D = np.array([[1.251664,2.999495],[-5.998021, -3.00295],[0.2001926,0.5998408],[478.044,609.9385],[170.088,289.9473],[0.5009486,3.497425]])
+runRappsipBaseStrategyFromPoints(X,Y, runs6D, box6D, "1x", roboptstrategy, s0outfile6D_1x,debug=1,debugfile="/tmp/s0_6D_latest.json")
+runRappsipBaseStrategyFromPoints(X,Y, runs6D, box6D, "2x", roboptstrategy, s0outfile6D_2x,debug=1,debugfile="/tmp/s0_6D_latest.json")
 ##############################################
 
 # plotmntesterr([s0outfile12_1x_10_1,s0outfile12_2x_10_1,s0outfile12_1x_10_3,s0outfile12_2x_10_3], ["e=10-1, 1x","e=10-1, 2x","e=10-3, 1x","e=10-3, 2x"], testfile12, runs2D, "f12","test")
