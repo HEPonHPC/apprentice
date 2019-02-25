@@ -1,6 +1,7 @@
 #!/bin/bash
 # ./runrappsip.sh ../benchmarkdata/f12.txt f12 2 2 2x
 # ./runrappsip.sh ../workflow/data/DM_6D.h5 6D 0 0 2x
+# ./runrappsip.sh ../benchmarkdata/f21.txt f21_2x 2 2 2x
 programname=$0
 function usage {
     echo "usage: $programname infile fndesc mmax nmax ts"
