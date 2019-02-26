@@ -11,7 +11,11 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
     filelist = np.array(glob.glob(folder+"/out/*.json"))
     filelist = np.sort(filelist)
 
-    X, Y = readData(testfile)
+    try:
+        X, Y = readData(testfile)
+    except:
+        DATA = tools.readH5(testfile, [0])
+        X, Y= DATA[0]
     minp = np.inf
     minq = np.inf
     maxp = 0
@@ -54,12 +58,14 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
 
         if(bottom_or_all == "bottom"):
             trainingsize = datastore['trainingsize']
-            testset = [i for i in range(trainingsize,len(X_test))]
+            testset = [i for i in range(trainingsize,len(X))]
             X_test = X[testset]
             Y_test = Y[testset]
-        else:
+        elif(bottom_or_all == "all"):
             X_test = X
             Y_test = Y
+        else:
+            raise Exception("bottom or all? Option ambiguous. Check spelling and/or usage")
 
         if(len(X_test)<=1): raise Exception("Not enough testing data")
         rappsip = RationalApproximationSIP(datastore)
