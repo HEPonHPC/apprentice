@@ -36,7 +36,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
 
     if not os.path.exists(folder+"/plots"):
         os.mkdir(folder+'/plots')
-    outfilepng = "%s/plots/P%s_%s_from_plotmntesterr.png"%(folder, desc, measure)
+    outfilepng = "%s/plots/Pmn_%s_%s_from_plotmntesterr.png"%(folder, desc, measure)
     outfilestats = "%s/plots/J%s_stats_from_plotmntesterr.json"%(folder,desc)
     error = np.empty(shape = (maxp-minp+1,maxq-minq+1))
     for i in range(maxp-minp+1):

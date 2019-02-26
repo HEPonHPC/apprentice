@@ -32,7 +32,7 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     if not os.path.exists(folder+"/plots"):
         os.mkdir(folder+'/plots')
 
-    outfilepng = "%s/plots/P%s_p%d_q%d_ts%s_2Dsurface.png"%(folder,desc,m,n,ts)
+    outfilepng = "%s/plots/P2d_%s_p%d_q%d_ts%s_2Dsurface.png"%(folder,desc,m,n,ts)
 
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=(12,12))
