@@ -38,7 +38,10 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
         os.mkdir(folder+'/plots')
     outfilepng = "%s/plots/P%s_from_plotmntesterr.png"%(folder,desc)
     outfilestats = "%s/plots/J%s_stats_from_plotmntesterr.json"%(folder,desc)
-    error = np.zeros(shape = (maxp-minp+1,maxq-minq+1))
+    error = np.empty(shape = (maxp-minp+1,maxq-minq+1))
+    for i in range(maxp-minp+1):
+        for j in range(maxq-minq+1):
+            error[i][j] = None
 
     for file in filelist:
         if file:
@@ -121,7 +124,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
     minstats["linf"] = {}
     minstats["linf"]["val"] = np.min(linfarr)
     minstats["linf"]["loc"] = keys[np.argmin(linfarr)]
-    
+
     stats["minstats"] = minstats
 
     import json
