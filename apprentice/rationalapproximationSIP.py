@@ -445,6 +445,7 @@ class RationalApproximationSIP():
         elif(pyomodebug==2):
             opt.options['iprint'] = 1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
+            self.printDebug("Starting filter")
             ret = opt.solve(model,logfile=logfn)
 
 
