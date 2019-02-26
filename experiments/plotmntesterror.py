@@ -4,7 +4,7 @@ from sklearn.model_selection import KFold
 from apprentice import tools, readData
 import os
 
-def plotmntesterr(folder,testfile, desc,bottom_or_all):
+def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
     import glob
     import json
     import re
@@ -36,7 +36,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
 
     if not os.path.exists(folder+"/plots"):
         os.mkdir(folder+'/plots')
-    outfilepng = "%s/plots/P%s_from_plotmntesterr.png"%(folder,desc)
+    outfilepng = "%s/plots/P%s_%s_from_plotmntesterr.png"%(folder, desc, measure)
     outfilestats = "%s/plots/J%s_stats_from_plotmntesterr.json"%(folder,desc)
     error = np.empty(shape = (maxp-minp+1,maxq-minq+1))
     for i in range(maxp-minp+1):
@@ -69,15 +69,31 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
         l1 = np.sum(np.absolute(Y_pred-Y_test))
         l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
         linf = np.max(np.absolute(Y_pred-Y_test))
+        nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+        l2divnnz = l2/float(nnz)
         stats[key] = {}
+        stats[key]['nnz'] =nnz
+        stats[key]['l2divnnz'] = l2divnnz
         stats[key]['l1'] =l1
         stats[key]['l2'] =l2
         stats[key]['linf'] =linf
 
-        error[m-minp][n-minq] = l2
+        if(measure == 'l1'):
+            error[m-minp][n-minq] = l1
+        elif(measure == 'l2'):
+            error[m-minp][n-minq] = l2
+        elif(measure == 'linf'):
+            error[m-minp][n-minq] = linf
+        elif(measure == 'l2divnnz'):
+            error[m-minp][n-minq] = l2divnnz
+        else:
+            raise Exception("measure not found. Check spelling and/or usage")
+
+
 
     import matplotlib as mpl
     import matplotlib.pyplot as plt
+    import re
 
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
@@ -85,7 +101,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
     cmapname   = 'viridis'
     plt.clf()
 
-    markersize = 500
+    markersize = 200
     vmin = -4
     vmax = 2
     X,Y = np.meshgrid(range(minq,maxq+1),range(minp,maxp+1))
@@ -98,19 +114,30 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
     b=plt.colorbar()
 	# b.set_label("$\log_{10}\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
 	# b.set_label("$\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
-    b.set_label("L2 error norm")
-    plt.title(desc)
-    plt.savefig(outfilepng)
+    if(measure == 'l1'):
+        b.set_label("L1 error norm")
+    elif(measure == 'l2'):
+        b.set_label("L2 error norm")
+    elif(measure == 'linf'):
+        b.set_label("Linf error norm")
+    elif(measure == 'l2divnnz'):
+        b.set_label("L2/nnz error norm")
+
+
 
     keys = []
     l1arr = np.array([])
     l2arr = np.array([])
     linfarr = np.array([])
+    nnzarr = np.array([])
+    l2divnnzarr= np.array([])
     for key in stats:
         keys.append(key)
         l1arr = np.append(l1arr,stats[key]['l1'])
         l2arr = np.append(l2arr,stats[key]['l2'])
         linfarr = np.append(linfarr,stats[key]['linf'])
+        nnzarr = np.append(nnzarr,stats[key]['nnz'])
+        l2divnnzarr = np.append(l2divnnzarr,stats[key]['l2divnnz'])
 
     minstats = {}
     minstats["l1"] = {}
@@ -125,7 +152,32 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
     minstats["linf"]["val"] = np.min(linfarr)
     minstats["linf"]["loc"] = keys[np.argmin(linfarr)]
 
+    minstats["nnz"] = {}
+    minstats["nnz"]["val"] = np.min(nnzarr)
+    minstats["nnz"]["loc"] = keys[np.argmin(nnzarr)]
+
+    minstats["l2divnnz"] = {}
+    minstats["l2divnnz"]["val"] = np.min(l2divnnzarr)
+    minstats["l2divnnz"]["loc"] = keys[np.argmin(l2divnnzarr)]
+
+    if(measure == 'l1'):
+        minkey = keys[np.argmin(l1arr)]
+    elif(measure == 'l2'):
+        minkey = keys[np.argmin(l2arr)]
+    elif(measure == 'linf'):
+        minkey = keys[np.argmin(linfarr)]
+    elif(measure == 'l2divnnz'):
+        minkey = keys[np.argmin(l2divnnzarr)]
+
+    digits = [int(s) for s in re.findall(r'-?\d+\.?\d*', minkey)]
+    winner = (digits[0], digits[1])
+
     stats["minstats"] = minstats
+
+    plt.scatter(winner[1], winner[0], marker = '*', c = "magenta",s=markersize, alpha = 0.9)
+
+    plt.title("%s. Winner is p%d q%d"%(desc,winner[0], winner[1]))
+    plt.savefig(outfilepng)
 
     import json
     with open(outfilestats, "w") as f:
@@ -140,12 +192,14 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all):
 
 
 
-# python plotmntesterror.py f21_2x ../benchmarkdata/f21_test.txt f21 all
+
+
+# python plotmntesterror.py f21_2x ../benchmarkdata/f21_test.txt f21 all l2
 
 if __name__ == "__main__":
     import os, sys
-    if len(sys.argv)!=5:
-        print("Usage: {} infolder testfile  fndesc  bottom_or_all".format(sys.argv[0]))
+    if len(sys.argv)!=6:
+        print("Usage: {} infolder testfile  fndesc  bottom_or_all l1_or_l2_or_linf_or_l2divnnz".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -154,5 +208,5 @@ if __name__ == "__main__":
     if not os.path.exists(sys.argv[2]):
         print("Test file '{}' not found.".format(sys.argv[2]))
 
-    plotmntesterr(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    plotmntesterr(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4],  sys.argv[5])
 ###########
