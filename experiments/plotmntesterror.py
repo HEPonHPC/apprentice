@@ -168,12 +168,16 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
 
     if(measure == 'l1'):
         minkey = keys[np.argmin(l1arr)]
+        minval = np.min(l1arr)
     elif(measure == 'l2'):
         minkey = keys[np.argmin(l2arr)]
+        minval = np.min(l2arr)
     elif(measure == 'linf'):
         minkey = keys[np.argmin(linfarr)]
+        minval = np.min(linfarr)
     elif(measure == 'l2divnnz'):
         minkey = keys[np.argmin(l2divnnzarr)]
+        minval = np.min(l2divnnzarr)
 
     digits = [int(s) for s in re.findall(r'-?\d+\.?\d*', minkey)]
     winner = (digits[0], digits[1])
@@ -182,7 +186,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
 
     plt.scatter(winner[1], winner[0], marker = '*', c = "magenta",s=markersize, alpha = 0.9)
 
-    plt.title("%s. Winner is p%d q%d"%(desc,winner[0], winner[1]))
+    plt.title("%s. Winner is p%d q%d with val = %f"%(desc,winner[0], winner[1],minval))
     plt.savefig(outfilepng)
 
     import json
