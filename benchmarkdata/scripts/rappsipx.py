@@ -267,6 +267,7 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 	minq = np.inf
 	maxp = 0
 	maxq = 0
+	miny0 = 0
 
 	minl1 = np.inf
 	minl2 = np.inf
@@ -295,7 +296,7 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 			maxp = pdeg
 		if qdeg > maxq:
 			maxq = qdeg
-	print(minp,maxp,minq,maxq)
+	# print(minp,maxp,minq,maxq)
 	error = np.zeros(shape = (maxp-minp+1,maxq-minq+1))
 	for key in sorted(datastore.keys()):
 		pdeg = datastore[key]['m']
@@ -304,7 +305,7 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 		if('scaler' in datastore[key]):
 			rappsip = RationalApproximationSIP(datastore[key])
 			Y_pred = rappsip.predictOverArray(X_test)
-			print(Y_pred)
+			# print(Y_pred)
 		else:
 			structp = apprentice.monomialStructure(datastore[key]['dim'], pdeg)
 			structq = apprentice.monomialStructure(datastore[key]['dim'], qdeg)
@@ -320,6 +321,9 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 		# print(l1)
 		l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
 		linf = np.max(np.absolute(Y_pred-Y_test))
+		x000 = np.zeros(datastore[key]['dim'])
+		y000 = rappsip.predict(x000)
+		print("p%d q%d %f"%(pdeg,qdeg,y000))
 		error[pdeg-minp][qdeg-minq] = l2
 		if(minl2>l2):
 			minl2 = l2
@@ -328,6 +332,8 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 			print(linf)
 			pp = pdeg
 			qq = qdeg
+			miny0 = y000
+			# print(miiny0)
 
 	import matplotlib as mpl
 	import matplotlib.pyplot as plt
@@ -352,7 +358,7 @@ def plotmntesterrperfile(jsonfile,testfile, desc,folder):
 	b=plt.colorbar()
 	# b.set_label("$\log_{10}\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
 	b.set_label("$\\left|\\left|f - \\frac{p^m}{q^n}\\right|\\right|_2$")
-	plt.title("%s. l1 = %f, l2 = %f, linf = %f found at (%d,%d)"%(desc,minl1,minl2,minlinf,pp,qq))
+	plt.title("l1=%f, l2=%f, linf=%f y0=%f found at (%d,%d)"%(minl1,minl2,minlinf,pp,qq,miny0))
 	plt.savefig(outfile1)
 	# plt.show()
 
@@ -399,11 +405,11 @@ def plotmntesterr(jsonfilearr, jsonfiledescrarr, testfile, runs, fno,folder):
 		sortedindexarr = np.reshape(sortedindexarr,(maxpq[0],maxpq[1]))
 		testerrindex[i] = sortedindexarr
 
-		print(testerrarr)
-		print(testerrarr1n)
-		print(testerrarr2n)
-		print(testerrarrinfn)
-		print(sortedindexarr)
+		# print(testerrarr)
+		# print(testerrarr1n)
+		# print(testerrarr2n)
+		# print(testerrarrinfn)
+		# print(sortedindexarr)
 		print(np.argmin(testerrarr), np.min(testerrarr),np.min(testerrarr1n),np.min(testerrarr2n),np.min(testerrarrinfn))
 		print(np.max(testerrarr))
 
