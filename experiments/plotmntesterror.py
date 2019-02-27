@@ -50,6 +50,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         Y_test = Y
     else:
         raise Exception("bottom or all? Option ambiguous. Check spelling and/or usage")
+    if(len(X_test)<=1): raise Exception("Not enough testing data")
 
     if not os.path.exists(folder+"/plots"):
         os.mkdir(folder+'/plots')
@@ -68,8 +69,6 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         n = datastore['n']
         ts = datastore['trainingscale']
 
-
-        if(len(X_test)<=1): raise Exception("Not enough testing data")
         rappsip = RationalApproximationSIP(datastore)
         Y_pred = rappsip.predictOverArray(X_test)
 
