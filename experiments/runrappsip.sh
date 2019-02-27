@@ -24,7 +24,8 @@ mkdir -p $fndesc/log/consolelog;
 for pdeg in $(seq 0 $mmax); do
     for qdeg in $(seq 0 $nmax); do
       if [[ ( "$pdeg" -eq 0 && "$qdeg" -eq 0 )]]
-      then continue
+        then continue
+      fi
       colsolelog=$fndesc"/log/consolelog/"$fndesc"_p"$pdeg"_q"$qdeg"_ts"$ts".log";
       outfile=$fndesc"/out/"$fndesc"_p"$pdeg"_q"$qdeg"_ts"$ts".json";
       if [ ! -f "$outfile" ]
