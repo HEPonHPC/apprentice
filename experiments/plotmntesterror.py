@@ -20,6 +20,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
     minq = np.inf
     maxp = 0
     maxq = 0
+    dim = 0
 
     stats = {}
 
@@ -27,6 +28,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         if file:
 			with open(file, 'r') as fn:
 				datastore = json.load(fn)
+        dim = datastore['dim']
         m = datastore['m']
         n = datastore['n']
         if(m<minp):
@@ -37,6 +39,17 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
             maxp = m
         if n > maxq:
             maxq = n
+
+    if(bottom_or_all == "bottom"):
+        trainingsize = tools.numCoeffsPoly(dim,maxp) + tools.numCoeffsPoly(dim,maxq)
+        testset = [i for i in range(trainingsize,len(X))]
+        X_test = X[testset]
+        Y_test = Y[testset]
+    elif(bottom_or_all == "all"):
+        X_test = X
+        Y_test = Y
+    else:
+        raise Exception("bottom or all? Option ambiguous. Check spelling and/or usage")
 
     if not os.path.exists(folder+"/plots"):
         os.mkdir(folder+'/plots')
@@ -55,17 +68,6 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         n = datastore['n']
         ts = datastore['trainingscale']
 
-
-        if(bottom_or_all == "bottom"):
-            trainingsize = datastore['trainingsize']
-            testset = [i for i in range(trainingsize,len(X))]
-            X_test = X[testset]
-            Y_test = Y[testset]
-        elif(bottom_or_all == "all"):
-            X_test = X
-            Y_test = Y
-        else:
-            raise Exception("bottom or all? Option ambiguous. Check spelling and/or usage")
 
         if(len(X_test)<=1): raise Exception("Not enough testing data")
         rappsip = RationalApproximationSIP(datastore)
