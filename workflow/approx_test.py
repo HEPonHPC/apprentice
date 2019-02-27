@@ -4,6 +4,20 @@ from numba import jit
 import apprentice
 import numpy as np
 
+
+# Very slow for many datapoints.  Fastest for many costs, most readable
+# https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+def is_pareto_efficient_dumb(costs):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
+    return is_efficient
+
 def partialPoly(R, Punscaled, coord, denom=True):
     """
     Partial of denominator or numerator polynomial of rational approx
@@ -130,6 +144,72 @@ def denomChangesSign(rapp, box, center, popsize=4, maxeval=1000):
     # else:
         # return False, xmin, xmax
 
+def mkPlotParetoSquare(data, f_out):
+    """
+    Awesome
+    """
+
+    # Data preparation
+    pareto_orders = []
+
+    mMax = np.max(data[:,0])
+    nMax = np.max(data[:,1])
+    vMax = np.max(data[:,2])
+
+    pdists = []
+    p3D = is_pareto_efficient_dumb(data)
+
+    vmin=1e99
+    i_winner=-1
+    for num, (m,n,v,a,b) in enumerate(data):
+        if p3D[num]:
+            # This is the old approach of using the area
+            nc = m+n
+            test = v*(m+n)
+            if test < vmin:
+                vmin=test
+                i_winner=num
+
+            # This is the euclidian distance which does not work well
+            # if v<vmin:
+                # vmin=v
+                # i_winner=num
+            # pareto_orders.append((a,b))
+            # pdists.append(np.sqrt(m*m/mMax/mMax + n*n/nMax/nMax + v*v/vMax/vMax))
+            # pdists.append(np.sqrt(m*m + n*n + v*v))
+
+    # i_winner = pdists.index(min(pdists))
+    # winner = pareto_orders[i_winner]
+    # winner = pareto_orders[i_winner]
+    winner = (data[i_winner][3], data[i_winner][4])
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+    # plt.clf()
+    cmapname   = 'viridis'
+    from matplotlib.ticker import MaxNLocator
+    ax = plt.figure().gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    plt.scatter(winner[0], winner[1], marker = '*', c = "magenta",s=400, alpha = 1)
+
+    d_pareto = data[p3D]
+    d_other = data[np.logical_not(p3D)]
+    plt.scatter(d_pareto[:,3], d_pareto[:,4], marker = '*', s=200, c = np.log10(d_pareto[:,2]), cmap = cmapname, alpha = 1.0)
+    plt.scatter(d_other[:,3],   d_other[:,4], marker = 's', c = np.log10(d_other[:,2]), cmap = cmapname, alpha = 1.0)
+    plt.xlabel("$m$")
+    plt.ylabel("$n$")
+    plt.xlim((min(data[:,3])-0.5,max(data[:,3])+0.5))
+    plt.ylim((min(data[:,4])-0.5,max(data[:,4])+0.5))
+    b=plt.colorbar()
+    b.set_label("$\log_{{10}}\\frac{{L_2^\\mathrm{{test}}}}{{N_\mathrm{{non-zero}}}}$")
+
+    plt.savefig(f_out)
+    plt.close('all')
+
 def mkPlotNorm(data, f_out, norm=2):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -208,7 +288,7 @@ def mkPlotScatter(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=T
     plt.savefig(f_out)
     plt.close('all')
 
-def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True):
+def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     plt.clf()
@@ -222,14 +302,111 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
     if logx: plt.xscale("log")
     if logy: plt.yscale("log")
 
-    CMP = [a*np.sqrt(b) for a,b in data]
+    # CMP = [a*b for a,b in data]
+    # CMP = [np.sqrt(a*a + b*b) for a,b in data]
 
-    i_cmp = CMP.index(min(CMP))
-    i_2 = CMP.index(sorted(CMP)[1])
-    i_3 = CMP.index(sorted(CMP)[2])
-    plt.scatter(data[i_cmp][0], data[i_cmp][1], marker = '*', c = "gold"  ,s=400, alpha = 1.0)
-    plt.scatter(data[i_2][0]  , data[i_2][1]  , marker = '*', c = "silver",s=400, alpha = 1.0)
-    plt.scatter(data[i_3][0]  , data[i_3][1]  , marker = '*', c = "peru"  ,s=400, alpha = 1.0)
+    # i_cmp = CMP.index(min(CMP))
+    # i_2 = CMP.index(sorted(CMP)[1])
+    # i_3 = CMP.index(sorted(CMP)[2])
+    # plt.scatter(data[i_cmp][0], data[i_cmp][1], marker = '*', c = "gold"  ,s=400, alpha = 1.0)
+    # plt.scatter(data[i_2][0]  , data[i_2][1]  , marker = '*', c = "silver",s=400, alpha = 1.0)
+    # plt.scatter(data[i_3][0]  , data[i_3][1]  , marker = '*', c = "peru"  ,s=400, alpha = 1.0)
+
+
+    data=np.array(data)
+    if normalize_data: data = data / data.max(axis=0)
+
+    b_pareto = is_pareto_efficient_dumb(data)
+    _pareto = data[b_pareto] # Pareto points, sorted in x
+
+    pareto = _pareto[_pareto[:,0].argsort()]
+
+    slopes = []
+
+    for num, (x0,y0) in enumerate(pareto[:-1]):
+        x1, y1 = pareto[num+1]
+        slopes.append( abs( (y1-y0)/(x1-x0)) )
+
+    d_slopes = []
+
+    for num, s in enumerate(slopes[:-1]):
+        d_slopes.append(slopes[num+1]/s)
+    # from IPython import embed
+    # embed()
+
+    eps=0.2
+    winner=0
+    for num, s in enumerate(slopes):
+        print(num, s)
+        if s<eps:
+            break
+        else:
+            winner = num
+    print("{}: {}".format(winner, slopes[winner]))
+
+    i_win = winner + 1
+
+
+
+    plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
+    # plt.scatter(pareto[i_win,0]  , pareto[i_win,1]  , marker = '*', c = "gold"  ,s=444, alpha = 1.0)
+
+    c, txt   = [], []
+    for num, (m,n) in enumerate(orders):
+        if n==0:
+            c.append("b")
+        else:
+            c.append("r")
+        if b_pareto[num]:
+            txt.append("({},{})".format(m,n))
+        else:
+            txt.append("")
+
+    print("Plotting")
+    # from IPython import embed
+    # embed()
+    # import sys
+    # sys.exit(1)
+
+    for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
+    for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
+
+    # plt.axes().set_aspect('equal', 'datalim')
+    plt.savefig(f_out)
+    plt.close('all')
+
+def mkPlotParetoVariance(data, n_test, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.clf()
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+
+
+    plt.xlabel(lx)
+    plt.ylabel(ly)
+    if logx: plt.xscale("log")
+    if logy: plt.yscale("log")
+
+    PV = [a*a / (n_test-b -1) for a, b in data]
+
+    NC = []
+    for m,n in orders:
+        if n==0:
+            NC.append(apprentice.tools.numCoeffsPoly(m))
+        else:
+            NC.append(apprentice.tools.numCoeffsRapp((m,n)))
+
+
+    # CMP = [a*np.sqrt(b) for a,b in data]
+
+    # i_cmp = CMP.index(min(CMP))
+    # i_2 = CMP.index(sorted(CMP)[1])
+    # i_3 = CMP.index(sorted(CMP)[2])
+    # plt.scatter(data[i_cmp][0], data[i_cmp][1], marker = '*', c = "gold"  ,s=400, alpha = 1.0)
+    # plt.scatter(data[i_2][0]  , data[i_2][1]  , marker = '*', c = "silver",s=400, alpha = 1.0)
+    # plt.scatter(data[i_3][0]  , data[i_3][1]  , marker = '*', c = "peru"  ,s=400, alpha = 1.0)
 
 
     c, txt   = [], []
@@ -245,7 +422,6 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
 
     plt.savefig(f_out)
     plt.close('all')
-
 
 def raNorm(ra, X, Y, norm=2):
     nrm = 0
@@ -433,22 +609,72 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     t2=time.time()
     print("Calculating {} approximations took {} seconds".format(len(orders), t2-t1))
 
-    L2      = [np.sqrt(raNorm(app, X, Y, 2)) for app in APP]
-    Linf    = [raNormInf(app, X, Y) for app in APP]
-    NNZ     = [apprentice.tools.numNonZeroCoeff(app, 1e-6)       for app in APP]
+    L2      = [np.sqrt(raNorm(app, X, Y, 2))               for app in APP]
+    Linf    = [raNormInf(app, X, Y)                        for app in APP]
+    NNZ     = [apprentice.tools.numNonZeroCoeff(app, 1e-6) for app in APP]
+    VAR     = [l/m for l, m in zip(L2, NNZ)]
+
+    ncN, ncM = [], []
+
+    NC = []
+    for m,n in orders:
+        ncM.append(apprentice.tools.numCoeffsPoly(_dim, m))
+        ncN.append(apprentice.tools.numCoeffsPoly(_dim, n))
+        if n==0:
+            NC.append(apprentice.tools.numCoeffsPoly(_dim, m))
+        else:
+            NC.append(apprentice.tools.numCoeffsRapp(_dim, (m,n)))
+
+    # import matplotlib as mpl
+    # import matplotlib.pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
+    # plt.clf()
+    # mpl.rc('text', usetex = True)
+    # mpl.rc('font', family = 'serif', size=12)
+    # mpl.style.use("ggplot")
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+
+    # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
+    # coefficients and for convenients the orders of the polynomials
+    D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
+    # D3D = np.array([(o[0],o[1],v) for o,v in zip(orders, VAR)])
+    mkPlotParetoSquare(D3D, "paretomn.pdf")
+    # p3D = is_pareto_efficient_dumb(D3D)
+    # # from IPython import embed
+    # # embed()
+
+    # for num, (m,n,v) in enumerate(zip(ncM,ncN, VAR)):
+        # if p3D[num]:
+            # ax.scatter(m, n, np.log10(v), c="gold")
+        # else:
+            # ax.scatter(m, n, np.log10(v), c="r")
+    # ax.set_xlabel('nc m')
+    # ax.set_ylabel('nc n')
+    # ax.set_zlabel('log v')
+    # plt.show()
+    # sys.exit(1)
+
+    NNC = []
+    for num , n in enumerate(NC):
+        NNC.append(n-NNZ[num])
 
     CMP = [a*b for a,b in zip(NNZ, L2)]
 
     if f_plot:
-        mkPlotCompromise([(a,b) for a, b in zip(L2, NNZ)],  f_plot,  orders, lx="$L_2^\\mathrm{test}$", ly="$N_\\mathrm{non-zero}$", logy=False)
+        # mkPlotCompromise([(a,b) for a, b in zip(NNZ, L2)],  f_plot,  orders, ly="$L_2^\\mathrm{test}$", lx="$N_\\mathrm{non-zero}$", logx=False)
+        # mkPlotCompromise([(a,b) for a, b in zip(NNZ, VAR)],  "VAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{non-zero}$", logy=True, logx=False)
+        mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)],  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
+        # mkPlotCompromise([(a,b) for a, b in zip(NNC, VAR)],  "NNCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}-N_\mathrm{non-zero}$", logy=True, logx=True)
 
     # Proactive memory cleanup
     del APP
 
-    for l in sorted(CMP[0:verbose]):
+    for l in sorted(CMP)[0:debug]:
         i=CMP.index(l)
         oo = orders[i]
-        print("{} -- L2: {:10.4e} | Loo: {:10.4e}".format(oo, L2[i], Linf[i]))
+        print("{} -- L2: {:10.4e} | Loo: {:10.4e} | NNZ : {} | VVV : {:10.4e}".format(oo, L2[i], Linf[i], NNZ[i], VAR[i]))
 
     for l in sorted(CMP):
         i=CMP.index(l)
@@ -482,7 +708,8 @@ if __name__ == "__main__":
     # This reads the data
     try:
         X,Y = apprentice.tools.readData(sys.argv[1])
-        app = mkBestRACPL(X, Y, m_max=5, n_max=5, pnames=None, f_plot=sys.argv[3])
+        app = mkBestRACPL(X, Y, m_max=8, n_max=8, pnames=None, f_plot=sys.argv[3], split=0.75, train_fact=2, debug=20)
+        # app = mkBestRACPL(X, Y, m_max=5, n_max=5, pnames=pnames, split=0.5, train_fact=3, debug=5, f_plot="control_{}.pdf".format(binids[num].replace("/","_").replace("#","_")))
     except:
         import time
         t1 = time.time()
@@ -500,7 +727,7 @@ if __name__ == "__main__":
         for num, (X, Y) in  enumerate(DATA):
             t11=time.time()
             # app = mkBestRASIP(X, Y, seed=int(sys.argv[2]),m_max=5, n_max=5, split=0.7, train_fact=3)
-            app = mkBestRACPL(X, Y, m_max=5, n_max=5, pnames=pnames, split=0.5, train_fact=3)#, f_plot="control_{}.pdf".format(binids[num].replace("/","_").replace("#","_")))
+            app = mkBestRACPL(X, Y, m_max=10, n_max=10, pnames=pnames, split=0.75, train_fact=2, debug=5, f_plot="control_{}.pdf".format(binids[num].replace("/","_").replace("#","_")))
             # app = apprentice.PolynomialApproximation(X, Y, order=4, pnames=pnames)
             ras.append(app)#mkBestRA(X,Y, pnames, n_max=3, f_plot="{}.pdf".format(binids[num].replace("/","_"))))
             t22=time.time()
