@@ -625,6 +625,13 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
         else:
             NC.append(apprentice.tools.numCoeffsRapp(_dim, (m,n)))
 
+
+    # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
+    # coefficients and for convenients the orders of the polynomials
+    D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
+    # D3D = np.array([(o[0],o[1],v) for o,v in zip(orders, VAR)])
+    mkPlotParetoSquare(D3D, "paretomn.pdf")
+
     # import matplotlib as mpl
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D
@@ -635,15 +642,9 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
-
-    # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
-    # coefficients and for convenients the orders of the polynomials
-    D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
-    # D3D = np.array([(o[0],o[1],v) for o,v in zip(orders, VAR)])
-    mkPlotParetoSquare(D3D, "paretomn.pdf")
     # p3D = is_pareto_efficient_dumb(D3D)
-    # # from IPython import embed
-    # # embed()
+    # # # from IPython import embed
+    # # # embed()
 
     # for num, (m,n,v) in enumerate(zip(ncM,ncN, VAR)):
         # if p3D[num]:
@@ -665,7 +666,8 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     if f_plot:
         # mkPlotCompromise([(a,b) for a, b in zip(NNZ, L2)],  f_plot,  orders, ly="$L_2^\\mathrm{test}$", lx="$N_\\mathrm{non-zero}$", logx=False)
         # mkPlotCompromise([(a,b) for a, b in zip(NNZ, VAR)],  "VAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{non-zero}$", logy=True, logx=False)
-        mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)],  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
+        # mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)],  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
+        mkPlotCompromise2([(a,b) for a, b in zip(NC, VAR)],  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
         # mkPlotCompromise([(a,b) for a, b in zip(NNC, VAR)],  "NNCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}-N_\mathrm{non-zero}$", logy=True, logx=True)
 
     # Proactive memory cleanup
@@ -691,6 +693,148 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
             else:
                 return APP_test
 
+def mkPlotCompromise2(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.clf()
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+
+
+    plt.xlabel(lx)
+    plt.ylabel(ly)
+    if logx: plt.xscale("log")
+    if logy: plt.yscale("log")
+
+    data=np.array(data)
+    # if normalize_data: data = data / data.max(axis=0)
+
+    b_pareto = is_pareto_efficient_dumb(data)
+    _pareto = data[b_pareto] # Pareto points
+
+    pareto = _pareto[_pareto[:,0].argsort()]# Pareto points, sorted in x
+    print("===========")
+    print(pareto)
+    print("===========")
+
+    slopes = []
+    for num, (x0,y0) in enumerate(pareto[:-1]):
+        x1, y1 = pareto[num+1]
+        # slopes.append( abs( (y0 - y1)/(x1 - x0)) )
+        # slopes.append( (np.log10(y0) - np.log10(y1))/( x1 - x0))
+        # slopes.append( (y0 - y1)/( x1 - x0))
+        slopes.append( (np.log10(y0) - np.log10(y1))/( np.log10(x1) - np.log10(x0)))
+
+    d_slopes = np.array([])
+    for num, s in enumerate(slopes[:-1]):
+        d_slopes = np.append(d_slopes, slopes[num+1]/s)
+
+    d_slopes_2 = []
+
+    kslope=np.argmax(slopes)-1
+
+    for k in range(kslope,len(pareto)-1):
+        pk = pareto[k]
+        pk_p1 = pareto[k+1]
+        pk_m1 = pareto[k-1]
+        sk    = (np.log10(pk_p1[1]) - np.log10(pk[1]   ))/( np.log10(pk[0])    - np.log10(pk_p1[0]))
+        sk_m1 = (np.log10(pk[1]   ) - np.log10(pk_m1[1]))/( np.log10(pk_m1[0]) - np.log10(pk[0]   ))
+        if sk>sk_m1:
+            dk = sk/sk_m1
+        else:
+            dk = sk_m1/sk
+        d_slopes_2.append(dk)
+    # for numi, (x0,y0) in enumerate(pareto[:-1]):
+        # for numj, s in enumerate(pareto[:-2]):
+
+
+    # from IPython import embed
+    # embed()
+
+    print(d_slopes)
+
+
+
+
+    # OR
+    print("--------------------")
+    for num, (x0,y0) in enumerate(pareto[:-1]):
+        print("%.2f \t %.4f"%(x0,y0))
+        print ("upon")
+        x1, y1 = pareto[num+1]
+        print("%.2f \t %.4f"%(x1,y1))
+        print("s = %.4f "%(slopes[num]))
+
+    print("--------------------")
+
+
+    kofint  = np.argmax(d_slopes_2) + kslope-1
+    s_left  = slopes[kofint]
+    s_right = slopes[kofint+1]
+
+    if s_right > s_left: i_win = kofint + 2
+    else: i_win = kofint + 1
+
+    # from IPython import embed
+    # embed()
+
+
+    # winner = np.argmax(d_slopes_2)
+    # print("{}: {}".format(winner, d_slopes[winner]))
+    # magic=1
+    # i_win = winner#+ 1 #+ magic
+
+    plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
+    plt.scatter(pareto[i_win,0]  , pareto[i_win,1]  , marker = '*', c = "gold"  ,s=444, alpha = 1.0)
+
+    c, txt   = [], []
+    for num, (m,n) in enumerate(orders):
+        if n==0:
+            c.append("b")
+        else:
+            c.append("r")
+        if b_pareto[num]:
+            txt.append("({},{})".format(m,n))
+        else:
+            txt.append("")
+
+    print("Plotting")
+    # from IPython import embed
+    # embed()
+    # import sys
+    # sys.exit(1)
+
+    for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
+    for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
+
+    print("==================")
+    sorted_ds = np.argsort(-d_slopes)
+    for num in sorted_ds:
+    # for num, s in enumerate(slopes[:-1]):
+        o1, o2, o3 = "","",""
+        for ind, t in enumerate(txt):
+            if np.all(pareto[num] == data[ind]):
+                o1 = t
+            if np.all(pareto[num+1] == data[ind]):
+                o2 = t
+            if np.all(pareto[num+2] == data[ind]):
+                o3 = t
+        print("s = {:.18f} between {} and {}".format(slopes[num],o1,o2))
+        print ("upon")
+        print("s = {:.18f} between {} and {}".format(slopes[num+1],o2,o3))
+        print("r = %.4f "%(d_slopes[num]))
+
+
+        print("\n")
+    print("==================")
+
+    plt.plot([pareto[0][0], pareto[-1][0]], [pareto[0][1], pareto[-1][1]], "k-")
+    # from IPython import embed
+    # embed()
+    # plt.axes().set_aspect('equal', 'datalim')
+    plt.savefig(f_out)
+    plt.close('all')
 
 if __name__ == "__main__":
 
