@@ -187,27 +187,28 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
 
 
     data=np.array(data)
+    print(orders)
+    print(data)
     if normalize_data: data = data / data.max(axis=0)
 
     b_pareto = is_pareto_efficient_dumb(data)
     _pareto = data[b_pareto] # Pareto points, sorted in x
 
     pareto = _pareto[_pareto[:,0].argsort()]
+    print("===========")
     print(pareto)
+    print("===========")
 
     slopes = []
-
     for num, (x0,y0) in enumerate(pareto[:-1]):
         x1, y1 = pareto[num+1]
-        slopes.append( abs( (y1-y0)/(x1-x0)) )
+        # slopes.append( abs( (y0 - y1)/(x1 - x0)) )
+        slopes.append( (y0 - y1)/(x1 - x0))
 
     d_slopes = np.array([])
-
     for num, s in enumerate(slopes[:-1]):
-        print(num)
         d_slopes = np.append(d_slopes, slopes[num+1]/s)
-    # from IPython import embed
-    # embed()
+
     print(d_slopes)
 
 
@@ -222,7 +223,22 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
             winner = num
     print("{}: {}".format(winner, slopes[winner]))
     i_win = winner + 1
+
+
     # OR
+    print("--------------------")
+    for num, (x0,y0) in enumerate(pareto[:-1]):
+        print("%.2f \t %.4f"%(x0,y0))
+        print ("upon")
+        x1, y1 = pareto[num+1]
+        print("%.2f \t %.4f"%(x1,y1))
+        print("s = %.4f "%(slopes[num]))
+
+    print("--------------------")
+
+
+
+
     winner = np.argmax(d_slopes)
     print("{}: {}".format(winner, d_slopes[winner]))
     i_win = winner + 1
@@ -257,6 +273,27 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
 
     for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
+
+    print("==================")
+    sorted_ds = np.argsort(-d_slopes)
+    for num in sorted_ds:
+    # for num, s in enumerate(slopes[:-1]):
+        o1, o2, o3 = "","",""
+        for ind, t in enumerate(txt):
+            if np.all(pareto[num] == data[ind]):
+                o1 = t
+            if np.all(pareto[num+1] == data[ind]):
+                o2 = t
+            if np.all(pareto[num+2] == data[ind]):
+                o3 = t
+        print("s = {:.10f} between {} and {}".format(slopes[num+1],o2,o3))
+        print ("upon")
+        print("s = {:.10f} between {} and {}".format(slopes[num],o1,o2))
+        print("r = %.4f "%(d_slopes[num]))
+
+
+        print("\n")
+    print("==================")
 
     # plt.axes().set_aspect('equal', 'datalim')
     plt.savefig(f_out)
