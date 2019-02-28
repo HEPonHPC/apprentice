@@ -4,6 +4,24 @@ from numba import jit
 import apprentice
 import numpy as np
 
+def angle(A,B,C):
+    """
+    Find angle at A
+    """
+    ca = [A[0]-C[0], A[1]-C[1]]
+    ab = [B[0]-A[0], B[1]-A[1]]
+
+    l1=np.linalg.norm(ca)
+    l2=np.linalg.norm(ab)
+    import math
+    top= np.dot(ca,ab)
+    return math.acos(top/l1/l2)
+
+def area(A,B,C):
+    """
+    A,B,C ---
+    """
+    return 0.5 *( ( B[0] - A[0] )*(A[1] - C[1]) -  (A[0] - C[0])*(B[1] - A[1]) )
 
 # Very slow for many datapoints.  Fastest for many costs, most readable
 # https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
@@ -718,6 +736,30 @@ def mkPlotCompromise2(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, lo
     print(pareto)
     print("===========")
 
+    cte=np.cos(7./8*np.pi)
+    cosmax=-2
+    corner=len(pareto)-1
+
+    lpareto=np.log10(pareto)
+
+    C = lpareto[corner]
+    for k in range(0,len(lpareto)-2):
+        B = lpareto[k]
+        for j in range(k,len(lpareto)-2):
+            A=lpareto[j+1]
+            _a = area(A,C,B)
+            _t = angle(A,C,B)
+            if _t>cte and _t> cosmax and _a<0:
+                corner = j+1
+                cosmax = _t
+                print(_a,_t)
+    print("I got this {}".format(pareto[corner]))
+    # from IPython import embed
+    # embed()
+
+
+
+
     slopes = []
     for num, (x0,y0) in enumerate(pareto[:-1]):
         x1, y1 = pareto[num+1]
@@ -786,7 +828,8 @@ def mkPlotCompromise2(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, lo
     # i_win = winner#+ 1 #+ magic
 
     plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
-    plt.scatter(pareto[i_win,0]  , pareto[i_win,1]  , marker = '*', c = "gold"  ,s=444, alpha = 1.0)
+    plt.scatter(pareto[i_win,0]  , pareto[i_win,1]  , marker = '*', c = "gold"  ,s=555, alpha = 1.0)
+    plt.scatter(pareto[corner,0]  , pareto[corner,1]  , marker = '*', c = "peru"  ,s=444, alpha = 1.0)
 
     c, txt   = [], []
     for num, (m,n) in enumerate(orders):
