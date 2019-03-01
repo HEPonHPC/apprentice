@@ -455,8 +455,8 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
 
     for file in filelistRA:
         if file:
-			with open(file, 'r') as fn:
-				datastore = json.load(fn)
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
         m = datastore['m']
         n = datastore['n']
         ts = datastore['trainingscale']
