@@ -21,8 +21,8 @@ ts=$5;
 mkdir -p $fndesc/out;
 mkdir -p $fndesc/log/consolelog;
 # python runrappsip.py ../benchmarkdata/f12.txt f12 2 2 1x 6d
-for pdeg in $(seq 0 $mmax); do
-    for qdeg in $(seq 0 $nmax); do
+for pdeg in $(seq 1 $mmax); do
+    for qdeg in $(seq 1 $nmax); do
       if [[ ( "$pdeg" -eq 0 && "$qdeg" -eq 0 )]]
         then continue
       fi
