@@ -598,11 +598,11 @@ if __name__ == "__main__":
     exit(0)
 
 
-    """"
+    """
     Running on shell (for compute nodes)
     for fno in {7..10} {12..16}; do folder="f"$fno"_2x"; name="f"$fno; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
 
     for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-1_2x"; name="f"$fno"_noisepct10-1"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
 
     for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-3_2x"; name="f"$fno"_noisepct10-3"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
-    """"
+    """
