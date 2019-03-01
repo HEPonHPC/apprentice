@@ -578,15 +578,19 @@ if __name__ == "__main__":
 
     if not os.path.exists(sys.argv[1]):
         print("Input folder '{}' not found.".format(sys.argv[1]))
+        sys.exit(1)
 
     if not os.path.exists(sys.argv[1]+"/out"):
         print("Input folder '{}' not found.".format(sys.argv[1]+"/out"))
+        sys.exit(1)
 
     if not os.path.exists(sys.argv[1]+"/outpa"):
         print("Input folder '{}' not found.".format(sys.argv[1]+"/outpa"))
+        sys.exit(1)
 
     if not os.path.exists(sys.argv[2]):
         print("Test file '{}' not found.".format(sys.argv[2]))
+        sys.exit(1)
 
     plotoptimaldegree(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
 
