@@ -314,11 +314,11 @@ def findCornerTriangulation2(pareto):
     return corner
 
 
-def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
+def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     plt.clf()
-    mpl.rc('text', usetex = True)
+    mpl.rc('text', usetex = False)
     mpl.rc('font', family = 'serif', size=12)
     mpl.style.use("ggplot")
 
@@ -368,6 +368,7 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
 
     # plt.plot([pareto[0][0], pareto[-1][0]], [pareto[0][1], pareto[-1][1]], "k-")
+    plt.title("%s"%(desc))
     plt.savefig(f_out)
     plt.close('all')
 
@@ -557,7 +558,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
     CMP = [a*b for a,b in zip(NNZ, L2)]
 
     outfilepareton = "%s/plots/Poptdeg_%s_pareton.png"%(folder, desc)
-    mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)],  outfilepareton,  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
+    mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)], desc, outfilepareton,  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
     print("pareton written to %s"%(outfilepareton))
 
 
