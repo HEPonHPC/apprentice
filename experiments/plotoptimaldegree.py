@@ -339,7 +339,7 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
     print("===========")
 
     cornerT = findCornerTriangulation(pareto)
-    cornerT2 = findCornerTriangulation2(pareto)
+    # cornerT2 = findCornerTriangulation2(pareto)
     cornerdSl = findCornerSlopesRatios(pareto)
 
 
@@ -347,7 +347,7 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
 
     plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
     plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "gold"  ,s=777, alpha = 1.0)
-    plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
+    # plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
     plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "peru"  ,s=250, alpha = 1.0)
 
 
@@ -596,3 +596,13 @@ if __name__ == "__main__":
     plotoptimaldegree(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
 
     exit(0)
+
+
+    """"
+    Running on shell (for compute nodes)
+    for fno in {7..10} {12..16}; do folder="f"$fno"_2x"; name="f"$fno; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+
+    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-1_2x"; name="f"$fno"_noisepct10-1"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+
+    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-3_2x"; name="f"$fno"_noisepct10-3"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+    """"
