@@ -3,7 +3,6 @@
 import apprentice
 import numpy as np
 
-
 # Very slow for many datapoints.  Fastest for many costs, most readable
 # https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
 def is_pareto_efficient_dumb(costs):
@@ -161,6 +160,160 @@ def mkPlotScatter(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=T
     plt.savefig(f_out)
     plt.close('all')
 
+"""
+Calculates the corner as the one with largest slope ratio
+For curve:
+D - B
+    |
+    A - C
+If slope_left > slope_right, winner is the mid point of L (s(BA)>s(AC) => corner is A)
+If slope_right > slope_left, winner is the tail end of L (s(BA)>s(DB) => corner is A)
+
+Ignores pareto points before largest slope to improve monotonicity of the pareto front
+which is required for this method to work corrctly. Hence, this technique is not
+guaranteed to work since there could be further big drops in the pareto front
+after the largest slope which could result in getting an incorrect corner
+
+Use the triangulation method instead as that is more robust and consistent
+"""
+def findCornerSlopesRatios(pareto):
+    slopes = []
+    for num, (x0,y0) in enumerate(pareto[:-1]):
+        x1, y1 = pareto[num+1]
+        slopes.append( (np.log10(y0) - np.log10(y1))/( np.log10(x1) - np.log10(x0)))
+
+    d_slopes_2 = []
+    kslope=np.argmax(slopes)-1
+    for k in range(kslope,len(pareto)-1):
+        pk = pareto[k]
+        pk_p1 = pareto[k+1]
+        pk_m1 = pareto[k-1]
+        sk    = (np.log10(pk_p1[1]) - np.log10(pk[1]   ))/( np.log10(pk[0])    - np.log10(pk_p1[0]))
+        sk_m1 = (np.log10(pk[1]) - np.log10(pk_m1[1]))/( np.log10(pk_m1[0]) - np.log10(pk[0]))
+        if sk>sk_m1:
+            dk = sk/sk_m1
+        else:
+            dk = sk_m1/sk
+        d_slopes_2.append(dk)
+    # print("--------------------")
+    # for num, (x0,y0) in enumerate(pareto[:-1]):
+    #     print("%.2f \t %.4f"%(x0,y0))
+    #     print ("upon")
+    #     x1, y1 = pareto[num+1]
+    #     print("%.2f \t %.4f"%(x1,y1))
+    #     print("s = %.4f "%(slopes[num]))
+    #
+    # print("--------------------")
+
+
+    kofint  = np.argmax(d_slopes_2) + kslope-1
+    s_left  = slopes[kofint]
+    s_right = slopes[kofint+1]
+
+    if s_right > s_left: i_win = kofint + 2
+    else: i_win = kofint + 1
+    return i_win
+
+"""
+Code Holger and Mohan came up with on 20190228.
+Cleaned up on 20190301
+Cleaned up code from findCornerTriangulation2():
+"""
+def findCornerTriangulation(pareto):
+    def angle(B, A, C):
+        """
+        Find angle at A
+        On the L, B is north of A and C is east of A
+        B
+        | \
+        A - C
+        """
+
+        ba = [A[0]-B[0], A[1]-B[1]]
+        ac = [C[0]-A[0], C[1]-A[1]]
+
+        l1=np.linalg.norm(ba)
+        l2=np.linalg.norm(ac)
+        import math
+        return math.acos(np.dot(ba,ac)/l1/l2)
+
+    def area(B, A, C):
+        """
+        A,B,C ---
+        On the L, B is north of A and C is east of A
+        B
+        | \     (area is -ve)
+        A - C
+        """
+        return 0.5 *( ( C[0] - A[0] )*(A[1] - B[1]) -  (A[0] - B[0])*(C[1] - A[1]) )
+
+    cte=np.cos(7./8*np.pi)
+    cosmax=-2
+    corner=len(pareto)-1
+
+    lpareto=np.log10(pareto)
+
+    C = lpareto[corner]
+    for k in range(0,len(lpareto)-2):
+        B = lpareto[k]
+        for j in range(k,len(lpareto)-2):
+            A = lpareto[j+1]
+            _area = area(B,A,C)
+            _angle = angle(B,A,C)
+
+            if _angle > cte and _angle > cosmax and _area < 0:
+                corner = j + 1
+                cosmax = _angle
+                print(_area,_angle)
+    print("In findCornerTriangulation, I got this {}".format(pareto[corner]))
+    return corner
+
+"""
+Code Holger and Mohan came up with on 20190228.
+Cleaned up code in findCornerTriangulation.
+Keeping this around for reference
+"""
+def findCornerTriangulation2(pareto):
+    def angle(A,B,C):
+        """
+        Find angle at A
+        """
+        ca = [A[0]-C[0], A[1]-C[1]]
+        ab = [B[0]-A[0], B[1]-A[1]]
+
+        l1=np.linalg.norm(ca)
+        l2=np.linalg.norm(ab)
+        import math
+        top= np.dot(ca,ab)
+        return math.acos(top/l1/l2)
+
+    def area(A,B,C):
+        """
+        A,B,C ---
+        """
+        return 0.5 *( ( B[0] - A[0] )*(A[1] - C[1]) -  (A[0] - C[0])*(B[1] - A[1]) )
+
+    cte=np.cos(7./8*np.pi)
+    cosmax=-2
+    corner=len(pareto)-1
+
+    lpareto=np.log10(pareto)
+
+    C = lpareto[corner]
+    for k in range(0,len(lpareto)-2):
+        B = lpareto[k]
+        for j in range(k,len(lpareto)-2):
+            A=lpareto[j+1]
+            _a = area(A,C,B)
+            _t = angle(A,C,B)
+            if _t>cte and _t> cosmax and _a<0:
+                corner = j+1
+                cosmax = _t
+                print(_a,_t)
+    print("In findCornerTriangulation2, I got this {}".format(pareto[corner]))
+    return corner
+
+
 def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -169,90 +322,34 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
     mpl.rc('font', family = 'serif', size=12)
     mpl.style.use("ggplot")
 
-
     plt.xlabel(lx)
     plt.ylabel(ly)
     if logx: plt.xscale("log")
     if logy: plt.yscale("log")
 
-    # CMP = [a*b for a,b in data]
-    # CMP = [np.sqrt(a*a + b*b) for a,b in data]
-
-    # i_cmp = CMP.index(min(CMP))
-    # i_2 = CMP.index(sorted(CMP)[1])
-    # i_3 = CMP.index(sorted(CMP)[2])
-    # plt.scatter(data[i_cmp][0], data[i_cmp][1], marker = '*', c = "gold"  ,s=400, alpha = 1.0)
-    # plt.scatter(data[i_2][0]  , data[i_2][1]  , marker = '*', c = "silver",s=400, alpha = 1.0)
-    # plt.scatter(data[i_3][0]  , data[i_3][1]  , marker = '*', c = "peru"  ,s=400, alpha = 1.0)
-
-
     data=np.array(data)
-    print(orders)
-    print(data)
-    if normalize_data: data = data / data.max(axis=0)
+    # if normalize_data: data = data / data.max(axis=0)
 
     b_pareto = is_pareto_efficient_dumb(data)
-    _pareto = data[b_pareto] # Pareto points, sorted in x
+    _pareto = data[b_pareto] # Pareto points
 
-    pareto = _pareto[_pareto[:,0].argsort()]
+    pareto = _pareto[_pareto[:,0].argsort()]# Pareto points, sorted in x
     print("===========")
     print(pareto)
     print("===========")
 
-    slopes = []
-    for num, (x0,y0) in enumerate(pareto[:-1]):
-        x1, y1 = pareto[num+1]
-        # slopes.append( abs( (y0 - y1)/(x1 - x0)) )
-        slopes.append( (y0 - y1)/(x1 - x0))
-
-    d_slopes = np.array([])
-    for num, s in enumerate(slopes[:-1]):
-        d_slopes = np.append(d_slopes, slopes[num+1]/s)
-
-    print(d_slopes)
-
-
-
-    eps=0.2
-    winner=0
-    for num, s in enumerate(slopes):
-        print(num, s)
-        if s<eps:
-            break
-        else:
-            winner = num
-    print("{}: {}".format(winner, slopes[winner]))
-    i_win = winner + 1
-
-
-    # OR
-    print("--------------------")
-    for num, (x0,y0) in enumerate(pareto[:-1]):
-        print("%.2f \t %.4f"%(x0,y0))
-        print ("upon")
-        x1, y1 = pareto[num+1]
-        print("%.2f \t %.4f"%(x1,y1))
-        print("s = %.4f "%(slopes[num]))
-
-    print("--------------------")
-
-
-
-
-    winner = np.argmax(d_slopes)
-    print("{}: {}".format(winner, d_slopes[winner]))
-    i_win = winner + 1
-
-
-
-
-
+    cornerT = findCornerTriangulation(pareto)
+    cornerT2 = findCornerTriangulation2(pareto)
+    cornerdSl = findCornerSlopesRatios(pareto)
 
 
 
 
     plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
-    plt.scatter(pareto[i_win,0]  , pareto[i_win,1]  , marker = '*', c = "gold"  ,s=444, alpha = 1.0)
+    plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "gold"  ,s=777, alpha = 1.0)
+    plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
+    plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "peru"  ,s=250, alpha = 1.0)
+
 
     c, txt   = [], []
     for num, (m,n) in enumerate(orders):
@@ -266,36 +363,11 @@ def mkPlotCompromise(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, log
             txt.append("")
 
     print("Plotting")
-    # from IPython import embed
-    # embed()
-    # import sys
-    # sys.exit(1)
 
     for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
 
-    print("==================")
-    sorted_ds = np.argsort(-d_slopes)
-    for num in sorted_ds:
-    # for num, s in enumerate(slopes[:-1]):
-        o1, o2, o3 = "","",""
-        for ind, t in enumerate(txt):
-            if np.all(pareto[num] == data[ind]):
-                o1 = t
-            if np.all(pareto[num+1] == data[ind]):
-                o2 = t
-            if np.all(pareto[num+2] == data[ind]):
-                o3 = t
-        print("s = {:.10f} between {} and {}".format(slopes[num+1],o2,o3))
-        print ("upon")
-        print("s = {:.10f} between {} and {}".format(slopes[num],o1,o2))
-        print("r = %.4f "%(d_slopes[num]))
-
-
-        print("\n")
-    print("==================")
-
-    # plt.axes().set_aspect('equal', 'datalim')
+    # plt.plot([pareto[0][0], pareto[-1][0]], [pareto[0][1], pareto[-1][1]], "k-")
     plt.savefig(f_out)
     plt.close('all')
 
@@ -497,6 +569,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
 
 
 if __name__ == "__main__":
+
 
     import os, sys, h5py
     if len(sys.argv)!=5:
