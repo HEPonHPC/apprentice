@@ -1,0 +1,513 @@
+#!/usr/bin/env python
+
+from numba import jit
+import apprentice
+import numpy as np
+
+def getBestOrder(data, orders):
+    data=np.array(data)
+    pareto = paretoFront(data)
+    corner = findCornerIndex(pareto)
+
+    # A bit ugly but we need to make a connection between the orders and the norms
+    for num, (nc, l) in enumerate(data):
+        if nc == pareto[corner][0] and np.isclose(l, pareto[corner][1]):
+            break
+    return orders[num], corner
+
+def paretoFront(data):
+    """
+    Return the pareto front of a 2D array, "data".
+    """
+    data=np.array(data)
+    b_pareto = is_pareto_efficient_dumb(data)
+    _pareto = data[b_pareto] # Pareto points
+    pareto = _pareto[_pareto[:,0].argsort()]# Pareto points, sorted in x
+    return pareto
+
+def findCornerIndex(data, cte_0=-0.9238795325112867, cos_max=-2):
+    """
+    data --- 2D array
+    This algorithm finds the best point according to "cite here"
+    in the pareto front. Return value is the index (i.e. row)
+    of that point in the input array
+    """
+    data=np.array(data)
+
+    # Start paramters
+    cte=cte_0
+    cosmax=cos_max
+    corner=len(data)-1
+
+    # Operate in double logarithmic space -- TODO really necessary?
+    ldata=np.log10(data)
+
+    # This is the ABC algorithm
+
+    C = ldata[corner]
+    for k in range(0,len(ldata)-2):
+        B = ldata[k]
+        for j in range(k,len(ldata)-2):
+            A=ldata[j+1]
+            _a = area(A,C,B)
+            _t = angle(A,C,B)
+            if _t>cte and _t> cosmax and _a<0:
+                corner = j+1
+                cosmax = _t
+    return corner
+
+def angle(A,B,C):
+    """
+    Find angle at A.
+    A,B,C --- are the points of a triangle in a 2D space.
+    """
+    ca = [A[0]-C[0], A[1]-C[1]]
+    ab = [B[0]-A[0], B[1]-A[1]]
+
+    l1=np.linalg.norm(ca)
+    l2=np.linalg.norm(ab)
+    import math
+    top= np.dot(ca,ab)
+    return math.acos(top/l1/l2)
+
+def area(A,B,C):
+    """
+    A,B,C --- are the points of a triangle in a 2D space.
+    This code return the area.
+    """
+    return 0.5 *( ( B[0] - A[0] )*(A[1] - C[1]) -  (A[0] - C[0])*(B[1] - A[1]) )
+
+# Very slow for many datapoints.  Fastest for many costs, most readable
+# https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+def is_pareto_efficient_dumb(costs):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
+    return is_efficient
+
+def partialPoly(R, Punscaled, coord, denom=True):
+    """
+    Partial of denominator or numerator polynomial of rational approx
+    by coordinate coord evaluated at (unscaled) parameter point.
+    """
+    import numpy as np
+    structure = R._struct_q if denom else R._struct_p
+    coeffs    = R._qcoeff   if denom else R._pcoeff
+    P = R._scaler.scale(Punscaled)
+    grad = [0] # Derivative of constant term
+
+    if R.dim==1:
+        for s in structure[1:]: # Start with the linear terms
+            grad.append((s*P[0]**(s-1))/(R._scaler._Xmax[0] - R._scaler._Xmin[0])*2)
+
+    else:
+        for s in structure[1:]: # Start with the linear terms
+            if s[coord] == 0: # The partial derivate evaluates to 0 if you do "d/dx of  y"
+                grad.append(0)
+                continue
+            temp = 1.0
+            for i in range(len(s)): # x,y,z,...
+                if i==coord:
+                    temp*=s[i]
+                    temp*=P[i]**(s[i]-1)/(R._scaler._Xmax[i] - R._scaler._Xmin[i])*2 # Jacobian factor of 2/(b - a) here since we scaled into [-1,1]
+                else:
+                    temp*=P[i]**s[i]
+            grad.append(temp)
+    return np.dot(grad, coeffs)
+
+def gradient(R, Punscaled, denom=True):
+    """
+    Gradeitn of denominator or numerator polynomial of rational approx
+    evaluated at (unscaled) parameter point.
+    """
+    return [partialPoly(R, Punscaled, i, denom=denom) for i in range(R.dim)]
+
+def denomAbsMin(rapp, box, center):
+    from scipy import optimize
+    return optimize.minimize(lambda x:abs(rapp.denom(x)), center, bounds=box)
+
+def denomMin(rapp, box, center):
+    from scipy import optimize
+    return optimize.minimize(lambda x:rapp.denom(x), center, bounds=box)
+
+def denomMax(rapp, box, center):
+    import numpy as np
+    from scipy import optimize
+    return optimize.minimize(lambda x:-rapp.denom(x), center, bounds=box)
+
+def denomMinMLSL(rapp, box, center, popsize=4, maxeval=1000):
+    import numpy as np
+
+    def my_func(x, grad):
+        if grad.size > 0:
+            _grad = fast_grad(x, rapp)
+            for _i in range(grad.size): grad[_i] = grad[_i]
+        return rapp.denom(x)
+
+    import nlopt
+    locopt = nlopt.opt(nlopt.LD_MMA, center.size)
+    glopt = nlopt.opt(nlopt.GD_MLSL_LDS, center.size)
+    glopt.set_min_objective(my_func)
+    glopt.set_lower_bounds(np.array([b[0] for b in box]))
+    glopt.set_upper_bounds(np.array([b[1] for b in box]))
+    glopt.set_local_optimizer(locopt)
+    glopt.set_population(popsize)
+    glopt.set_maxeval(maxeval)
+    xmin = glopt.optimize(center)
+    return xmin
+
+def denomMaxMLSL(rapp, box, center, popsize=10, maxeval=10000):
+    import numpy as np
+
+    def my_func(x, grad):
+        if grad.size > 0:
+            _grad = fast_grad(x, rapp)#gradient(rapp, x)
+            for _i in range(grad.size): grad[_i] = grad[_i]
+        return rapp.denom(x)
+
+    import nlopt
+
+    locopt = nlopt.opt(nlopt.LD_MMA, center.size)
+    glopt = nlopt.opt(nlopt.GD_MLSL_LDS, center.size)
+    glopt.set_max_objective(my_func)
+    glopt.set_lower_bounds(np.array([b[0] for b in box]))
+    glopt.set_upper_bounds(np.array([b[1] for b in box]))
+    glopt.set_local_optimizer(locopt)
+    glopt.set_population(popsize)
+    glopt.set_maxeval(maxeval)
+    xmax = glopt.optimize(center)
+    return xmax
+
+
+@jit
+def fast_grad(x, app):
+    h = 1.5e-8
+    jac = np.zeros_like(x)
+    f_0 = app.denom(x)
+    for i in range(len(x)):
+        x_d = np.copy(x)
+        x_d[i] += h
+        f_d = app.denom(x_d)
+        jac[i] = (f_d - f_0) / h
+    return jac
+
+
+def denomChangesSign(rapp, box, center, popsize=4, maxeval=1000):
+    # xmin_mlsl = denomMinMLSL(rapp, box, center, popsize, maxeval)
+    # xmax_mlsl = denomMaxMLSL(rapp, box, center, popsize, maxeval)
+    xmin = denomMin(rapp, box, center)["x"]
+    xmax = denomMax(rapp, box, center)["x"]
+    # DD=[rapp.Q(t) for t in rapp._scaler.drawSamples(10000)]
+    bad      = rapp.denom(xmin)      * rapp.denom(xmax) <0
+    if bad:
+        return True, xmin, xmax
+    else:
+        return False, xmin, xmax
+
+    # # bad_mlsl = rapp.denom(xmin_mlsl) * rapp.denom(xmax_mlsl) <0
+    # print("std: {} mlsl: {}".format(bad, bad_mlsl))
+    # if bad or bad_mlsl:
+        # return True, xmin, xmax
+    # else:
+        # return False, xmin, xmax
+
+def mkPlotParetoSquare(data, f_out):
+    """
+    Awesome
+    """
+
+    # Data preparation
+    pareto_orders = []
+
+    mMax = np.max(data[:,0])
+    nMax = np.max(data[:,1])
+    vMax = np.max(data[:,2])
+
+    pdists = []
+    p3D = is_pareto_efficient_dumb(data)
+
+    vmin=1e99
+    i_winner=-1
+    for num, (m,n,v,a,b) in enumerate(data):
+        if p3D[num]:
+            # This is the old approach of using the area
+            nc = m+n
+            test = v*(m+n)
+            if test < vmin:
+                vmin=test
+                i_winner=num
+
+
+    winner = (data[i_winner][3], data[i_winner][4])
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+    # plt.clf()
+    cmapname   = 'viridis'
+    from matplotlib.ticker import MaxNLocator
+    ax = plt.figure().gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    plt.scatter(winner[0], winner[1], marker = '*', c = "magenta",s=400, alpha = 1)
+
+    d_pareto = data[p3D]
+    d_other = data[np.logical_not(p3D)]
+    plt.scatter(d_pareto[:,3], d_pareto[:,4], marker = '*', s=200, c = np.log10(d_pareto[:,2]), cmap = cmapname, alpha = 1.0)
+    plt.scatter(d_other[:,3],   d_other[:,4], marker = 's', c = np.log10(d_other[:,2]), cmap = cmapname, alpha = 1.0)
+    plt.xlabel("$m$")
+    plt.ylabel("$n$")
+    plt.xlim((min(data[:,3])-0.5,max(data[:,3])+0.5))
+    plt.ylim((min(data[:,4])-0.5,max(data[:,4])+0.5))
+    b=plt.colorbar()
+    b.set_label("$\log_{{10}}\\frac{{L_2^\\mathrm{{test}}}}{{N_\mathrm{{non-zero}}}}$")
+
+    plt.savefig(f_out)
+    plt.close('all')
+
+
+def raNorm(ra, X, Y, norm=2):
+    nrm = 0
+    for num, x in enumerate(X):
+        nrm+= abs(ra.predict(x) - Y[num])**norm
+    return nrm
+
+def raNormInf(ra, X, Y):
+    nrm = 0
+    for num, x in enumerate(X):
+        nrm = max(nrm,abs(ra.predict(x) - Y[num]))
+    return nrm
+
+
+def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234, allow_const=False, debug=0):
+    """
+    """
+    import apprentice
+    _N, _dim = X.shape
+    np.random.seed(seed)
+
+
+    # Split dataset in training and test sample
+    i_train = sorted(list(np.random.choice(range(_N), int(np.ceil(split*_N)))))
+    i_test = [i for i in range(_N) if not i in i_train]
+
+    N_train = len(i_train)
+    N_test  = len(i_test)
+
+    orders = sorted(apprentice.tools.possibleOrders(N_train, _dim, mirror=True))
+    if not allow_const: orders=orders[1:]
+    if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
+    if m_max is not None: orders = [ o for o in orders if o[0] <= m_max]
+
+    # Discard those orders where we do not have enough training points if train_fact>1
+    if train_fact>1:
+        _temp = []
+        for o in orders:
+            if o[1]>0:
+                if train_fact*apprentice.tools.numCoeffsRapp(_dim, o) <= N_train:
+                    _temp.append(o)
+            else:
+                if train_fact*apprentice.tools.numCoeffsPoly(_dim, o[0]) <= N_train:
+                    _temp.append(o)
+        orders = sorted(_temp)
+
+    APP = []
+
+    import time
+    t1=time.time()
+    for o in orders:
+        m, n = o
+        if n == 0:
+            i_train_o = np.random.choice(i_train, int(train_fact*apprentice.tools.numCoeffsPoly(_dim, m)))
+            APP.append(apprentice.PolynomialApproximation(X[i_train_o], Y[i_train_o], order=m, pnames=pnames))
+        else:
+            i_train_o = np.random.choice(i_train, int(train_fact*apprentice.tools.numCoeffsRapp(_dim, (m,n))))
+            APP.append(apprentice.RationalApproximation(X[i_train_o], Y[i_train_o], order=(m,n), strategy=1, pnames=pnames))
+    t2=time.time()
+    print("Calculating {} approximations took {} seconds".format(len(orders), t2-t1))
+
+    L2      = [np.sqrt(raNorm(app, X, Y, 2))               for app in APP]
+    Linf    = [raNormInf(app, X, Y)                        for app in APP]
+    NNZ     = [apprentice.tools.numNonZeroCoeff(app, 1e-6) for app in APP]
+    VAR     = [l/m for l, m in zip(L2, NNZ)]
+
+    ncN, ncM = [], []
+
+    NC = []
+    for m,n in orders:
+        ncM.append(apprentice.tools.numCoeffsPoly(_dim, m))
+        ncN.append(apprentice.tools.numCoeffsPoly(_dim, n))
+        if n==0:
+            NC.append(apprentice.tools.numCoeffsPoly(_dim, m))
+        else:
+            NC.append(apprentice.tools.numCoeffsRapp(_dim, (m,n)))
+
+
+    # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
+    # coefficients and for convenients the orders of the polynomials
+    # D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
+    # mkPlotParetoSquare(D3D, "paretomn.pdf")
+
+
+    NNC = []
+    for num , n in enumerate(NC):
+        NNC.append(n-NNZ[num])
+
+    CMP = [a*b for a,b in zip(NNZ, L2)]
+
+    dec_data = [(a,b) for a, b in zip(NC, VAR)]
+
+    o_win, i_win = getBestOrder(dec_data, orders)
+    print("Winner: m={} n={} with L2={} and Loo={}".format(o_win[0], o_win[1], L2[i_win], Linf[i_win]))
+
+    if f_plot:
+        mkPlotResults(dec_data,  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True)
+
+    if o_win[1] == 0:
+        return apprentice.PolynomialApproximation(X, Y, order=o_win[0], pnames=pnames)
+    else:
+        return apprentice.RationalApproximation(X, Y, order=o_win, strategy=1, pnames=pnames)
+
+
+
+    # for l in sorted(CMP)[0:debug]:
+        # i=CMP.index(l)
+        # oo = orders[i]
+        # print("{} -- L2: {:10.4e} | Loo: {:10.4e} | NNZ : {} | VVV : {:10.4e}".format(oo, L2[i], Linf[i], NNZ[i], VAR[i]))
+
+    # for l in sorted(CMP):
+        # i=CMP.index(l)
+        # oo = orders[i]
+        # # print("{} -- L2: {:10.4e} | Loo: {:10.4e}".format(oo, L2[i], Linf[i]))
+        # # If it is a polynomial we are done --- return the approximation that uses all data
+        # if oo[1] == 0:
+            # return apprentice.PolynomialApproximation(X, Y, order=oo[0], pnames=pnames)
+        # else:
+            # APP_test = apprentice.RationalApproximation(X, Y, order=oo, strategy=1, pnames=pnames)
+            # bad = denomChangesSign(APP_test, APP_test._scaler.box, APP_test._scaler.center)[0]
+            # if bad:
+                # print("Cannot use {} due to pole in denominator".format(oo))
+            # else:
+                # return APP_test
+
+def mkPlotResults(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.clf()
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+
+
+    plt.xlabel(lx)
+    plt.ylabel(ly)
+    if logx: plt.xscale("log")
+    if logy: plt.yscale("log")
+
+    pareto = paretoFront(data)
+    best_order, corner = getBestOrder(data, orders)
+
+    plt.scatter(pareto[:     ,0], pareto[:     ,1]  , marker = 'o', c = "silver", s=100, alpha = 1.0)
+    plt.scatter(pareto[corner,0], pareto[corner,1]  , marker = '*', c = "gold"  , s=444, alpha = 1.0)
+
+    # This is really just for text labels
+    data=np.array(data)
+    b_pareto = is_pareto_efficient_dumb(data)
+
+    c, txt   = [], []
+    for num, (m,n) in enumerate(orders):
+        if n==0:
+            c.append("b")
+        else:
+            c.append("r")
+        if b_pareto[num]:
+            txt.append("({},{})".format(m,n))
+        else:
+            txt.append("")
+
+    for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
+    for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
+
+    plt.savefig(f_out)
+    plt.close('all')
+
+if __name__ == "__main__":
+
+    import optparse, os, sys, h5py
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-o", dest="OUTPUT", default="approx.json", help="Output filename (default: %default)")
+    op.add_option("-s", dest="SEED", type=int, default=1234, help="Random seed (default: %default)")
+    op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
+    op.add_option("--ordermax", dest="ORDERMAX", default="-1,-1", help="Max orders (default: %default)")
+    op.add_option("--plotprefix", dest="PLOTPREFIX", default=None, help="Prefix for plot output (default: %default)")
+    op.add_option("--split", dest="SPLIT", default=0.6, type=float, help="Fraction of training sample (default: %default)")
+    op.add_option("--train", dest="TRAIN", default=1.5, type=float, help="Oversampling factor (default: %default)")
+    opts, args = op.parse_args()
+
+    if len(args) == 0:
+        print("No input specified, exiting")
+        sys.exit(1)
+
+    if not os.path.exists(args[0]):
+        print("Input '{}' not found.".format(args[0]))
+
+    # Prevent overwriting of input data
+    assert(args[0]!=opts.OUTPUT)
+
+    # This reads the data
+    try:
+        X,Y = apprentice.tools.readData(args[0])
+        app = mkBestRACPL(X, Y, m_max=8, n_max=8, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN)
+    except:
+        import time
+        t1 = time.time()
+        DATA   = apprentice.tools.readH5(args[0], [])
+        idx = [i for i in range(len(DATA))]
+        pnames = apprentice.tools.readPnamesH5(args[0], xfield="params")
+        with h5py.File(args[0], "r") as f:
+            binids = [s.decode() for s in f.get("index")[idx]]
+        t2 = time.time()
+        if opts.DEBUG: print("Data preparation took {} seconds".format(t2-t1))
+
+        ras = []
+        t1=time.time()
+        for num, (X, Y) in  enumerate(DATA):
+            t11=time.time()
+
+            if opts.ORDER is None:
+                M,N=[int(x) for x in opts.ORDERMAX.split(",")]
+                if M<0: M=None
+                if N<0: N=None
+                if opts.PLOTPREFIX is not None:
+                    fplot="{}_{}.pdf".format(opts.PLOTPREFIX, binids[num].replace("/","_").replace("#","_"))
+                else: fplot=None
+
+                app = mkBestRACPL(X, Y, m_max=M, n_max=N, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot)
+                ras.append(app)
+            else:
+                M,N=[int(x) for x in opts.ORDER.split(",")]
+                if N==0:
+                    ras.append(apprentice.PolynomialApproximation(X, Y, order=M, pnames=pnames))
+                else:
+                    ras.append(apprentice.RationalApproximation(X, Y, order=(M,N), pnames=pnames))
+            t22=time.time()
+            if opts.DEBUG: print("Approximation {}/{} took {} seconds".format(num+1,len(binids), t22-t11))
+
+
+        t2=time.time()
+        if opts.DEBUG: print("Approximation took {} seconds".format(t2-t1))
+
+        JD = { x : y.asDict for x, y in zip(binids, ras) }
+
+        import json
+        with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
+
+        print("Done --- approximation of {} objects written to {}".format(len(idx), opts.OUTPUT))
