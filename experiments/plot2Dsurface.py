@@ -1,5 +1,5 @@
 import numpy as np
-from apprentice import RationalApproximationSIP
+from apprentice import RationalApproximationSIP, PolynomialApproximation
 from sklearn.model_selection import KFold
 from apprentice import tools, readData
 import os
@@ -15,8 +15,14 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     if(dim != 2):
         raise Exception("plot2Dsurface can only handle dim = 2")
     m = datastore['m']
-    n = datastore['n']
-    ts = datastore['trainingscale']
+    try:
+        n = datastore['n']
+    except:
+        n=0
+    try:
+        ts = datastore['trainingscale']
+    except:
+        ts = ""
     trainingsize = datastore['trainingsize']
 
 
@@ -44,8 +50,12 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     ax.set_zlabel('$y$', fontsize = 12)
     ax.set_title('Original data', fontsize = 13)
 
-    rappsip = RationalApproximationSIP(datastore)
-    Y_pred = rappsip.predictOverArray(X_test)
+    try:
+        rappsip = RationalApproximationSIP(datastore)
+        Y_pred = rappsip.predictOverArray(X_test)
+    except:
+        papp = PolynomialApproximation(initDict=datastore)
+        Y_pred = np.array([papp(x) for x in X_test])
 
     ax = fig.add_subplot(2, 2, 2, projection='3d')
     ax.plot3D(X_test[:,0],X_test[:,1], Y_pred[:],"b.")
@@ -64,7 +74,10 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     l1 = np.sum(np.absolute(Y_pred-Y_test))
     l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
     linf = np.max(np.absolute(Y_pred-Y_test))
-    nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+    try:
+        nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+    except:
+        nnz = tools.numNonZeroCoeff(papp,1e-6)
     fig.suptitle("%s. m = %d, n = %d, ts = %d (%s). l1 = %.4f, l2 = %.4f, linf = %.4f, nnz = %d, l2/nnz = %f"%(desc,m,n,trainingsize,ts,l1,l2,linf,nnz,l2/nnz))
 
     plt.savefig(outfilepng)
