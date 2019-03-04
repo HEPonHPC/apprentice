@@ -219,7 +219,7 @@ Code Holger and Mohan came up with on 20190228.
 Cleaned up on 20190301
 Cleaned up code from findCornerTriangulation2():
 """
-def findCornerTriangulation(pareto):
+def findCornerTriangulation(pareto, data, txt):
     def angle(B, A, C):
         """
         Find angle at A
@@ -252,7 +252,7 @@ def findCornerTriangulation(pareto):
     corner=len(pareto)-1
 
     lpareto=np.log10(pareto)
-
+    ldata = np.log10(data)
     C = lpareto[corner]
     for k in range(0,len(lpareto)-2):
         B = lpareto[k]
@@ -260,11 +260,14 @@ def findCornerTriangulation(pareto):
             A = lpareto[j+1]
             _area = area(B,A,C)
             _angle = angle(B,A,C)
+            # if(_area < 0):
+            #     print("angls = %.4f at %s %s %s"%(_angle, getdegreestr(B,ldata,txt), getdegreestr(A,ldata,txt), getdegreestr(C,ldata,txt)))
+
 
             if _angle > cte and _angle > cosmax and _area < 0:
                 corner = j + 1
                 cosmax = _angle
-                print(_area,_angle)
+                # print("=====Found====== %f %f at %s %s %s"%(_area,_angle, getdegreestr(B,ldata,txt), getdegreestr(A,ldata,txt), getdegreestr(C,ldata,txt)))
     print("In findCornerTriangulation, I got this {}".format(pareto[corner]))
     return corner
 
@@ -313,6 +316,12 @@ def findCornerTriangulation2(pareto):
     print("In findCornerTriangulation2, I got this {}".format(pareto[corner]))
     return corner
 
+def getdegreestr(paretopoint,data,txt):
+    o = ""
+    for num, t in enumerate(txt):
+        if np.all(paretopoint == data[num]):
+            o = t
+    return o
 
 def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
     import matplotlib as mpl
@@ -338,19 +347,6 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
     print(pareto)
     print("===========")
 
-    cornerT = findCornerTriangulation(pareto)
-    # cornerT2 = findCornerTriangulation2(pareto)
-    cornerdSl = findCornerSlopesRatios(pareto)
-
-
-
-
-    plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
-    plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "gold"  ,s=777, alpha = 1.0)
-    # plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
-    plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "peru"  ,s=250, alpha = 1.0)
-
-
     c, txt   = [], []
     for num, (m,n) in enumerate(orders):
         if n==0:
@@ -362,13 +358,23 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
         else:
             txt.append("")
 
+    cornerT = findCornerTriangulation(pareto,data,txt)
+    # cornerT2 = findCornerTriangulation2(pareto)
+    # cornerdSl = findCornerSlopesRatios(pareto)
+
+    plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
+    # plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "gold"  ,s=777, alpha = 1.0)
+    # plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
+    plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "gold"  ,s=250, alpha = 1.0)
+
     print("Plotting")
 
     for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
 
     # plt.plot([pareto[0][0], pareto[-1][0]], [pareto[0][1], pareto[-1][1]], "k-")
-    plt.title("%s"%(desc))
+    deg = getdegreestr(pareto[cornerT],data,txt)
+    plt.title("%s. Optimal Degree = %s"%(desc,deg))
     plt.savefig(f_out)
     plt.close('all')
 
