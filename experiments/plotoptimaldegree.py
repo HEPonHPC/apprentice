@@ -363,9 +363,9 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
     # cornerdSl = findCornerSlopesRatios(pareto)
 
     plt.scatter(pareto[:,0]  , pareto[:,1]  , marker = 'o', c = "silver"  ,s=100, alpha = 1.0)
-    # plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "gold"  ,s=777, alpha = 1.0)
+    # plt.scatter(pareto[cornerdSl,0]  , pareto[cornerdSl,1]  , marker = '+', c = "peru"  ,s=777, alpha = 1.0)
     # plt.scatter(pareto[cornerT2,0]  , pareto[cornerT2,1]  , marker = 'x', c = "cyan"  ,s=444, alpha = 1.0)
-    plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "gold"  ,s=250, alpha = 1.0)
+    plt.scatter(pareto[cornerT,0]  , pareto[cornerT,1]  , marker = '*', c = "gold"  ,s=444, alpha = 1.0)
 
     print("Plotting")
 
