@@ -49,6 +49,14 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     ax.set_ylabel('$x2$', fontsize = 12)
     ax.set_zlabel('$y$', fontsize = 12)
     ax.set_title('Original data', fontsize = 13)
+    nnzthreshold = 1e-6
+    for i, p in enumerate(datastore['pcoeff']):
+        if(abs(p)<nnzthreshold):
+            datastore['pcoeff'][i] = 0.
+    if('qcoeff' in datastore):
+        for i, q in enumerate(datastore['qcoeff']):
+            if(abs(q)<nnzthreshold):
+                datastore['qcoeff'][i] = 0.
 
     try:
         rappsip = RationalApproximationSIP(datastore)
@@ -75,9 +83,13 @@ def plot2Dsurface(infile,testfile,folder, desc,bottom_or_all):
     l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
     linf = np.max(np.absolute(Y_pred-Y_test))
     try:
-        nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+        nnz = tools.numNonZeroCoeff(rappsip,nnzthreshold)
     except:
-        nnz = tools.numNonZeroCoeff(papp,1e-6)
+        nnz = tools.numNonZeroCoeff(papp,nnzthreshold)
+    # print(l2)
+    # print(nnz)
+    # print(l2/nnz)
+    # print(np.log10(l2/nnz))
     fig.suptitle("%s. m = %d, n = %d, ts = %d (%s). l1 = %.4f, l2 = %.4f, linf = %.4f, nnz = %d, l2/nnz = %f"%(desc,m,n,trainingsize,ts,l1,l2,linf,nnz,l2/nnz))
 
     plt.savefig(outfilepng)

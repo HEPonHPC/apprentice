@@ -61,6 +61,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         for j in range(maxq-minq+1):
             error[i][j] = None
 
+    nnzthreshold = 1e-6
     for file in filelist:
         if file:
 			with open(file, 'r') as fn:
@@ -69,6 +70,14 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         n = datastore['n']
         ts = datastore['trainingscale']
 
+        for i, p in enumerate(datastore['pcoeff']):
+            if(abs(p)<nnzthreshold):
+                datastore['pcoeff'][i] = 0.
+        if('qcoeff' in datastore):
+            for i, q in enumerate(datastore['qcoeff']):
+                if(abs(q)<nnzthreshold):
+                    datastore['qcoeff'][i] = 0.
+
         rappsip = RationalApproximationSIP(datastore)
         Y_pred = rappsip.predictOverArray(X_test)
 
@@ -76,7 +85,7 @@ def plotmntesterr(folder,testfile, desc,bottom_or_all, measure):
         l1 = np.sum(np.absolute(Y_pred-Y_test))
         l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
         linf = np.max(np.absolute(Y_pred-Y_test))
-        nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+        nnz = tools.numNonZeroCoeff(rappsip,nnzthreshold)
         l2divnnz = l2/float(nnz)
         stats[key] = {}
         stats[key]['nnz'] =nnz

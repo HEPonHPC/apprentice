@@ -459,7 +459,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
 
     orders = []
     APP = []
-
+    nnzthreshold = 1e-6
     for file in filelistRA:
         if file:
             with open(file, 'r') as fn:
@@ -469,6 +469,12 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
         ts = datastore['trainingscale']
         if(n!=0):
             orders.append((m,n))
+            for i, p in enumerate(datastore['pcoeff']):
+                if(abs(p)<nnzthreshold):
+                    datastore['pcoeff'][i] = 0.
+            for i, q in enumerate(datastore['qcoeff']):
+                if(abs(q)<nnzthreshold):
+                    datastore['qcoeff'][i] = 0.
             APP.append(apprentice.RationalApproximationSIP(datastore))
         dim = datastore['dim']
 
@@ -480,6 +486,9 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
         if((m,0) in orders):
             continue
         orders.append((m,0))
+        for i, p in enumerate(datastore['pcoeff']):
+            if(abs(p)<nnzthreshold):
+                datastore['pcoeff'][i] = 0.
         APP.append(apprentice.PolynomialApproximation(initDict=datastore))
         if m > maxpap:
             maxpap = m
@@ -517,7 +526,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
 
     L2      = [np.sqrt(raNorm(app, X_test, Y_test, 2))               for app in APP]
     Linf    = [raNormInf(app, X_test, Y_test)                        for app in APP]
-    NNZ     = [apprentice.tools.numNonZeroCoeff(app, 1e-6) for app in APP]
+    NNZ     = [apprentice.tools.numNonZeroCoeff(app, nnzthreshold) for app in APP]
     VAR     = [l/m for l, m in zip(L2, NNZ)]
 
     ncN, ncM = [], []

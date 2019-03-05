@@ -114,6 +114,15 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         axes[3].tick_params(axis='y', colors=p31.get_color(), **tkw)
         firerrorax.tick_params(axis='y', colors=p32.get_color(), **tkw)
 
+        nnzthreshold = 1e-6
+        for i, p in enumerate(datastore['pcoeff']):
+            if(abs(p)<nnzthreshold):
+                datastore['pcoeff'][i] = 0.
+        if('qcoeff' in datastore):
+            for i, q in enumerate(datastore['qcoeff']):
+                if(abs(q)<nnzthreshold):
+                    datastore['qcoeff'][i] = 0.
+
         rappsip = RationalApproximationSIP(datastore)
         Y_pred = rappsip.predictOverArray(X_test)
 
@@ -121,7 +130,7 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         l1 = np.sum(np.absolute(Y_pred-Y_test))
         l2 = np.sqrt(np.sum((Y_pred-Y_test)**2))
         linf = np.max(np.absolute(Y_pred-Y_test))
-        nnz = tools.numNonZeroCoeff(rappsip,1e-6)
+        nnz = tools.numNonZeroCoeff(rappsip,nnzthreshold)
         l2divnnz = l2/float(nnz)
 
 
