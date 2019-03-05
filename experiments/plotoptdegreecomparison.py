@@ -235,7 +235,7 @@ def plotoptdegreecomparison(farr, ts):
         ax.annotate("%s"%(optdeg10_1noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
                    textcoords="offset points", ha="center", va="bottom")
     ax.legend((p1[0], p2[0],p3[0],p4[0],p5[0]), ('Actual','No noise', 'e = $10^{-6}$','e = $10^{-3}$', 'e = $10^{-1}$'))
-    ax.set_title('Comparing optimal degree obtained for different types training data with \'%s\' training data'%(ts))
+    ax.set_title('Comparing optimal degree obtained for different types of training data with \'%s\' points'%(ts))
     ax.set_xticks(X + 4*width / 2)
     ax.set_xticklabels(farr)
     ax.set_xlabel('Functions')
