@@ -261,13 +261,19 @@ def findCornerTriangulation(pareto, data, txt):
             _area = area(B,A,C)
             _angle = angle(B,A,C)
             # if(_area < 0):
-            #     print("angls = %.4f at %s %s %s"%(_angle, getdegreestr(B,ldata,txt), getdegreestr(A,ldata,txt), getdegreestr(C,ldata,txt)))
+            #     degB,pdegB,qdegB = getdegreestr(B,ldata,txt)
+            #     degA,pdegA,qdegA = getdegreestr(A,ldata,txt)
+            #     degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
+            #     print("angls = %.4f at %s %s %s"%(_angle, degB, degA, degC))
 
 
             if _angle > cte and _angle > cosmax and _area < 0:
                 corner = j + 1
                 cosmax = _angle
-                # print("=====Found====== %f %f at %s %s %s"%(_area,_angle, getdegreestr(B,ldata,txt), getdegreestr(A,ldata,txt), getdegreestr(C,ldata,txt)))
+                # degB,pdegB,qdegB = getdegreestr(B,ldata,txt)
+                # degA,pdegA,qdegA = getdegreestr(A,ldata,txt)
+                # degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
+                # print("=====Found====== %f %f at %s %s %s"%(_area,_angle, degB, degA, degC))
     print("In findCornerTriangulation, I got this {}".format(pareto[corner]))
     return corner
 
@@ -317,13 +323,19 @@ def findCornerTriangulation2(pareto):
     return corner
 
 def getdegreestr(paretopoint,data,txt):
+    import re
     o = ""
+    m = 0
+    n = 0
     for num, t in enumerate(txt):
         if np.all(paretopoint == data[num]):
             o = t
-    return o
+            digits = [int(s) for s in re.findall(r'-?\d+\.?\d*', t)]
+            m=digits[0]
+            n=digits[1]
+    return o,m,n
 
-def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True):
+def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True, normalize_data=True,jsdump={}):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     plt.clf()
@@ -373,10 +385,32 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
 
     # plt.plot([pareto[0][0], pareto[-1][0]], [pareto[0][1], pareto[-1][1]], "k-")
-    deg = getdegreestr(pareto[cornerT],data,txt)
+    deg,pdeg,qdeg = getdegreestr(pareto[cornerT],data,txt)
+
+    jsdump['optdeg'] = {}
+    jsdump['optdeg']['str'] = deg
+    jsdump['optdeg']['m'] = pdeg
+    jsdump['optdeg']['n'] = qdeg
+
     plt.title("%s. Optimal Degree = %s"%(desc,deg))
+
+    if(cornerT>0):
+        deg,pdeg,qdeg = getdegreestr(pareto[cornerT-1],data,txt)
+        jsdump['optdeg_m1'] = {}
+        jsdump['optdeg_m1']['str'] = deg
+        jsdump['optdeg_m1']['m'] = pdeg
+        jsdump['optdeg_m1']['n'] = qdeg
+    if(cornerT != len(pareto)-1):
+        deg,pdeg,qdeg = getdegreestr(pareto[cornerT+1],data,txt)
+        jsdump['optdeg_p1'] = {}
+        jsdump['optdeg_p1']['str'] = deg
+        jsdump['optdeg_p1']['m'] = pdeg
+        jsdump['optdeg_p1']['n'] = qdeg
+
     plt.savefig(f_out)
     plt.close('all')
+
+    return jsdump
 
 def mkPlotParetoVariance(data, n_test, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True):
     import matplotlib as mpl
@@ -523,7 +557,6 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
     # print(orders)
     # print(len(X_test))
 
-
     L2      = [np.sqrt(raNorm(app, X_test, Y_test, 2))               for app in APP]
     Linf    = [raNormInf(app, X_test, Y_test)                        for app in APP]
     NNZ     = [apprentice.tools.numNonZeroCoeff(app, nnzthreshold) for app in APP]
@@ -566,6 +599,9 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
     # ax.set_zlabel('log v')
     # plt.show()
 
+    jsdump = {}
+    jsdump['dim'] = dim
+
     NNC = []
     for num , n in enumerate(NC):
         NNC.append(n-NNZ[num])
@@ -573,16 +609,13 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
     CMP = [a*b for a,b in zip(NNZ, L2)]
 
     outfilepareton = "%s/plots/Poptdeg_%s_pareton.png"%(folder, desc)
-    mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)], desc, outfilepareton,  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False)
+    jsdump = mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)], desc, outfilepareton,  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False, jsdump = jsdump)
+    outfileparetojsdump = "%s/plots/Joptdeg_%s_jsdump.json"%(folder, desc)
+    import json
+    with open(outfileparetojsdump, "w") as f:
+        json.dump(jsdump, f,indent=4, sort_keys=True)
     print("pareton written to %s"%(outfilepareton))
-
-
-
-
-
-
-
-
+    print("paretojsdump written to %s"%(outfileparetojsdump))
 
 if __name__ == "__main__":
 
