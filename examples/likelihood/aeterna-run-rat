@@ -1,0 +1,203 @@
+#!/usr/bin/env python
+
+
+def readExpData(fname, binids):
+    with open(fname) as f: dd = json.load(f)
+    Y = np.array([dd[b][0] for b in binids])
+    E = np.array([dd[b][1] for b in binids])
+    return Y, E
+
+
+
+# from __future__ import absolute_import, unicode_literals, print_function
+import matplotlib, os, sys
+matplotlib.use(os.environ.get("MPL_BACKEND", "Agg"))
+import pymultinest
+import mpi4py
+# A bit of a hack to compactly have the script work with and without mpi
+rank = 0
+try:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+except:
+    pass
+# A bit of a hack to compactly have the script work with and without mpi
+rank = 0
+try:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+except:
+    pass
+
+
+__doc__="""
+     %s [OPTIONS] -r REFDIR   <ipolfiles>
+"""%(sys.argv[0])
+
+class SignalGenerator(object):
+    """
+    Class for single patch.
+    """
+    def __init__(self, ifile):
+        self._ifile = ifile
+        self.load()
+
+    def load(self):
+        import apprentice
+        import json
+        d = json.load(open(self._ifile))
+        use = [str(k) for k in d.keys()]# if "counts" in k]
+        if len(use) ==0:
+            print("No bins left??? Exiting")
+            sys.exit(1)
+        use.sort(key=lambda x: int(x.split("#")[-1]))
+        self._rapp = []
+        for x in use:
+            try:
+                self._rapp.append(apprentice.RationalApproximation(initDict=d[x]))
+            except Exception as e:
+                print("Cannot load as rational: {}".format(e))
+                self._rapp.append(apprentice.PolynomialApproximation(initDict=d[x]))
+
+    def __call__(self, x):
+        import numpy as np
+        return np.exp([r.predict(x) for r in self._rapp])
+
+
+# Import some prof stuff
+import optparse, os, sys
+op = optparse.OptionParser(usage=__doc__)
+op.add_option("--output", dest="OUTPUT", default="chains", type=str, help="Prefix for outputs (default: %default)")
+op.add_option("--tol", dest="TOL", default=0.1, type=float, help="Evidence tolerance (default: %default)")
+op.add_option("--eff", dest="EFF", default=0.8, type=float, help="Sampling efficiency (default: %default)")
+op.add_option("--points", dest="POINTS", default=1000, type=int, help="Number of live points in PyMultinest (default: %default)")
+op.add_option("--resume", dest="RESUME", default=False, action='store_true', help="Resume on previous run.")
+op.add_option("--update", dest="UPDATE", default=10000, type=int, help="Update inteval (default: %default iterations)")
+op.add_option("-d", "--datadir", dest="DATADIR", default=None, help="The data directory")
+op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+op.add_option("-q", "--quiet", dest="QUIET", action="store_true", default=False, help="Turn off messages")
+opts, args = op.parse_args()
+
+## Get mandatory arguments
+if len(args) < 1:
+    print("Argument missing... exiting\n\n")
+    op.print_usage()
+    sys.exit(1)
+
+## Get mandatory options
+if opts.DATADIR is None:
+    print("No datadir specified... exiting\n\n")
+    op.print_usage()
+    sys.exit(1)
+
+
+# Test if requested ipol files actually exist
+if not os.path.exists(args[0]):
+    print("Error, ipol file %s does not exist"%a)
+    sys.exit(1)
+
+S = SignalGenerator(args[0])
+PMIN = S._rapp[0]._scaler._Xmin
+PMAX = S._rapp[0]._scaler._Xmax
+PLEN=[PMAX[i] - PMIN[i] for i in range(len(PMAX))]
+
+## Prepare lists of ibins and dbins
+from scipy.special import gamma
+from math import exp, log
+
+import numpy as np
+DATA = np.atleast_1d( np.loadtxt(opts.DATADIR) )
+
+DVALS, log_DGAMMA = {}, {}
+available=["/DM/XENON/counts"]
+for a in available:
+    DVALS[a]=[]
+    log_DGAMMA[a]=[]
+    for nb in range(len(DATA)):
+        data    = DATA[nb] # log
+        dataerr = 0 # log
+        if dataerr <0:
+            DVALS[a].append(0.0)
+            log_DGAMMA[a].append(0.0)
+        else:
+            DVALS[a].append(exp(data)) # non log
+            if DVALS[a][-1] < 50: #"Use gamm when smaller than 50"
+                log_DGAMMA[a].append(log(gamma(DVALS[a][-1]+1)))
+            else:
+                log_DGAMMA[a].append(DVALS[a][-1] * data - DVALS[a][-1])
+
+    if rank==0: print("Using %i bins for %s"%(len(DVALS[a]), a))
+
+
+def scaleParam(p, idx):
+    return PMIN[idx] + p * PLEN[idx]
+
+
+# The prior is nothing else but turning coordinates from
+# a [0,1] hypercube into our parameter space hypercube
+# It is passed to pymultinest.run
+def myprior(cube, ndim, nparams):
+    for i in range(ndim):
+        cube[i] = scaleParam(cube[i], i)
+
+
+S(PMIN)
+
+# from IPython import embed
+# embed()
+
+from numpy import log, exp
+
+
+def loli(N_ipol, log_N_ipol, DVALS, log_DGAMMA, available):
+    LoLi=0
+    for datakey in available:
+        for i in range(len(DVALS[datakey])):
+            N_data = DVALS[datakey][i]
+            LoLi += N_data * log_N_ipol[i] - log_DGAMMA[datakey][i]
+            LoLi -= N_ipol[i]
+    return LoLi
+
+def myloglike(cube, ndim, nparams):
+    N_ipol = S([cube[i] for i in range(n_params)])
+    return loli(N_ipol,  log(N_ipol), DVALS, log_DGAMMA, available)
+
+
+if rank==0:
+    # Create output directory
+    if not os.path.exists(opts.OUTPUT): os.mkdir(opts.OUTPUT)
+
+# Number of dimensions our problem has
+n_params = len(PMIN)
+
+
+# Run MultiNest
+pymultinest.run(myloglike, myprior, n_params, importance_nested_sampling = True, verbose = False,
+        multimodal=False, resume=opts.RESUME, n_iter_before_update=opts.UPDATE,
+        evidence_tolerance=opts.TOL, sampling_efficiency = opts.EFF,
+        n_live_points = opts.POINTS,
+        outputfiles_basename='%s/apphood'%opts.OUTPUT, init_MPI=False)
+
+
+if rank==0:
+
+    # lets analyse the results
+    print()
+    print("Now analyzing output")
+    a = pymultinest.Analyzer(n_params = n_params, outputfiles_basename='%s/apphood'%opts.OUTPUT)
+    s = a.get_stats()
+
+    import json
+    with open('%sstats.json' % a.outputfiles_basename, mode='w') as f:
+            json.dump(s, f, indent=2)
+    print()
+    print("-" * 30, 'ANALYSIS', "-" * 30)
+    print("Global Evidence:\n\t%.15e +- %.15e" % ( s['nested sampling global log-evidence'], s['nested sampling global log-evidence error'] ))
+
+    print("Done!")
+    import sys
+    sys.exit(1)

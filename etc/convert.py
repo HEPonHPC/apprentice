@@ -83,9 +83,10 @@ def read_rundata(dirs, pfname="params.dat", verbosity=1):
                         ## Read as a path -> Histo dict
                         hs = read_histos(f)
                         ## Restructure into the path -> run -> Histo return dict
-                        for path, hist in hs.iteritems():
+                        for path, hist in hs.items():
                             histos.setdefault(path, {})[d] = hist
-                    except:
+                    except Exception as e:
+                        print("Whoopsiedoodles {}".format(e))
                         pass #< skip files that can't be read as histos
 
         ## Check that a params file was found and read in this dir... or that no attempt was made to find one
@@ -124,20 +125,20 @@ if __name__ == "__main__":
     PARAMS, HISTOS = read_rundata(INDIRS, opts.PNAME)
 
     # Parameter names and runs
-    pnames = PARAMS[PARAMS.keys()[0]].keys()
-    runs = sorted(PARAMS.keys())
+    pnames = PARAMS[list(PARAMS.keys())[0]].keys()
+    runs = sorted(list(PARAMS.keys()))
 
 
     # Iterate through all histos, bins and mc runs to rearrange data
     # in tables
     hbins ={}
-    HNAMES=map(str,sorted(HISTOS.keys()))
+    HNAMES=[str(x) for x in sorted(list(HISTOS.keys()))]
     BNAMES = []
     for hn in HNAMES:
         histos = HISTOS[hn]
-        nbins = len(histos.values()[0])
+        nbins = len(list(histos.values())[0])
         hbins[hn]=nbins
-        for n in xrange(nbins):
+        for n in range(nbins):
             BNAMES.append("%s#%i"%(hn, n))
 
     vals = []
@@ -155,10 +156,12 @@ if __name__ == "__main__":
 
     # Create new HDF5 file and write datasets
     f = h5py.File(opts.OUTFILE, "w")
-    f.create_dataset("runs", data=runs, compression=opts.COMPRESSION)
-    f.create_dataset("index", data=BNAMES, compression=opts.COMPRESSION)
-    pset = f.create_dataset("params", data=np.array([PARAMS[r].values() for r in runs]), compression=9)
-    pset.attrs["names"] = pnames
+
+    # https://github.com/h5py/h5py/issues/892
+    f.create_dataset("runs",  data=np.char.encode(runs,   encoding='utf8'), compression=opts.COMPRESSION)
+    f.create_dataset("index", data=np.char.encode(BNAMES, encoding='utf8'),  compression=opts.COMPRESSION)
+    pset = f.create_dataset("params", data=np.array([list(PARAMS[r].values()) for r in runs]), compression=9)
+    pset.attrs["names"] = [x.encode('utf8') for x in pnames]
 
     f.create_dataset("values", data=vals, compression=opts.COMPRESSION)
     f.create_dataset("errors", data=errs, compression=opts.COMPRESSION)

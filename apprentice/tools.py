@@ -101,6 +101,49 @@ def readH5(fname, idx=[0], xfield="params", yfield="values"):
 
     return ret
 
+# TODO rewrite such that yfield is a list of datasetnames, e.g. yfield=["values", "errors"]
+
+def readH52(fname, idx=[0], xfield="params", yfield1="values", yfield2="errors"):
+    """
+    Read X,Y, erros values etc from HDF5 file.
+    By default, only the first object is read.
+    The X and Y-value dataset names depend on the file of course, so we allow
+    specifying what to use. yfield can be values|errors with the test files.
+    Returns a list of tuples of arrays : [ (X1, Y1, E1), (X2, Y2, E2), ...]
+    The X-arrays are n-dimensional, the Y-arrays are always 1D
+    """
+    import numpy as np
+    import h5py
+
+    with h5py.File(fname, "r") as f:
+        indexsize = f.get("index").size
+
+    # A bit of logic here --- if idx is passed an empty list, ALL data is read from file.
+    # Otherwise we need to check that we are not out of bounds.
+
+    # pnames = [p for p in f.get(xfield).attrs["names"]]
+    if len(idx)>0:
+        assert(max(idx) <= indexsize)
+    else:
+        idx=[i for i in range(indexsize)]
+
+    ret = []
+    f = h5py.File(fname, "r")
+
+    # Read parameters
+    _X=np.array(f.get(xfield))
+
+    # Read y-values
+    for i in idx:
+        _Y=np.atleast_1d(f.get(yfield1)[i])
+        _E=np.atleast_1d(f.get(yfield2)[i])
+        USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
+        ret.append([ _X[USE], _Y[USE], _E[USE] ])
+
+    f.close()
+
+    return ret
+
 def readPnamesH5(fname, xfield):
     """
     Get the parameter names from the hdf5 files params dataset attribute
