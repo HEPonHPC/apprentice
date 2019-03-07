@@ -123,6 +123,10 @@ def f21(P):
     x1, x2 = P
     return 10 * np.sin(x1)/x1 * np.sin(x2)/x2
 
+def f22(P):
+    x1, x2 = P
+    return x1**2 + x2**2 + x1*x2 - x2 + 1
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -185,6 +189,9 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==21:
         Y_train = [f21(x) for x in X_train]
         Y_test  = [f21(x) for x in X_test]
+    elif fn==22:
+        Y_train = [f22(x) for x in X_train]
+        Y_test  = [f22(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
