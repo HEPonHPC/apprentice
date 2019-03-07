@@ -4,6 +4,36 @@ from numba import jit
 import apprentice
 import numpy as np
 
+def numZeroCoeff(app, threshold=1e-6):
+    """
+    Determine the number of non-zero coefficients for an approximation app.
+    """
+    n=0
+    for p in app._pcoeff:
+        if abs(p)<threshold: n+=1
+
+    if hasattr(app, '_qcoeff'):
+        for q in app._qcoeff:
+            if abs(q)<threshold: n+=1
+
+    return n
+
+def regularise(app, threshold=1e-6):
+
+    pc = np.zeros_like(app._pcoeff)
+    for num, c in enumerate(app._pcoeff):
+        if abs(c)>threshold:
+            pc[num] = c
+    app._pcoeff=pc
+
+    if hasattr(app, "qcoeff"):
+        qc = np.zeros_like(app._qcoeff)
+        for num, c in enumerate(app._qcoeff):
+            if abs(c)>threshold:
+                qc[num] = c
+        app._qcoeff=qc
+
+
 def getBestOrder(data, orders):
     data=np.array(data)
     pareto = paretoFront(data)
@@ -140,6 +170,25 @@ def denomMax(rapp, box, center):
     from scipy import optimize
     return optimize.minimize(lambda x:-rapp.denom(x), center, bounds=box)
 
+def denomMinMS(rapp, multistart=10):
+    box=rapp._scaler.box
+    from scipy import optimize
+
+    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+def denomMaxMS(rapp, multistart=10):
+    box=rapp._scaler.box
+    from scipy import optimize
+
+    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+
 def denomMinMLSL(rapp, box, center, popsize=4, maxeval=1000):
     import numpy as np
 
@@ -196,6 +245,14 @@ def fast_grad(x, app):
         jac[i] = (f_d - f_0) / h
     return jac
 
+def denomChangesSignMS(rapp, multistart=10):
+    xmin = denomMinMS(rapp, multistart)
+    xmax = denomMaxMS(rapp, multistart)
+    bad  = rapp.denom(xmin) * rapp.denom(xmax) <0
+    if bad:
+        return True, xmin, xmax
+    else:
+        return False, xmin, xmax
 
 def denomChangesSign(rapp, box, center, popsize=4, maxeval=1000):
     # xmin_mlsl = denomMinMLSL(rapp, box, center, popsize, maxeval)
@@ -286,7 +343,7 @@ def raNormInf(ra, X, Y):
     return nrm
 
 
-def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, f_plot=None, seed=1234, allow_const=False, debug=0):
+def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, m_min=0, n_min=0, f_plot=None, seed=1234, allow_const=False, debug=0):
     """
     """
     import apprentice
@@ -305,6 +362,8 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     if not allow_const: orders=orders[1:]
     if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
     if m_max is not None: orders = [ o for o in orders if o[0] <= m_max]
+    if n_min>0: orders = [ o for o in orders if o[1] >= n_min]
+    if m_min>0: orders = [ o for o in orders if o[0] >= m_min]
 
     # Discard those orders where we do not have enough training points if train_fact>1
     if train_fact>1:
@@ -331,6 +390,19 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
             i_train_o = np.random.choice(i_train, int(train_fact*apprentice.tools.numCoeffsRapp(_dim, (m,n))))
             APP.append(apprentice.RationalApproximation(X[i_train_o], Y[i_train_o], order=(m,n), strategy=1, pnames=pnames))
     t2=time.time()
+
+    threshold=1e-6
+
+    for a in APP: regularise(a)
+
+    # if sum([numZeroCoeff(a) for a in APP]) >0:
+        # from IPython import embed
+        # embed()
+        # import sys
+        # sys.exit(1)
+
+    # APP_reg = [regularise(a) for a in APP]
+
     print("Calculating {} approximations took {} seconds".format(len(orders), t2-t1))
 
     L2      = [np.sqrt(raNorm(app, X, Y, 2))               for app in APP]
@@ -348,6 +420,13 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
             NC.append(apprentice.tools.numCoeffsPoly(_dim, m))
         else:
             NC.append(apprentice.tools.numCoeffsRapp(_dim, (m,n)))
+
+    # Check for poles
+    has_pole = []
+    for num, (m,n) in enumerate(orders):
+        if n==0: has_pole.append(False)
+        else:
+            has_pole.append(denomChangesSignMS(APP[num], 100)[0])
 
 
     # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
@@ -368,7 +447,7 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     print("Winner: m={} n={} with L2={} and Loo={}".format(o_win[0], o_win[1], L2[i_win], Linf[i_win]))
 
     if f_plot:
-        mkPlotResults(dec_data,  "NCVAR_{}".format(f_plot),  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True)
+        mkPlotResults(dec_data,  "NCVAR_{}".format(f_plot),  orders, has_pole, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True)
 
     if o_win[1] == 0:
         return apprentice.PolynomialApproximation(X, Y, order=o_win[0], pnames=pnames)
@@ -397,7 +476,7 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
             # else:
                 # return APP_test
 
-def mkPlotResults(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=True):
+def mkPlotResults(data, f_out, orders=None, has_pole=None, lx="$x$", ly="$y$", logy=True, logx=True):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     plt.clf()
@@ -432,7 +511,11 @@ def mkPlotResults(data, f_out, orders=None,lx="$x$", ly="$y$", logy=True, logx=T
         else:
             txt.append("")
 
-    for num, d in enumerate(data): plt.scatter(d[0], d[1],c=c[num])
+    for num, d in enumerate(data):
+        if has_pole[num]:
+            plt.scatter(d[0], d[1],c=c[num], marker="x")
+        else:
+            plt.scatter(d[0], d[1],c=c[num])
     for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
 
     plt.savefig(f_out)
@@ -447,9 +530,11 @@ if __name__ == "__main__":
     op.add_option("-s", dest="SEED", type=int, default=1234, help="Random seed (default: %default)")
     op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
     op.add_option("--ordermax", dest="ORDERMAX", default="-1,-1", help="Max orders (default: %default)")
+    op.add_option("--ordermin", dest="ORDERMIN", default="0,0", help="Min orders (default: %default)")
     op.add_option("--plotprefix", dest="PLOTPREFIX", default=None, help="Prefix for plot output (default: %default)")
     op.add_option("--split", dest="SPLIT", default=0.6, type=float, help="Fraction of training sample (default: %default)")
     op.add_option("--train", dest="TRAIN", default=1.5, type=float, help="Oversampling factor (default: %default)")
+    op.add_option("--filter", dest="FILTER", default=False, action="store_true", help="Switch to enable filtering objects with negative error (default: %default)")
     opts, args = op.parse_args()
 
     if len(args) == 0:
@@ -469,8 +554,14 @@ if __name__ == "__main__":
     except:
         import time
         t1 = time.time()
-        DATA   = apprentice.tools.readH5(args[0], [])
+        DATA       = apprentice.tools.readH52(args[0], [])
         idx = [i for i in range(len(DATA))]
+        # idx = [i for i in range(len(DATA))]
+        # idx = range(312, 339)
+        # idx = range(162, 163)
+        # idx = range(0, 27)
+        # idx = [i for i in range(len(DATA))]
+
         pnames = apprentice.tools.readPnamesH5(args[0], xfield="params")
         with h5py.File(args[0], "r") as f:
             binids = [s.decode() for s in f.get("index")[idx]]
@@ -479,8 +570,16 @@ if __name__ == "__main__":
 
         ras = []
         t1=time.time()
-        for num, (X, Y) in  enumerate(DATA):
+        for num, (_X, _Y, _E) in  enumerate(DATA):
             t11=time.time()
+
+            USE = np.where( (_E>=0) )
+            X=_X[USE]
+            Y=_Y[USE]
+
+            # from IPython import embed
+            # embed()
+            # sys.exit(1)
 
             if opts.ORDER is None:
                 M,N=[int(x) for x in opts.ORDERMAX.split(",")]
@@ -490,7 +589,12 @@ if __name__ == "__main__":
                     fplot="{}_{}.pdf".format(opts.PLOTPREFIX, binids[num].replace("/","_").replace("#","_"))
                 else: fplot=None
 
-                app = mkBestRACPL(X, Y, m_max=M, n_max=N, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot)
+                Mmin,Nmin=[int(x) for x in opts.ORDERMIN.split(",")]
+                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot)
+                # denomMaxMS(app, 100)
+                # from IPython import embed
+                # embed()
+                # sys.exit(1)
                 ras.append(app)
             else:
                 M,N=[int(x) for x in opts.ORDER.split(",")]
