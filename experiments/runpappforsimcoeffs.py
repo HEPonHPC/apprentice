@@ -1,6 +1,6 @@
 import apprentice
 import numpy as np
-
+from timeit import default_timer as timer
 
 def runPAforsimcoeffs(X, Y, fndesc, m, n, ts, outfile):
     import json
@@ -28,13 +28,19 @@ def runPAforsimcoeffs(X, Y, fndesc, m, n, ts, outfile):
         raise Exception("Not enough data for padeg = %d and dim = %d. Require %d (%s) and only have %d"%(padeg,dim,trainingsize,ts,len(X)))
 
     train = range(trainingsize)
+    start = timer()
     pa = apprentice.PolynomialApproximation(
     							X[train],
     							Y[train],
     							order=padeg
             )
-
-    pa.save(outfile)
+    end = timer()
+    padict = pa.asDict
+    fittime = end-start
+    padict["log"] = {"fittime":fittime}
+    import json
+    with open(outfile, "w") as f:
+        json.dump(padict, f,indent=4, sort_keys=True)
 
 
 if __name__ == "__main__":

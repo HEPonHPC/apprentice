@@ -30,16 +30,11 @@ def runRA(X, Y, fndesc, m, n, ts, outfile):
                                 strategy=1
     )
     end = timer()
-            # print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs,
-            #                 raNorm(rrr, X[i_test], Y[i_test],1),
-            #                 np.sqrt(raNorm(rrr, X[i_test], Y[i_test],2)),
-            #                 raNormInf(rrr, X[i_test], Y[i_test])))
-            # print("Total Approximation time {}\n".format(rrr.fittime))
 
     radict = ra.asDict
     fittime = end-start
     radict["log"] = {"fittime":fittime}
-    
+
     import json
     with open(outfile, "w") as f:
         json.dump(radict, f,indent=4, sort_keys=True)
