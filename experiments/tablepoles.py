@@ -109,13 +109,13 @@ def tablepoles(farr,noisearr, tarr, testfilearr, bottomallarr, ts, table_or_late
 
     s = ""
     if(table_or_latex == "table"):
-        s+= "\t\t\t\t\t"
+        s+= "\t\t\t"
         for noise in noisearr:
-            s+= "%s\t\t\t\t\t"%(noise)
+            s+= "%s\t\t\t\t\t\t\t"%(noise)
         s+="\n"
         for noise in noisearr:
-            s += "\t\tRat Apprx\t\t\tRat Apprx SIP\t"
-        s+="\n"
+            s += "\t\tRat Apprx\tRat Apprx SIP\t\t"
+        s+="\n\n"
         for noise in noisearr:
             for tval in thresholdvalarr:
                 s += "\t%d"%(int(tval))
