@@ -145,7 +145,7 @@ def tablepoles(farr,noisearr, tarr, testfilearr, bottomallarr, ts, table_or_late
                     s += "&%d"%(int(results[fname][noise]["rapp"][tvalstr]))
                 for tval in thresholdvalarr:
                     tvalstr = str(tval)
-                    s += "&%d"%(int(results[fname][noise]["rappsip"][tvalstr]))
+                    s += "&%d"% (int(results[fname][noise]["rappsip"][tvalstr]))
             s+="\\\\\hline\n"
 
 
