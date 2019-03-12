@@ -219,7 +219,7 @@ Code Holger and Mohan came up with on 20190228.
 Cleaned up on 20190301
 Cleaned up code from findCornerTriangulation2():
 """
-def findCornerTriangulation(pareto, data, txt):
+def findCornerTriangulation(pareto, data, txt,logx,logy):
     def angle(B, A, C):
         """
         Find angle at A
@@ -251,8 +251,22 @@ def findCornerTriangulation(pareto, data, txt):
     cosmax=-2
     corner=len(pareto)-1
 
-    lpareto=np.log10(pareto)
-    ldata = np.log10(data)
+
+    if(logx):
+        xp = np.log10(pareto[:,0])
+        xd = np.log10(data[:,0])
+    else:
+        xp = (pareto[:,0])
+        xd = (data[:,0])
+    if(logy):
+        yp = np.log10(pareto[:,1])
+        yd = np.log10(data[:,1])
+    else:
+        yp = (pareto[:,1])
+        yd = (data[:,1])
+    lpareto = np.column_stack((xp,yp))
+    ldata = np.column_stack((xd,yd))
+
     C = lpareto[corner]
     for k in range(0,len(lpareto)-2):
         B = lpareto[k]
@@ -275,51 +289,6 @@ def findCornerTriangulation(pareto, data, txt):
                 # degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
                 # print("=====Found====== %f %f at %s %s %s"%(_area,_angle, degB, degA, degC))
     print("In findCornerTriangulation, I got this {}".format(pareto[corner]))
-    return corner
-
-"""
-Code Holger and Mohan came up with on 20190228.
-Cleaned up code in findCornerTriangulation.
-Keeping this around for reference
-"""
-def findCornerTriangulation2(pareto):
-    def angle(A,B,C):
-        """
-        Find angle at A
-        """
-        ca = [A[0]-C[0], A[1]-C[1]]
-        ab = [B[0]-A[0], B[1]-A[1]]
-
-        l1=np.linalg.norm(ca)
-        l2=np.linalg.norm(ab)
-        import math
-        top= np.dot(ca,ab)
-        return math.acos(top/l1/l2)
-
-    def area(A,B,C):
-        """
-        A,B,C ---
-        """
-        return 0.5 *( ( B[0] - A[0] )*(A[1] - C[1]) -  (A[0] - C[0])*(B[1] - A[1]) )
-
-    cte=np.cos(7./8*np.pi)
-    cosmax=-2
-    corner=len(pareto)-1
-
-    lpareto=np.log10(pareto)
-
-    C = lpareto[corner]
-    for k in range(0,len(lpareto)-2):
-        B = lpareto[k]
-        for j in range(k,len(lpareto)-2):
-            A=lpareto[j+1]
-            _a = area(A,C,B)
-            _t = angle(A,C,B)
-            if _t>cte and _t> cosmax and _a<0:
-                corner = j+1
-                cosmax = _t
-                print(_a,_t)
-    print("In findCornerTriangulation2, I got this {}".format(pareto[corner]))
     return corner
 
 def getdegreestr(paretopoint,data,txt):
@@ -370,7 +339,7 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
         else:
             txt.append("")
 
-    cornerT = findCornerTriangulation(pareto,data,txt)
+    cornerT = findCornerTriangulation(pareto,data,txt,logx,logy)
     # cornerT2 = findCornerTriangulation2(pareto)
     # cornerdSl = findCornerSlopesRatios(pareto)
 
@@ -473,7 +442,7 @@ def raNormInf(ra, X, Y):
     return nrm
 
 
-def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
+def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
     import glob
     import json
     import re
@@ -573,10 +542,10 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
         else:
             NC.append(apprentice.tools.numCoeffsRapp(dim, (m,n)))
 
-    D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
-    outfileparetomn = "%s/plots/Poptdeg_%s_paretomn.png"%(folder, desc)
-    mkPlotParetoSquare(D3D, outfileparetomn)
-    print("paretomn written to %s"%(outfileparetomn))
+    # D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
+    # outfileparetomn = "%s/plots/Poptdeg_%s_paretomn.png"%(folder, desc)
+    # mkPlotParetoSquare(D3D, outfileparetomn)
+    # print("paretomn written to %s"%(outfileparetomn))
 
     # import matplotlib as mpl
     # import matplotlib.pyplot as plt
@@ -608,9 +577,49 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all):
 
     CMP = [a*b for a,b in zip(NNZ, L2)]
 
-    outfilepareton = "%s/plots/Poptdeg_%s_pareton.png"%(folder, desc)
-    jsdump = mkPlotCompromise([(a,b) for a, b in zip(NC, VAR)], desc, outfilepareton,  orders, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True, normalize_data=False, jsdump = jsdump)
-    outfileparetojsdump = "%s/plots/Joptdeg_%s_jsdump.json"%(folder, desc)
+    nopoints = len(Y_test)
+    #1
+    if(opt=="opt1"):
+        Xcomp = NC
+        Ycomp = VAR
+        Xdesc = "$N_\\mathrm{coeff}$"
+        Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$"
+        logx = True
+        logy = True
+    elif(opt=="opt2"):
+        Xcomp = NNZ
+        Ycomp = L2
+        Xdesc = "$N_\\mathrm{non-zero}$"
+        Ydesc = "$L_2^\\mathrm{test}$"
+        logx = True
+        logy = True
+    elif(opt=="opt3"):
+        Xcomp = [2*i for i in NNZ]
+        Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
+        Xdesc = "$2N_\\mathrm{non-zero}$"
+        Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
+        logx = False
+        logy = False
+    elif(opt=="opt4"):
+        Xcomp = [i*np.log(nopoints) for i in NNZ]
+        Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
+        Xdesc = "$N_\\mathrm{non-zero}log(n)$"
+        Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
+        logx = False
+        logy = False
+    elif(opt=="opt5"):
+        Xcomp = NC
+        Ycomp = [l/(n-m+1) for l, m,n in zip(L2, NNZ,NC)]
+        Xdesc = "$N_\\mathrm{coeff}$"
+        Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\\mathrm{coeff} - N_\mathrm{non-zero}+1}$"
+        logx = True
+        logy = True
+
+    else:raise Exception("option ambiguous/not defined")
+
+    outfilepareton = "%s/plots/Poptdeg_%s_pareton_%s.png"%(folder, desc,opt)
+    jsdump = mkPlotCompromise([(a,b) for a, b in zip(Xcomp, Ycomp)], desc, outfilepareton,  orders, ly=Ydesc, lx=Xdesc, logy=logx, logx=logy, normalize_data=False, jsdump = jsdump)
+    outfileparetojsdump = "%s/plots/Joptdeg_%s_jsdump_%s.json"%(folder, desc, opt)
     import json
     with open(outfileparetojsdump, "w") as f:
         json.dump(jsdump, f,indent=4, sort_keys=True)
@@ -621,8 +630,8 @@ if __name__ == "__main__":
 
 
     import os, sys, h5py
-    if len(sys.argv)!=5:
-        print("Usage: {} infolder testfile  fndesc  bottom_or_all".format(sys.argv[0]))
+    if len(sys.argv)!=6:
+        print("Usage: {} infolder testfile  fndesc  bottom_or_all opt1_or_..._or_opt5".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -641,16 +650,16 @@ if __name__ == "__main__":
         print("Test file '{}' not found.".format(sys.argv[2]))
         sys.exit(1)
 
-    plotoptimaldegree(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    plotoptimaldegree(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4],sys.argv[5])
 
     exit(0)
 
 
     """
     Running on shell (for compute nodes)
-    for fno in {7..10} {12..16}; do folder="f"$fno"_2x"; name="f"$fno; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+    for fno in {7..10} {12..16}; do folder="f"$fno"_2x"; name="f"$fno; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all opt1 > /dev/null 2>&1 & done
 
-    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-1_2x"; name="f"$fno"_noisepct10-1"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-1_2x"; name="f"$fno"_noisepct10-1"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all opt1 > /dev/null 2>&1 & done
 
-    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-3_2x"; name="f"$fno"_noisepct10-3"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all > /dev/null 2>&1 & done
+    for fno in {7..10} {12..16}; do folder="f"$fno"_noisepct10-3_2x"; name="f"$fno"_noisepct10-3"; nohup python plotoptimaldegree.py $folder "../benchmarkdata/f"$fno"_test.txt" $name all opt1 > /dev/null 2>&1 & done
     """
