@@ -45,8 +45,8 @@ class RationalApproximationONB(object):
     @property
     def asDict(self):
         return {
-                "CNUM": self._cnum.tolist(),
-                "CDEN": self._cden.tolist(),
+                "pcoeff": self._pcoeff.tolist(),
+                "qcoeff": self._qcoeff.tolist(),
                 "m": self._m,
                 "n": self._n,
                 "ONB": self._ONB.asDict,
@@ -59,8 +59,8 @@ class RationalApproximationONB(object):
             json.dump(self.asDict, f, indent=4)
 
     def mkFromDict(self, RDict):
-        self._cnum = np.array(RDict["CNUM"])
-        self._cden = np.array(RDict["CDEN"])
+        self._pcoeff = np.array(RDict["pcoeff"])
+        self._qcoeff = np.array(RDict["qcoeff"])
         self._m = int(RDict["m"])
         self._n = int(RDict["n"])
         self._scaler = apprentice.Scaler(RDict["scaler"])
@@ -85,7 +85,7 @@ class RationalApproximationONB(object):
         if n <0: return False
         S = self._svd(F, Q, m, n)
         dec = S['s'][-1] < self.tol * S['s'][0]
-        print("Reductio: Testing orders",m,n, "decision: ", dec, "SVs",S['s'])
+        # print("Reductio: Testing orders",m,n, "decision: ", dec, "SVs",S['s'])
 
         return dec
 
@@ -130,8 +130,8 @@ class RationalApproximationONB(object):
         self._m = m
         self._n = n
         S = self._svd(self.F, Q, m, n)
-        self._cnum = S["a"]
-        self._cden = S["b"]
+        self._pcoeff = S["a"]
+        self._qcoeff = S["b"]
         self._svs = S["s"]
         del self._F
 
@@ -179,16 +179,16 @@ class RationalApproximationONB(object):
         """
         Return the value of the denominator polynomial at x
         """
-        recDen = self._ONB._recurrence(x, len(self._cden))
-        return float(np.dot(recDen,self._cden))
+        recDen = self._ONB._recurrence(x, len(self._qcoeff))
+        return float(np.dot(recDen,self._qcoeff))
 
     # NOTE not tested --- also mind that these expect x to be scaled aready
     def numer(self, x):
         """
         Return the value of the numerator polynomial at x
         """
-        recNum = self._ONB._recurrence(x, len(self._cnum))
-        return float(np.dot(recNum,self._cnum))
+        recNum = self._ONB._recurrence(x, len(self._pcoeff))
+        return float(np.dot(recNum,self._pcoeff))
 
 
 
@@ -198,9 +198,9 @@ class RationalApproximationONB(object):
         NOTE X lives in the real world
         """
         X=self._scaler.scale(np.array(X))
-        recNum = self._ONB._recurrence(X, len(self._cnum))
-        recDen = self._ONB._recurrence(X, len(self._cden))
-        return float(np.dot(recNum,self._cnum)/np.dot(recDen,self._cden))
+        recNum = self._ONB._recurrence(X, len(self._pcoeff))
+        recDen = self._ONB._recurrence(X, len(self._qcoeff))
+        return float(np.dot(recNum,self._pcoeff)/np.dot(recDen,self._qcoeff))
 
     def __call__(self, X):
         """
