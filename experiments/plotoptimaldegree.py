@@ -591,7 +591,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
     if(opt=="opt1"):
         Xcomp = NC
         Ycomp = [v/n for v,n in zip(VAR, NC)]
-        Xdesc = "$N_\\mathrm{coeff}$"
+        Xdesc = "$N_\\mathrm{\\times N_\\mathrm{coeff}}$"
         Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$"
         logx = True
         logy = True
@@ -603,16 +603,16 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
         logx = True
         logy = True
     elif(opt=="opt3"):
-        Xcomp = [2*i for i in NNZ]
+        Xcomp = [2*i for i in NC]
         Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
-        Xdesc = "$2N_\\mathrm{non-zero}$"
+        Xdesc = "$2N_\\mathrm{coeff}$"
         Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
         logx = False
         logy = False
     elif(opt=="opt4"):
-        Xcomp = [i*np.log(nopoints) for i in NNZ]
+        Xcomp = [i*np.log(nopoints) for i in NC]
         Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
-        Xdesc = "$N_\\mathrm{non-zero}log(n)$"
+        Xdesc = "$N_\\mathrm{coeff}log(n)$"
         Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
         logx = False
         logy = False
@@ -623,8 +623,8 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
         #     print(l, m,n)
         #     print(l*n/((n-m+1)))
         Ycomp = [l*n/(n-m+1) for l, m,n in zip(L2, NNZ,NC)]
-        Xdesc = "$N_\\mathrm{coeff}\\times N_\\mathrm{coeff}$"
-        Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\\mathrm{coeff} - N_\mathrm{non-zero}+1}$"
+        Xdesc = "$N_\\mathrm{coeff}$"
+        Ydesc = "$\\frac{L_2^\\mathrm{test}\\times N_\\mathrm{coeff}}{N_\\mathrm{coeff} - N_\mathrm{non-zero}+1}$"
         logx = False
         logy = True
     elif(opt=="opt6"):
