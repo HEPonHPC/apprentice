@@ -635,7 +635,7 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
         logx = True
         logy = True
     elif(opt=="opt7"):
-        Xcomp = NC
+        Xcomp = [2*i for i in NC]
         Ycomp = L2
         Xdesc = "$N_\\mathrm{coeff}$"
         Ydesc = "$\\log_{10}(L_2^\\mathrm{test})$"
