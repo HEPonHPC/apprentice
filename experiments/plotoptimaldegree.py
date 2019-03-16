@@ -385,6 +385,11 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
         jsdump['optdeg_p1']['m'] = pdeg
         jsdump['optdeg_p1']['n'] = qdeg
 
+    jsdump['text'] = txt
+    jsdump['data'] = data.tolist()
+    jsdump['pareto'] = pareto.tolist()
+    jsdump['orders'] = orders
+
     plt.savefig(f_out)
     plt.close('all')
 
