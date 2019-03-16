@@ -251,14 +251,140 @@ def plotoptdegreecomparison(farr, ts):
 
 # python plot2Dsurface.py f21_2x/out/f21_2x_p12_q12_ts2x.json ../benchmarkdata/f21_test.txt f21_2x f21_2x all
 
+def plotoptdegreecompsubplots(farr, noisearr,ts):
+    import json
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    import matplotlib.text as text
+    # mpl.use('pgf')
+    pgf_with_custom_preamble = {
+        "text.usetex": True,    # use inline math for ticks
+        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+        "pgf.preamble": [
+            "\\usepackage{amsmath}",         # load additional packages
+        ]
+    }
+    mpl.rcParams.update(pgf_with_custom_preamble)
+    lx="$\\log_{10}(\\alpha(M) + \\alpha(N))$"
+    ly="$\\log_{10}(\\Delta_{MN})$"
+    logy=True
+    logx=True
+    f, axarr = plt.subplots(2,2, figsize=(15,8))
+    f.subplots_adjust(hspace=0.3)
+    # f.subplots_adjust(wspace=0.3)
+    paretotxt = ""
+    # f.subplots_adjust(wspace=-.5)
+    for num, fname in enumerate(farr):
+        row = int(num/2)
+        col = num%2
+        noise = noisearr[num]
+        noisestr = ""
+        if(noise!="0"):
+            noisestr = "_noisepct"+noise
+        folder = "%s%s_%s"%(fname,noisestr,ts)
+        optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
+
+        if not os.path.exists(optjsonfile):
+            print("optjsonfile: " + optjsonfile+ " not found")
+            exit(1)
+
+        if optjsonfile:
+            with open(optjsonfile, 'r') as fn:
+                optjsondatastore = json.load(fn)
+
+        pareto = optjsondatastore['pareto']
+        txt = optjsondatastore['text']
+        data = optjsondatastore['data']
+        orders = optjsondatastore['orders']
+
+        axarr[row][col].set_xlabel(lx)
+        axarr[row][col].set_ylabel(ly)
+        if logx: axarr[row][col].set_xscale("log")
+        if logy: axarr[row][col].set_yscale("log")
+
+        c = []
+        # paretopoint=[]
+        for num, (m,n) in enumerate(orders):
+            if n==0:
+                c.append("b")
+            else:
+                c.append("r")
+
+        marker,size = [],[]
+        cornerindex = -1
+
+        for num, t in enumerate(txt):
+            if(t==optjsondatastore['optdeg']['str']):
+                cornerindex = num
+            if(t!=""):
+                marker.append('o')
+                size.append(50)
+            else:
+                marker.append('x')
+                size.append(15)
+
+        lowestl2index = np.inf
+        lowestl2 = np.inf
+        largestl2 = 0
+        for num, d in enumerate(data):
+            if d[1] < lowestl2:
+                lowestl2index = num
+                lowestl2 = d[1]
+            if(d[1] > largestl2):
+                largestl2 = d[1]
+
+
+
+        for num, d in enumerate(data):
+            if(num==cornerindex):
+                axarr[row][col].scatter(d[0], d[1], marker = '*', c = "peru"  ,s=444, alpha = 1)
+            if(num==lowestl2index):
+                axarr[row][col].scatter(d[0], d[1], marker = 'x', c = "purple"  ,s=222, alpha = 1)
+            axarr[row][col].scatter(d[0], d[1],c=c[num],marker=marker[num],s=size[num])
+
+        axarr[row][col].set_title("\\textbf{%c: Function No. \\ref{fn:%s}}"%(chr(65+(row*2+col)),fname),fontweight='bold')
+        paretotxt +="\\ref{fn:%s}&"%(fname)
+        for num, t in enumerate(txt):
+            # axarr[row][col].text(data[num][0]-data[num][0]/(num+1), data[num][1], t, fontsize=8,verticalalignment='center')
+            if(t!=""):
+                paretotxt += "%s"%(t)
+                if(num != len(txt)-1):
+                    paretotxt += ", "
+        paretotxt += "\\\\hline\n"
+
+    print(paretotxt)
+
+
+    for ax in axarr.flat:
+        ax.tick_params(axis = 'both', which = 'major')
+        ax.tick_params(axis = 'both', which = 'minor')
+        # ax.label_outer()
+    # plt.show()
+    plt.savefig("plots/Poptdegcomparesubplots.pgf", bbox_inches="tight")
+
+
 if __name__ == "__main__":
 
-    if len(sys.argv)!=3:
-        print("Usage: {} functions ts".format(sys.argv[0]))
+    if len(sys.argv)!=5:
+        print("Usage: {} functions noise ts strategy=[barplot,subplot]".format(sys.argv[0]))
         sys.exit(1)
+
     farr = sys.argv[1].split(',')
     if len(farr) == 0:
         print("please specify comma saperated functions")
         sys.exit(1)
-    plotoptdegreecomparison(farr, sys.argv[2])
+
+    noisearr = sys.argv[2].split(',')
+    if len(noisearr) == 0:
+        print("please specify comma saperated noise. If \"barplot\", arg not used, add junk val")
+        sys.exit(1)
+
+    strategy = sys.argv[4]
+    if(strategy == 'barplot'):
+        plotoptdegreecomparison(farr, sys.argv[3])
+    elif(strategy == 'subplot'):
+        if(len(farr)!=len(noisearr)):
+            print("functions and noise should have same vals")
+            sys.exit(1)
+        plotoptdegreecompsubplots(farr,noisearr, sys.argv[3])
 ###########
