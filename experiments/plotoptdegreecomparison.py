@@ -205,72 +205,68 @@ def plotoptdegreecomparison(farr, ts):
 
     index = 0
     yaxislabels = [""]
-    sdimarr = np.argsort(dimarr)
-    currdim = -1
+    # sdimarr = np.argsort(dimarr)
+    # currdim = -1
     data = []
     strarr = []
     indarr = []
-    for num,currind in enumerate(sdimarr):
-        if(currdim==-1):
-            currdim = dimarr[currind]
-        if(currdim == dimarr[currind]):
-            indarr.append(currind)
-            data.append(real[currind])
-            data.append(optdegnonoise[currind])
-            data.append(optdeg10_6noise[currind])
-            data.append(optdeg10_3noise[currind])
-            data.append(optdeg10_1noise[currind])
-            strarr.append(realstr[currind])
-            strarr.append(optdegnonoisestr[currind])
-            strarr.append(optdeg10_6noisestr[currind])
-            strarr.append(optdeg10_3noisestr[currind])
-            strarr.append(optdeg10_1noisestr[currind])
-        if(currdim != dimarr[currind] or num == len(sdimarr)-1):
-            print(data)
-            sdata = np.argsort(data)
-            currdeg = ""
-            for s in sdata:
-                if(currdeg != strarr[s]):
-                    index += 1
-                    currdeg = strarr[s]
-                    yaxislabels.append(strarr[s])
-                data[s] = index
+    for currind,f in enumerate(farr):
+        indarr.append(currind)
+        data.append(real[currind])
+        data.append(optdegnonoise[currind])
+        data.append(optdeg10_6noise[currind])
+        data.append(optdeg10_3noise[currind])
+        data.append(optdeg10_1noise[currind])
+        strarr.append(realstr[currind])
+        strarr.append(optdegnonoisestr[currind])
+        strarr.append(optdeg10_6noisestr[currind])
+        strarr.append(optdeg10_3noisestr[currind])
+        strarr.append(optdeg10_1noisestr[currind])
+    print(data)
+    sdata = np.argsort(data)
+    currdeg = ""
+    for s in sdata:
+        if(currdeg != strarr[s]):
+            index += 1
+            currdeg = strarr[s]
+            yaxislabels.append(strarr[s])
+        data[s] = index
 
-            print(indarr)
-            i=0
-            j=0
-            while i<len(data):
-                act[indarr[j]] = data[i]
-                i+=1
-                noise0[indarr[j]] = data[i]
-                i+=1
-                noise6[indarr[j]] = data[i]
-                i+=1
-                noise3[indarr[j]] = data[i]
-                i+=1
-                noise1[indarr[j]] = data[i]
-                i+=1
-                j+=1
-
-            print(dimarr)
-            print(data)
-            print(yaxislabels)
-            print(real)
+        i=0
+        j=0
+        while i<len(data):
+            act[indarr[j]] = data[i]
+            i+=1
+            noise0[indarr[j]] = data[i]
+            i+=1
+            noise6[indarr[j]] = data[i]
+            i+=1
+            noise3[indarr[j]] = data[i]
+            i+=1
+            noise1[indarr[j]] = data[i]
+            i+=1
+            j+=1
 
 
-            data = []
-            strarr = []
-            indarr = []
-
-
-
+    print(yaxislabels)
     print(act)
     print(noise0)
     print(noise6)
     print(noise3)
     print(noise1)
 
+    import matplotlib as mpl
+    mpl.use('pgf')
+    pgf_with_custom_preamble = {
+        "text.usetex": True,    # use inline math for ticks
+        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+        "pgf.preamble": [
+            "\\usepackage{amsmath}",         # load additional packages
+        ]
+    }
+    mpl.rcParams.update(pgf_with_custom_preamble)
     import matplotlib.pyplot as plt
+
     width = 0.15
     fig, ax = plt.subplots(figsize=(15,10))
 
@@ -325,7 +321,10 @@ def plotoptdegreecomparison(farr, ts):
     # ax.set_title('Comparing optimal degree obtained for different types of training data with \'%s\' points'%(ts))
     ax.set_xticks(X + 4*width / 2)
     ax.set_yticks(range(0,index+1))
-    ax.set_xticklabels(farr)
+    xlab = []
+    for f in farr:
+        xlab.append("\\ref{fn:%s}"%(f))
+    ax.set_xticklabels(xlab)
     ax.set_yticklabels(yaxislabels)
     ax.set_xlabel('Function No.')
     ax.set_ylabel('Order of numerator and denominator polynomial')
@@ -336,8 +335,9 @@ def plotoptdegreecomparison(farr, ts):
 
     outfilepng = "plots/Popdegcmp_%s_%s_ts%s_optimaldegreecomparison.png"%(farr[0],farr[len(farr)-1],ts)
 
-    plt.show()
+    # plt.show()
     # plt.savefig(outfilepng)
+    plt.savefig("plots/Poptdegcomparebarplots.pgf", bbox_inches="tight")
 
 # python plot2Dsurface.py f21_2x/out/f21_2x_p12_q12_ts2x.json ../benchmarkdata/f21_test.txt f21_2x f21_2x all
 
