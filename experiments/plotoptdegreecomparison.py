@@ -342,7 +342,7 @@ def plotoptdegreecompsubplots(farr, noisearr,ts):
                 axarr[row][col].scatter(d[0], d[1], marker = 'x', c = "purple"  ,s=222, alpha = 1)
             axarr[row][col].scatter(d[0], d[1],c=c[num],marker=marker[num],s=size[num])
 
-        axarr[row][col].set_title("\\textbf{%c: Function No. \\ref{fn:%s}}"%(chr(65+(row*2+col)),fname),fontweight='bold')
+        axarr[row][col].set_title("\\textbf{Function No. \\ref{fn:%s}}"%(fname),fontweight='bold')
         paretotxt +="\\ref{fn:%s}&"%(fname)
         for num, t in enumerate(txt):
             # axarr[row][col].text(data[num][0]-data[num][0]/(num+1), data[num][1], t, fontsize=8,verticalalignment='center')
@@ -359,6 +359,8 @@ def plotoptdegreecompsubplots(farr, noisearr,ts):
         ax.tick_params(axis = 'both', which = 'major')
         ax.tick_params(axis = 'both', which = 'minor')
         # ax.label_outer()
+
+
     # plt.show()
     plt.savefig("plots/Poptdegcomparesubplots.pgf", bbox_inches="tight")
 
