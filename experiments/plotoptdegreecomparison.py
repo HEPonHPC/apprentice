@@ -46,6 +46,10 @@ def getactualdegree(f):
         deg = "(4,3)"
         m=4
         n=3
+    elif(f=="f22"):
+        deg = "(2,0)"
+        m=2
+        n=0
     else:
         deg = "N/A"
         m=0
@@ -57,6 +61,7 @@ def getactualdegree(f):
 def plotoptdegreecomparison(farr, ts):
 
     import json
+    dimarr = np.array([])
     real = np.array([])
     optdegnonoise = np.array([])
     optdeg10_1noise = np.array([])
@@ -78,7 +83,7 @@ def plotoptdegreecomparison(farr, ts):
             print("Folder '{}' not found.".format(folder))
             sys.exit(1)
 
-        optdegjson = "%s/plots/Joptdeg_%s_jsdump.json"%(folder,f)
+        optdegjson = "%s/plots/Joptdeg_%s_jsdump_opt6.json"%(folder,f)
 
         if not os.path.exists(optdegjson):
             print("Optimal degree file '{}' not found.".format(optdegjson))
@@ -89,6 +94,7 @@ def plotoptdegreecomparison(farr, ts):
                 optdegds = json.load(fn)
 
         dim = optdegds['dim']
+        dimarr = np.append(dimarr,dim)
         m = optdegds['optdeg']['m']
         n = optdegds['optdeg']['n']
         degstr = optdegds['optdeg']['str']
@@ -114,7 +120,7 @@ def plotoptdegreecomparison(farr, ts):
             print("Folder '{}' not found.".format(folder))
             sys.exit(1)
 
-        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump.json"%(folder,f,noisestr)
+        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump_opt6.json"%(folder,f,noisestr)
 
         if not os.path.exists(optdegjson):
             print("Optimal degree file '{}' not found.".format(optdegjson))
@@ -142,7 +148,7 @@ def plotoptdegreecomparison(farr, ts):
             print("Folder '{}' not found.".format(folder))
             sys.exit(1)
 
-        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump.json"%(folder,f,noisestr)
+        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump_opt6.json"%(folder,f,noisestr)
 
         if not os.path.exists(optdegjson):
             print("Optimal degree file '{}' not found.".format(optdegjson))
@@ -170,7 +176,7 @@ def plotoptdegreecomparison(farr, ts):
             print("Folder '{}' not found.".format(folder))
             sys.exit(1)
 
-        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump.json"%(folder,f,noisestr)
+        optdegjson = "%s/plots/Joptdeg_%s_%s_jsdump_opt6.json"%(folder,f,noisestr)
 
         if not os.path.exists(optdegjson):
             print("Optimal degree file '{}' not found.".format(optdegjson))
@@ -185,61 +191,144 @@ def plotoptdegreecomparison(farr, ts):
         n = optdegds['optdeg']['n']
         degstr = optdegds['optdeg']['str']
 
-        ncoeffs = tools.numCoeffsPoly(dim,m) + tools.numCoeffsPoly(dim, n)
+        ncoeffs  = tools.numCoeffsPoly(dim,m) + tools.numCoeffsPoly(dim, n)
         optdeg10_1noise = np.append(optdeg10_1noise,ncoeffs)
         optdeg10_1noisestr = np.append(optdeg10_1noisestr,degstr)
     # '#E6E9ED'"#900C3F", '#C70039', '#FF5733', '#FFC300'
+
+    act = np.zeros(len(real))
+    noise0 = np.zeros(len(real))
+    noise1 = np.zeros(len(real))
+    noise3 = np.zeros(len(real))
+    noise6 = np.zeros(len(real))
+
+
+    index = 0
+    yaxislabels = [""]
+    sdimarr = np.argsort(dimarr)
+    currdim = -1
+    data = []
+    strarr = []
+    indarr = []
+    for num,currind in enumerate(sdimarr):
+        if(currdim==-1):
+            currdim = dimarr[currind]
+        if(currdim == dimarr[currind]):
+            indarr.append(currind)
+            data.append(real[currind])
+            data.append(optdegnonoise[currind])
+            data.append(optdeg10_6noise[currind])
+            data.append(optdeg10_3noise[currind])
+            data.append(optdeg10_1noise[currind])
+            strarr.append(realstr[currind])
+            strarr.append(optdegnonoisestr[currind])
+            strarr.append(optdeg10_6noisestr[currind])
+            strarr.append(optdeg10_3noisestr[currind])
+            strarr.append(optdeg10_1noisestr[currind])
+        if(currdim != dimarr[currind] or num == len(sdimarr)-1):
+            print(data)
+            sdata = np.argsort(data)
+            currdeg = ""
+            for s in sdata:
+                if(currdeg != strarr[s]):
+                    index += 1
+                    currdeg = strarr[s]
+                    yaxislabels.append(strarr[s])
+                data[s] = index
+
+            print(indarr)
+            i=0
+            j=0
+            while i<len(data):
+                act[indarr[j]] = data[i]
+                i+=1
+                noise0[indarr[j]] = data[i]
+                i+=1
+                noise6[indarr[j]] = data[i]
+                i+=1
+                noise3[indarr[j]] = data[i]
+                i+=1
+                noise1[indarr[j]] = data[i]
+                i+=1
+                j+=1
+
+            print(dimarr)
+            print(data)
+            print(yaxislabels)
+            print(real)
+
+
+            data = []
+            strarr = []
+            indarr = []
+
+
+
+    print(act)
+    print(noise0)
+    print(noise6)
+    print(noise3)
+    print(noise1)
+
     import matplotlib.pyplot as plt
     width = 0.15
     fig, ax = plt.subplots(figsize=(15,10))
 
     X = np.arange(len(farr))
-    p1 = ax.bar(X, np.log10(real), width, color='gray')
-    p2 = ax.bar(X+width, np.log10(optdegnonoise), width, color='#900C3F')
-    p3 = ax.bar(X+2*width, np.log10(optdeg10_6noise), width, color='#C70039')
-    p4 = ax.bar(X+3*width, np.log10(optdeg10_3noise), width, color='#FF5733')
-    p5 = ax.bar(X+4*width, np.log10(optdeg10_1noise), width, color='#FFC300')
+    # p1 = ax.bar(X, np.log10(real), width, color='gray')
+    # p2 = ax.bar(X+width, np.log10(optdegnonoise), width, color='#900C3F')
+    # p3 = ax.bar(X+2*width, np.log10(optdeg10_6noise), width, color='#C70039')
+    # p4 = ax.bar(X+3*width, np.log10(optdeg10_3noise), width, color='#FF5733')
+    # p5 = ax.bar(X+4*width, np.log10(optdeg10_1noise), width, color='#FFC300')
 
-    for num,p in enumerate(p1.patches):
-        h = p.get_height()
-        x = p.get_x()+p.get_width()/2.
-        print(h,x)
-        ax.annotate("%s"%(realstr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
-                   textcoords="offset points", ha="center", va="bottom")
+    p1 = ax.bar(X, act, width, color='gray')
+    p2 = ax.bar(X+width, noise0, width, color='#900C3F')
+    p3 = ax.bar(X+2*width, noise6, width, color='#C70039')
+    p4 = ax.bar(X+3*width, noise3, width, color='#FF5733')
+    p5 = ax.bar(X+4*width, noise1, width, color='#FFC300')
 
-    for num,p in enumerate(p2.patches):
-        h = p.get_height()
-        x = p.get_x()+p.get_width()/2.
-        print(h,x)
-        ax.annotate("%s"%(optdegnonoisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
-                   textcoords="offset points", ha="center", va="bottom")
+    # for num,p in enumerate(p1.patches):
+    #     h = p.get_height()
+    #     x = p.get_x()+p.get_width()/2.
+    #     print(h,x)
+    #     ax.annotate("%s"%(realstr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
+    #                textcoords="offset points", ha="center", va="bottom")
+    #
+    # for num,p in enumerate(p2.patches):
+    #     h = p.get_height()
+    #     x = p.get_x()+p.get_width()/2.
+    #     print(h,x)
+    #     ax.annotate("%s"%(optdegnonoisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
+    #                textcoords="offset points", ha="center", va="bottom")
+    #
+    # for num,p in enumerate(p3.patches):
+    #     h = p.get_height()
+    #     x = p.get_x()+p.get_width()/2.
+    #     print(h,x)
+    #     ax.annotate("%s"%(optdeg10_6noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
+    #                textcoords="offset points", ha="center", va="bottom")
+    #
+    # for num,p in enumerate(p4.patches):
+    #     h = p.get_height()
+    #     x = p.get_x()+p.get_width()/2.
+    #     print(h,x)
+    #     ax.annotate("%s"%(optdeg10_3noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
+    #                textcoords="offset points", ha="center", va="bottom")
 
-    for num,p in enumerate(p3.patches):
-        h = p.get_height()
-        x = p.get_x()+p.get_width()/2.
-        print(h,x)
-        ax.annotate("%s"%(optdeg10_6noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
-                   textcoords="offset points", ha="center", va="bottom")
-
-    for num,p in enumerate(p4.patches):
-        h = p.get_height()
-        x = p.get_x()+p.get_width()/2.
-        print(h,x)
-        ax.annotate("%s"%(optdeg10_3noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
-                   textcoords="offset points", ha="center", va="bottom")
-
-    for num,p in enumerate(p5.patches):
-        h = p.get_height()
-        x = p.get_x()+p.get_width()/2.
-        print(h,x)
-        ax.annotate("%s"%(optdeg10_1noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
-                   textcoords="offset points", ha="center", va="bottom")
-    ax.legend((p1[0], p2[0],p3[0],p4[0],p5[0]), ('Actual','No noise', 'e = $10^{-6}$','e = $10^{-3}$', 'e = $10^{-1}$'))
-    ax.set_title('Comparing optimal degree obtained for different types of training data with \'%s\' points'%(ts))
+    # for num,p in enumerate(p5.patches):
+    #     h = p.get_height()
+    #     x = p.get_x()+p.get_width()/2.
+    #     print(h,x)
+    #     ax.annotate("%s"%(optdeg10_1noisestr[num]), xy=(x,h), xytext=(0,4), rotation=90, fontsize=8,
+    #                textcoords="offset points", ha="center", va="bottom")
+    ax.legend((p1[0], p2[0],p3[0],p4[0],p5[0]), ('Actual orders','$\\epsilon=0$', '$\\epsilon=10^{-6}$','$\\epsilon=10^{-3}$', '$\\epsilon=10^{-1}$'))
+    # ax.set_title('Comparing optimal degree obtained for different types of training data with \'%s\' points'%(ts))
     ax.set_xticks(X + 4*width / 2)
+    ax.set_yticks(range(0,index+1))
     ax.set_xticklabels(farr)
-    ax.set_xlabel('Functions')
-    ax.set_ylabel('$log_{10}(N_{coeff})$')
+    ax.set_yticklabels(yaxislabels)
+    ax.set_xlabel('Function No.')
+    ax.set_ylabel('Order of numerator and denominator polynomial')
     # ax.autoscale_view()
     # plt.show()
     if not os.path.exists("plots"):
@@ -247,7 +336,8 @@ def plotoptdegreecomparison(farr, ts):
 
     outfilepng = "plots/Popdegcmp_%s_%s_ts%s_optimaldegreecomparison.png"%(farr[0],farr[len(farr)-1],ts)
 
-    plt.savefig(outfilepng)
+    plt.show()
+    # plt.savefig(outfilepng)
 
 # python plot2Dsurface.py f21_2x/out/f21_2x_p12_q12_ts2x.json ../benchmarkdata/f21_test.txt f21_2x f21_2x all
 
