@@ -229,27 +229,31 @@ def findCornerTriangulation(pareto, data, txt,logx,logy):
         A - C
         """
 
-        ba = [A[0]-B[0], A[1]-B[1]]
-        ac = [C[0]-A[0], C[1]-A[1]]
+        ab = [A[0]-B[0], A[1]-B[1]]
+        ac = [A[0]-C[0], A[1]-C[1]]
 
-        l1=np.linalg.norm(ba)
-        l2=np.linalg.norm(ac)
+        l1=np.linalg.norm(ac)
+        l2=np.linalg.norm(ab)
         import math
-        return math.acos(np.dot(ba,ac)/l1/l2)
+        return math.acos(np.dot(ab,ac)/l1/l2)
+
 
     def area(B, A, C):
         """
         A,B,C ---
         On the L, B is north of A and C is east of A
         B
-        | \     (area is -ve)
+        | \     (area is +ve)
         A - C
         """
-        return 0.5 *( ( C[0] - A[0] )*(A[1] - B[1]) -  (A[0] - B[0])*(C[1] - A[1]) )
+        # return 0.5 *( ( C[0] - A[0] )*(A[1] - B[1]) -  (A[0] - B[0])*(C[1] - A[1]) )
+        return 0.5 *( (B[0]*A[1] - A[0]*B[1]) - (B[0]*C[1]-C[0]*B[1]) + (A[0]*C[1]-C[0]*A[1]))
 
     cte=np.cos(7./8*np.pi)
     cosmax=-2
     corner=len(pareto)-1
+    # print(angle([-0.625, 1.9],[0,0],[4,0]))
+    # exit(1)
 
 
     if(logx):
@@ -274,20 +278,25 @@ def findCornerTriangulation(pareto, data, txt,logx,logy):
             A = lpareto[j+1]
             _area = area(B,A,C)
             _angle = angle(B,A,C)
-            # if(_area < 0):
+            # degB,pdegB,qdegB = getdegreestr(B,ldata,txt)
+            # degA,pdegA,qdegA = getdegreestr(A,ldata,txt)
+            # degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
+            # print("print all %s %s %s %f %f %f"%(degB,degA,degC, _area,_angle,_angle*(180/np.pi)))
+
+            # if(_area > 0):
             #     degB,pdegB,qdegB = getdegreestr(B,ldata,txt)
             #     degA,pdegA,qdegA = getdegreestr(A,ldata,txt)
             #     degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
-            #     print("angls = %.4f at %s %s %s"%(_angle, degB, degA, degC))
+            #     print("area > 0 ------>area = %.4f angls = %.4f at %s %s %s"%(_area,_angle, degB, degA, degC))
 
 
-            if _angle > cte and _angle > cosmax and _area < 0:
+            if _angle > cte and _angle > cosmax and _area > 0:
                 corner = j + 1
                 cosmax = _angle
                 # degB,pdegB,qdegB = getdegreestr(B,ldata,txt)
                 # degA,pdegA,qdegA = getdegreestr(A,ldata,txt)
                 # degC,pdegC,qdegC = getdegreestr(C,ldata,txt)
-                # print("=====Found====== %f %f at %s %s %s"%(_area,_angle, degB, degA, degC))
+                # print("===== Found corner ====== %f %f at %s %s %s"%(_area,_angle, degB, degA, degC))
     print("In findCornerTriangulation, I got this {}".format(pareto[corner]))
     return corner
 
@@ -375,6 +384,11 @@ def mkPlotCompromise(data, desc, f_out, orders=None,lx="$x$", ly="$y$", logy=Tru
         jsdump['optdeg_p1']['str'] = deg
         jsdump['optdeg_p1']['m'] = pdeg
         jsdump['optdeg_p1']['n'] = qdeg
+
+    jsdump['text'] = txt
+    jsdump['data'] = data.tolist()
+    jsdump['pareto'] = pareto.tolist()
+    jsdump['orders'] = orders
 
     plt.savefig(f_out)
     plt.close('all')
@@ -581,8 +595,8 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
     #1
     if(opt=="opt1"):
         Xcomp = NC
-        Ycomp = VAR
-        Xdesc = "$N_\\mathrm{coeff}$"
+        Ycomp = [v/n for v,n in zip(VAR, NC)]
+        Xdesc = "$N_\\mathrm{\\times N_\\mathrm{coeff}}$"
         Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$"
         logx = True
         logy = True
@@ -594,31 +608,49 @@ def plotoptimaldegree(folder,testfile, desc,bottom_or_all,opt):
         logx = True
         logy = True
     elif(opt=="opt3"):
-        Xcomp = [2*i for i in NNZ]
+        Xcomp = [2*i for i in NC]
         Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
-        Xdesc = "$2N_\\mathrm{non-zero}$"
+        Xdesc = "$2N_\\mathrm{coeff}$"
         Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
         logx = False
         logy = False
     elif(opt=="opt4"):
-        Xcomp = [i*np.log(nopoints) for i in NNZ]
+        Xcomp = [i*np.log(nopoints) for i in NC]
         Ycomp = [nopoints*np.log(i/nopoints) for i in L2]
-        Xdesc = "$N_\\mathrm{non-zero}log(n)$"
+        Xdesc = "$N_\\mathrm{coeff}log(n)$"
         Ydesc = "$nlog\\left(\\frac{L_2^\\mathrm{test}}{n}\\right)$"
         logx = False
         logy = False
     elif(opt=="opt5"):
         Xcomp = NC
-        Ycomp = [l/(n-m+1) for l, m,n in zip(L2, NNZ,NC)]
+        # print(np.c_[NC,NNZ])
+        # for l, m,n in zip(L2, NNZ,NC):
+        #     print(l, m,n)
+        #     print(l*n/((n-m+1)))
+        Ycomp = [l*n/(n-m+1) for l, m,n in zip(L2, NNZ,NC)]
         Xdesc = "$N_\\mathrm{coeff}$"
-        Ydesc = "$\\frac{L_2^\\mathrm{test}}{N_\\mathrm{coeff} - N_\mathrm{non-zero}+1}$"
+        Ydesc = "$\\frac{L_2^\\mathrm{test}\\times N_\\mathrm{coeff}}{N_\\mathrm{coeff} - N_\mathrm{non-zero}+1}$"
+        logx = False
+        logy = True
+    elif(opt=="opt6"):
+        Xcomp = NC
+        Ycomp = L2
+        Xdesc = "$\\log_{10}(N_\\mathrm{coeff})$"
+        Ydesc = "$\\log_{10}(L_2^\\mathrm{test})$"
         logx = True
+        logy = True
+    elif(opt=="opt7"):
+        Xcomp = [2*i for i in NC]
+        Ycomp = L2
+        Xdesc = "$N_\\mathrm{coeff}$"
+        Ydesc = "$\\log_{10}(L_2^\\mathrm{test})$"
+        logx = False
         logy = True
 
     else:raise Exception("option ambiguous/not defined")
 
     outfilepareton = "%s/plots/Poptdeg_%s_pareton_%s.png"%(folder, desc,opt)
-    jsdump = mkPlotCompromise([(a,b) for a, b in zip(Xcomp, Ycomp)], desc, outfilepareton,  orders, ly=Ydesc, lx=Xdesc, logy=logx, logx=logy, normalize_data=False, jsdump = jsdump)
+    jsdump = mkPlotCompromise([(a,b) for a, b in zip(Xcomp, Ycomp)], desc, outfilepareton,  orders, ly=Ydesc, lx=Xdesc, logy=logy, logx=logx, normalize_data=False, jsdump = jsdump)
     outfileparetojsdump = "%s/plots/Joptdeg_%s_jsdump_%s.json"%(folder, desc, opt)
     import json
     with open(outfileparetojsdump, "w") as f:

@@ -690,9 +690,11 @@ def createTable1(folder, format='table'):
 
 	mstime = 0.
 	msfneg = 0.
+	msiter = 0
 
 	sotime = 0.
 	sofneg = 0.
+	soiter = 0
 
 	batime = 0.
 	total = 0.
@@ -704,13 +706,15 @@ def createTable1(folder, format='table'):
 	print("N considered in [%d, %d]"%(minconsideredn,maxconsideredn))
 
 	if(format == 'table'):
-		print("\t\t\t\t\t\tSingle Start\t\t\tMulti Start\t\t\tSampling\t\t  Baron")
-		print("Function\tdim\tnnl range\t% False Neg\tAvg Time\t% False Neg\tAvg Time\t% False Neg\tAvg Time\tAvg Time")
-		fmt = "f%d\t\t%d\t(%d-%d)\t\t%f\t%f\t%f\t%f\t%f\t%f\t%f"
+		# print("\t\t\t\t\t\tSingle Start\t\t\tMulti Start\t\t\tSampling\t\t  Baron")
+		# print("Function\tdim\tnnl range\t% False Neg\tAvg Time\t% False Neg\t#iter\tAvg Time\t% False Neg\t#iter\tAvg Time\tAvg Time")
+		# fmt = "f%d\t\t%d\t(%d-%d)\t\t%.4f\t\t%.2f\t%.4f\t%.2f\t%.3f\t%.4f\t\t%.2f\t%.4f"
+		fmt = "f%d\t\t%d\t(%d-%d)\t\t%.4f\t\t%.2f\t%.4f\t%.2f\t%.4f\t\t%.2f\t%.4f"
 	elif(format == 'latex'):
-		print("&Single Start&Multi Start&Sampling&Baron")
-		print("Function&% False Neg&Avg Time&% False Neg&Avg Time&% False Neg&Avg Time&Avg Time")
-		fmt = "\\multicolumn{1}{|c|}{f%d}&\\multicolumn{1}{|c|}{%d}&\\multicolumn{1}{|c|}{(%d-%d)}&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f&%.4f\\\\"
+		# print("&Single Start&Multi Start&Sampling&Baron")
+		# print("Function&% False Neg&Avg Time&% False Neg&Avg Time&% False Neg&Avg Time")
+		# fmt = "\\multicolumn{1}{|c|}{\\ref{fn:f%d}}&\\multicolumn{1}{|c|}{%d}&\\multicolumn{1}{|c|}{(%d-%d)}&%.4f&%.2f&%.4f&%.2f&%.3f&%.4f&%.2f&%.4f\\\\"
+		fmt = "\\multicolumn{1}{|c|}{\\ref{fn:f%d}}&\\multicolumn{1}{|c|}{%d}&\\multicolumn{1}{|c|}{(%d-%d)}&%.4f&%.2f&%.4f&%.2f&%.4f&%.2f&%.4f\\\\"
 
 	for file in filelist:
 		digits = [float(s) for s in re.findall(r'-?\d+\.?\d*', file)]
@@ -718,8 +722,8 @@ def createTable1(folder, format='table'):
 
 		if(fno != currentfno and currentfno !=-1):
 			# if(format == 'table'):
-			print(fmt%(currentfno,dim,nnlmin,nnlmax,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
-														(sofneg/total)*100,sotime/total,batime/total))
+			print(fmt%(currentfno,dim,nnlmin,nnlmax,batime/total,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+														(sofneg/total)*100,sotime/total))
 			# elif(format == 'latex'):
 				# print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
 														# (sofneg/total)*100,sotime/total,batime/total))
@@ -729,9 +733,11 @@ def createTable1(folder, format='table'):
 
 			mstime = 0.
 			msfneg = 0.
+			msiter = 0
 
 			sotime = 0.
 			sofneg = 0.
+			soiter = 0
 
 			batime = 0.
 			total = 0.
@@ -760,13 +766,16 @@ def createTable1(folder, format='table'):
 				batime += robOptInfo['info']['baInfo'][0]['log']['time']
 				msinfo = robOptInfo['info']['msInfo']
 				mstime += msinfo[len(msinfo)-1]['log']['time']
+				msiter += msinfo[len(msinfo)-1]['log']['noRestarts']
 				so1xInfo = robOptInfo['info']['so1xInfo']
 				try:
 					sotime += so1xInfo[len(so1xInfo)-1]['log']['time']
+					soiter += so1xInfo[len(so1xInfo)-1]['log']['maxEvals']
 				except:
 					for s in so1xInfo:
 						if('log' in s):
 							sotime += s['log']['time']
+							soiter += s['log']['maxEvals']
 				sstime += robOptInfo['info']['ssInfo'][0]['log']['time']
 				total += 1
 				diff = robOptInfo['diff']
@@ -786,8 +795,8 @@ def createTable1(folder, format='table'):
 
 
 	# if(format == 'table'):
-	print(fmt%(currentfno,dim,nnlmin,nnlmax,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
-												(sofneg/total)*100,sotime/total,batime/total))
+	print(fmt%(currentfno,dim,nnlmin,nnlmax,batime/total,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
+												(sofneg/total)*100,sotime/total))
 	# elif(format == 'latex'):
 		# print(fmt%(currentfno,(ssfneg/total)*100,sstime/total,(msfneg/total)*100,mstime/total,
 												# (sofneg/total)*100,sotime/total,batime/total))
@@ -862,9 +871,9 @@ print(tools.numCoeffsPoly(7, 4))
 
 # print(tools.numCoeffsPoly(23, 2) + tools.numCoeffsPoly(23, 2))
 # createTable1("test",'table')
-# createTable1("test",'latex')
+createTable1("test",'latex')
 # createTable2structure()
-# exit(1)
+exit(1)
 
 # plotmntesterrperfile("test/f18_noisepct10-1_s0_out_1x.299445.json", "../f18_test.txt","f19", "test")
 plotmntesterrperfile("test/f20_noisepct10-1_s0_out_2x.299445.json", "../f20_test.txt","f20", "test")

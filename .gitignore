@@ -8,4 +8,5 @@ dist
 *.json
 *.log
 *.png
+*.pgf
 *.299445.*
