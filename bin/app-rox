@@ -4,6 +4,12 @@ from numba import jit
 import apprentice
 import numpy as np
 
+def readObs(fname):
+    with open(fname) as f:
+        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
+    return r
+
+
 def numZeroCoeff(app, threshold=1e-6):
     """
     Determine the number of non-zero coefficients for an approximation app.
@@ -171,19 +177,20 @@ def denomMax(rapp, box, center):
     return optimize.minimize(lambda x:-rapp.denom(x), center, bounds=box)
 
 def denomMinMS(rapp, multistart=10):
-    box=rapp._scaler.box
+    box=rapp._scaler.box_scaled
     from scipy import optimize
 
-    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples(multistart)]
+
+    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
     return X[np.argmin(Y)]
 
 def denomMaxMS(rapp, multistart=10):
-    box=rapp._scaler.box
+    box=rapp._scaler.box_scaled
     from scipy import optimize
 
-    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples(multistart)]
+    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
     return X[np.argmin(Y)]
@@ -245,6 +252,7 @@ def fast_grad(x, app):
         jac[i] = (f_d - f_0) / h
     return jac
 
+# TODO check if xmin/max in scaled world
 def denomChangesSignMS(rapp, multistart=10):
     xmin = denomMinMS(rapp, multistart)
     xmax = denomMaxMS(rapp, multistart)
@@ -343,7 +351,7 @@ def raNormInf(ra, X, Y):
     return nrm
 
 
-def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, m_min=0, n_min=0, f_plot=None, seed=1234, allow_const=False, debug=0):
+def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, m_min=0, n_min=0, f_plot=None, seed=1234, allow_const=False, debug=0, mode="la"):
     """
     """
     import apprentice
@@ -365,6 +373,7 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     if n_min>0: orders = [ o for o in orders if o[1] >= n_min]
     if m_min>0: orders = [ o for o in orders if o[0] >= m_min]
 
+
     # Discard those orders where we do not have enough training points if train_fact>1
     if train_fact>1:
         _temp = []
@@ -378,6 +387,7 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
         orders = sorted(_temp)
 
     APP = []
+    APPfull = []
 
     import time
     t1=time.time()
@@ -385,25 +395,24 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
         m, n = o
         if n == 0:
             i_train_o = np.random.choice(i_train, int(train_fact*apprentice.tools.numCoeffsPoly(_dim, m)))
-            APP.append(apprentice.PolynomialApproximation(X[i_train_o], Y[i_train_o], order=m, pnames=pnames))
+            APP.append(    apprentice.PolynomialApproximation(X[i_train_o], Y[i_train_o], order=m, pnames=pnames))
         else:
             i_train_o = np.random.choice(i_train, int(train_fact*apprentice.tools.numCoeffsRapp(_dim, (m,n))))
-            APP.append(apprentice.RationalApproximation(X[i_train_o], Y[i_train_o], order=(m,n), strategy=1, pnames=pnames))
+            if mode=="onb":
+                APP.append(    apprentice.RationalApproximationONB(X[i_train_o], Y[i_train_o], order=(m,n), strategy=2, pnames=pnames, tol=-1))
+            elif mode=="la":
+                APP.append(    apprentice.RationalApproximation(   X[i_train_o], Y[i_train_o], order=(m,n), strategy=2, pnames=pnames)        )
+            elif mode=="sip":
+                APP.append(    apprentice.RationalApproximationSIP(X[i_train_o], Y[i_train_o], m=m, n=n, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'scipy', strategy=0, pnames=pnames))
+            else:
+                print("haeh?")
     t2=time.time()
 
     threshold=1e-6
 
-    for a in APP: regularise(a)
-
-    # if sum([numZeroCoeff(a) for a in APP]) >0:
-        # from IPython import embed
-        # embed()
-        # import sys
-        # sys.exit(1)
-
-    # APP_reg = [regularise(a) for a in APP]
 
     print("Calculating {} approximations took {} seconds".format(len(orders), t2-t1))
+    for a in APP: regularise(a)
 
     L2      = [np.sqrt(raNorm(app, X, Y, 2))               for app in APP]
     Linf    = [raNormInf(app, X, Y)                        for app in APP]
@@ -428,20 +437,14 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
         else:
             has_pole.append(denomChangesSignMS(APP[num], 100)[0])
 
-
-    # currently, this zips the number of coefficients for P and Q, the L2 norm divided by the number of non-zero
-    # coefficients and for convenients the orders of the polynomials
-    # D3D = np.array([(m,n,v,o[0], o[1]) for m,n,v, o in zip(ncM,ncN, VAR, orders)])
-    # mkPlotParetoSquare(D3D, "paretomn.pdf")
-
-
     NNC = []
     for num , n in enumerate(NC):
         NNC.append(n-NNZ[num])
 
     CMP = [a*b for a,b in zip(NNZ, L2)]
 
-    dec_data = [(a,b) for a, b in zip(NC, VAR)]
+    # dec_data = [(a,b) for a, b in zip(NC, VAR)]
+    dec_data = [(a,b) for a, b in zip(NC, L2)]
 
     o_win, i_win = getBestOrder(dec_data, orders)
     print("Winner: m={} n={} with L2={} and Loo={}".format(o_win[0], o_win[1], L2[i_win], Linf[i_win]))
@@ -452,29 +455,14 @@ def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, 
     if o_win[1] == 0:
         return apprentice.PolynomialApproximation(X, Y, order=o_win[0], pnames=pnames)
     else:
-        return apprentice.RationalApproximation(X, Y, order=o_win, strategy=1, pnames=pnames)
+        if mode=="onb":
+            return apprentice.RationalApproximationONB(X, Y, order=o_win, strategy=1, pnames=pnames, tol=-1)
+        elif mode=="la":
+            return apprentice.RationalApproximation(X, Y, order=o_win, strategy=1, pnames=pnames)
+        else:
+            return apprentice.RationalApproximationSIP(X, Y, m=o_win[0], n=o_win[1], trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'scipy', strategy=0, pnames=pnames)
 
 
-
-    # for l in sorted(CMP)[0:debug]:
-        # i=CMP.index(l)
-        # oo = orders[i]
-        # print("{} -- L2: {:10.4e} | Loo: {:10.4e} | NNZ : {} | VVV : {:10.4e}".format(oo, L2[i], Linf[i], NNZ[i], VAR[i]))
-
-    # for l in sorted(CMP):
-        # i=CMP.index(l)
-        # oo = orders[i]
-        # # print("{} -- L2: {:10.4e} | Loo: {:10.4e}".format(oo, L2[i], Linf[i]))
-        # # If it is a polynomial we are done --- return the approximation that uses all data
-        # if oo[1] == 0:
-            # return apprentice.PolynomialApproximation(X, Y, order=oo[0], pnames=pnames)
-        # else:
-            # APP_test = apprentice.RationalApproximation(X, Y, order=oo, strategy=1, pnames=pnames)
-            # bad = denomChangesSign(APP_test, APP_test._scaler.box, APP_test._scaler.center)[0]
-            # if bad:
-                # print("Cannot use {} due to pole in denominator".format(oo))
-            # else:
-                # return APP_test
 
 def mkPlotResults(data, f_out, orders=None, has_pole=None, lx="$x$", ly="$y$", logy=True, logx=True):
     import matplotlib as mpl
@@ -509,7 +497,8 @@ def mkPlotResults(data, f_out, orders=None, has_pole=None, lx="$x$", ly="$y$", l
         if b_pareto[num]:
             txt.append("({},{})".format(m,n))
         else:
-            txt.append("")
+            txt.append("\\tiny({},{})".format(m,n))
+            # txt.append("")
 
     for num, d in enumerate(data):
         if has_pole[num]:
@@ -527,6 +516,7 @@ if __name__ == "__main__":
     op = optparse.OptionParser(usage=__doc__)
     op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
     op.add_option("-o", dest="OUTPUT", default="approx.json", help="Output filename (default: %default)")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
     op.add_option("-s", dest="SEED", type=int, default=1234, help="Random seed (default: %default)")
     op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
     op.add_option("--ordermax", dest="ORDERMAX", default="-1,-1", help="Max orders (default: %default)")
@@ -534,8 +524,12 @@ if __name__ == "__main__":
     op.add_option("--plotprefix", dest="PLOTPREFIX", default=None, help="Prefix for plot output (default: %default)")
     op.add_option("--split", dest="SPLIT", default=0.6, type=float, help="Fraction of training sample (default: %default)")
     op.add_option("--train", dest="TRAIN", default=1.5, type=float, help="Oversampling factor (default: %default)")
-    op.add_option("--filter", dest="FILTER", default=False, action="store_true", help="Switch to enable filtering objects with negative error (default: %default)")
+    op.add_option("--mode", dest="MODE", default="la", help="Base algorithm  --- la | onb | sip --- (default: %default)")
     opts, args = op.parse_args()
+
+    if opts.MODE not in ["la", "onb", "sip"]:
+        print("Error: specified mode {} no known".format(opts.MODE))
+        sys.exit(1)
 
     if len(args) == 0:
         print("No input specified, exiting")
@@ -550,12 +544,12 @@ if __name__ == "__main__":
     # This reads the data
     try:
         X,Y = apprentice.tools.readData(args[0])
-        app = mkBestRACPL(X, Y, m_max=8, n_max=8, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN)
+        app = mkBestRACPL(X, Y, m_max=4, n_max=4, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN, mode=opts.MODE)
     except:
         import time
-        t1 = time.time()
-        DATA       = apprentice.tools.readH52(args[0], [])
-        idx = [i for i in range(len(DATA))]
+        t1   = time.time()
+        DATA = apprentice.tools.readH52(args[0], [])
+        idx  = [i for i in range(len(DATA))]
         # idx = [i for i in range(len(DATA))]
         # idx = range(312, 339)
         # idx = range(162, 163)
@@ -568,6 +562,13 @@ if __name__ == "__main__":
         t2 = time.time()
         if opts.DEBUG: print("Data preparation took {} seconds".format(t2-t1))
 
+        if opts.WEIGHTS is not None:
+            observables = readObs(opts.WEIGHTS)
+        else:
+            observables = []
+
+        _binids = []
+
         ras = []
         t1=time.time()
         for num, (_X, _Y, _E) in  enumerate(DATA):
@@ -577,9 +578,11 @@ if __name__ == "__main__":
             X=_X[USE]
             Y=_Y[USE]
 
-            # from IPython import embed
-            # embed()
-            # sys.exit(1)
+            if len(observables)!=0:
+                test=binids[num].split("#")[0]
+                if not test in observables: continue
+            _binids.append(binids[num])
+
 
             if opts.ORDER is None:
                 M,N=[int(x) for x in opts.ORDERMAX.split(",")]
@@ -590,18 +593,36 @@ if __name__ == "__main__":
                 else: fplot=None
 
                 Mmin,Nmin=[int(x) for x in opts.ORDERMIN.split(",")]
-                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot)
-                # denomMaxMS(app, 100)
-                # from IPython import embed
-                # embed()
-                # sys.exit(1)
+                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot, mode=opts.MODE)
                 ras.append(app)
             else:
                 M,N=[int(x) for x in opts.ORDER.split(",")]
                 if N==0:
                     ras.append(apprentice.PolynomialApproximation(X, Y, order=M, pnames=pnames))
                 else:
-                    ras.append(apprentice.RationalApproximation(X, Y, order=(M,N), pnames=pnames))
+                    hasPole=False
+                    if opts.MODE == "la":
+                        # for s in [2,1,3]:
+                        for s in [2]:#,1,3]:
+                            _app = apprentice.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=s)
+                            hasPole=denomChangesSignMS(_app, 100)[0]
+                            if hasPole:
+                                print("Pole found, trying next strategy")
+                            else:
+                                break
+                        if hasPole:
+                            print("Giving up")
+                    elif opts.MODE == "onb":
+                        _app = apprentice.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=-1)
+                        hasPole=denomChangesSignMS(_app, 100)[0]
+                    elif opts.MODE == "sip":
+                        # from IPython import embed
+                        # embed()
+                        _app = apprentice.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames)
+                        hasPole=denomChangesSignMS(_app, 100)[0]
+                    else: print("WTF?")
+
+                    ras.append(_app)
             t22=time.time()
             if opts.DEBUG: print("Approximation {}/{} took {} seconds".format(num+1,len(binids), t22-t11))
 
@@ -609,7 +630,17 @@ if __name__ == "__main__":
         t2=time.time()
         if opts.DEBUG: print("Approximation took {} seconds".format(t2-t1))
 
-        JD = { x : y.asDict for x, y in zip(binids, ras) }
+        print("Testing for poles:")
+        for bid, app in zip(_binids, ras):
+            try:
+                if denomChangesSignMS(app, 100)[0]:
+                    print("Pole found in {}".format(bid))
+                else:
+                    print("No pole found in {}!".format(bid))
+            except Exception as e:
+                print("Whoopsie: {}".format(e))
+                pass
+        JD = { x : y.asDict for x, y in zip(_binids, ras) }
 
         import json
         with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
