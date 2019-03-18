@@ -10,6 +10,14 @@ def getactualdegree(f):
     deg = ""
     m = 0
     n = 0
+    if(f=="f1"):
+        deg = "(-,4)"
+        m=0
+        n=4
+    if(f=="f4"):
+        deg = "(-,-)"
+        m=0
+        n=0
     if(f=="f7"):
         deg = "(3,3)"
         m=3
@@ -55,6 +63,68 @@ def getactualdegree(f):
         m=0
         n=0
     return deg,m,n
+
+def getParetoOrderStr(data, pareto,orders):
+    ret = ""
+    print(pareto)
+    for p in pareto:
+        for num,d in enumerate(data):
+            if(p[0]==d[0] and p[1]==d[1]):
+                if(ret!=""):
+                    ret+=", "
+                ret+="(%d, %d)"%(orders[num][0],orders[num][1])
+    return ret
+
+
+def printables(farr, ts):
+    import json
+    noise = ["0","_noisepct10-6","_noisepct10-3","_noisepct10-1"]
+
+    data={}
+    for ns in noise:
+        data[ns] = ""
+
+    for f in farr:
+        for ns in noise:
+            print(noise)
+            print(ns)
+            data[ns]+="\\ref{fn:%s}&"%(f)
+            noisestr = ""
+            if(ns != "0"):
+                noisestr = ns
+            folder = "%s%s_%s"%(f,noisestr,ts)
+            if not os.path.exists(folder):
+                print("Folder '{}' not found.".format(folder))
+                sys.exit(1)
+
+            optdegjson = "%s/plots/Joptdeg_%s%s_jsdump_opt6.json"%(folder,f,noisestr)
+
+            if not os.path.exists(optdegjson):
+                print("Optimal degree file '{}' not found.".format(optdegjson))
+                sys.exit(1)
+
+            if optdegjson:
+                with open(optdegjson, 'r') as fn:
+                    optdegds = json.load(fn)
+
+            print(optdegjson)
+            dat = optdegds['data']
+            ptf = optdegds['pareto']
+            ord = optdegds['orders']
+            data[ns]+="%s&"%(getParetoOrderStr(dat,ptf,ord))
+            deg,m,n = getactualdegree(f)
+            data[ns]+="%s&"%(deg)
+            data[ns]+="%s&"%(optdegds['optdeg']['str'])
+            lowestl2index = np.inf
+            lowestl2 = np.inf
+            for num, d in enumerate(dat):
+                if d[1] < lowestl2:
+                    lowestl2index = num
+                    lowestl2 = d[1]
+            data[ns]+="(%d, %d)\\\\\n"%(ord[lowestl2index][0],ord[lowestl2index][1])
+
+    for ns in noise:
+        print(data[ns])
 
 
 
@@ -458,7 +528,7 @@ def plotoptdegreecompsubplots(farr, noisearr,ts):
 if __name__ == "__main__":
 
     if len(sys.argv)!=5:
-        print("Usage: {} functions noise ts strategy=[barplot,subplot]".format(sys.argv[0]))
+        print("Usage: {} functions noise ts strategy=[barplot,subplot,table]".format(sys.argv[0]))
         sys.exit(1)
 
     farr = sys.argv[1].split(',')
@@ -468,11 +538,13 @@ if __name__ == "__main__":
 
     noisearr = sys.argv[2].split(',')
     if len(noisearr) == 0:
-        print("please specify comma saperated noise. If \"barplot\", arg not used, add junk val")
+        print("please specify comma saperated noise. If \"barplot or table\", arg not used, add junk val")
         sys.exit(1)
 
     strategy = sys.argv[4]
-    if(strategy == 'barplot'):
+    if(strategy == 'table'):
+        printables(farr, sys.argv[3])
+    elif(strategy == 'barplot'):
         plotoptdegreecomparison(farr, sys.argv[3])
     elif(strategy == 'subplot'):
         if(len(farr)!=len(noisearr)):
