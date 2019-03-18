@@ -327,7 +327,7 @@ def plotoptdegreecomparison(farr, ts):
     ax.set_xticklabels(xlab)
     ax.set_yticklabels(yaxislabels)
     ax.set_xlabel('Function No.')
-    ax.set_ylabel('Order of numerator and denominator polynomial')
+    ax.set_ylabel('Order of numerator and denominator polynomials')
     # ax.autoscale_view()
     # plt.show()
     if not os.path.exists("plots"):
