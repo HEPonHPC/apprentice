@@ -14,11 +14,11 @@ def getactualdegree(f):
         deg = "(-,4)"
         m=0
         n=4
-    if(f=="f4"):
+    elif(f=="f4"):
         deg = "(-,-)"
         m=0
         n=0
-    if(f=="f7"):
+    elif(f=="f7"):
         deg = "(3,3)"
         m=3
         n=3
@@ -67,12 +67,16 @@ def getactualdegree(f):
 def getParetoOrderStr(data, pareto,orders):
     ret = ""
     print(pareto)
-    for p in pareto:
-        for num,d in enumerate(data):
-            if(p[0]==d[0] and p[1]==d[1]):
-                if(ret!=""):
+    for pnum,p in enumerate(pareto):
+        for dnum,d in enumerate(data):
+            if(p[0] == d[0] and p[1] == d[1]):
+                if(pnum != 0 and pnum%5 == 0):
+                    ret+=",\\\\"
+                elif(ret!=""):
                     ret+=", "
-                ret+="(%d, %d)"%(orders[num][0],orders[num][1])
+                ret+="(%d, %d)"%(orders[dnum][0],orders[dnum][1])
+    if(len(pareto)>5):
+        ret = "\\makecell{"+ret+"}"
     return ret
 
 
@@ -121,9 +125,10 @@ def printables(farr, ts):
                 if d[1] < lowestl2:
                     lowestl2index = num
                     lowestl2 = d[1]
-            data[ns]+="(%d, %d)\\\\\n"%(ord[lowestl2index][0],ord[lowestl2index][1])
+            data[ns]+="(%d, %d)\\\\\\hline\n"%(ord[lowestl2index][0],ord[lowestl2index][1])
 
     for ns in noise:
+        print ("%s\n"%(ns))
         print(data[ns])
 
 
