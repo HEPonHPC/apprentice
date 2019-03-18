@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import numpy as np
 
 def readExpData(fname, binids):
     with open(fname) as f: dd = json.load(f)
@@ -38,46 +38,195 @@ __doc__="""
      %s [OPTIONS] -r REFDIR   <ipolfiles>
 """%(sys.argv[0])
 
+
+
 class SignalGenerator(object):
     """
-    Class for single patch.
+    Class for single collection.
     """
-    def __init__(self, ifile):
-        self._ifile = ifile
+    def __init__(self, ifile, expression={}):
+        self._ifile  = ifile
+        self._expr  = expression
+        import re
+        self._terms      = {k : re.findall(r"[\w'\/]+", v) for k, v in expression.items()}
+        self._operations = {k : re.findall(r"[-+]", v) for k, v in expression.items()}
         self.load()
 
     def load(self):
         import apprentice
         import json
         d = json.load(open(self._ifile))
-        use = [str(k) for k in d.keys()]# if "counts" in k]
-        if len(use) ==0:
-            print("No bins left??? Exiting")
-            sys.exit(1)
-        use.sort(key=lambda x: int(x.split("#")[-1]))
-        self._rapp = []
-        for x in use:
-            try:
-                self._rapp.append(apprentice.RationalApproximation(initDict=d[x]))
-            except Exception as e:
-                print("Cannot load as rational: {}".format(e))
-                self._rapp.append(apprentice.PolynomialApproximation(initDict=d[x]))
+
+        _params = []
+
+        self._rapp = {}
+        for hname, terms in self._terms.items():
+            for t in terms:
+                temp = []
+                use = [str(k) for k in d.keys() if t in k]# if "counts" in k]
+                use.sort(key=lambda x: int(x.split("#")[-1]))
+                for x in use:
+                    if "qcoeff" in d[x]:
+                        temp.append(apprentice.RationalApproximation(initDict=d[x]))
+                    else:
+                        temp.append(apprentice.PolynomialApproximation(initDict=d[x]))
+                self._rapp[t] = temp
+                _params.extend(temp[-1]._scaler.pnames)
+
+        self._pnames = sorted(list(set(_params)))
+
+    @property
+    def maxBox(self):
+        mb = []
+
+        for p in self.pnames:
+            tmin, tmax = [], []
+            for k, v in self._rapp.items():
+                if p in v[0]._scaler.pnames:
+                    i = v[0]._scaler.pnames.index(p)
+                    for r in v:
+                        tmin.append(r._scaler._Xmin[i])
+                        tmax.append(r._scaler._Xmax[i])
+
+            _min = min([r._scaler._Xmin[i] for r in v])
+            _max = max([r._scaler._Xmax[i] for r in v])
+            mb.append( (_min, _max) )
+        return np.array(mb)
+
+    @property
+    def dim(self): return len(self._pnames)
+
+    @property
+    def pnames(self): return self._pnames
+
+
+    def evaluate(self, hname, x):
+        """
+        x is point in the total space
+        """
+        active = self._rapp[hname][0]._scaler.pnames
+        _x = [ x[self.pnames.index(p)] for p in active ]
+        # print(hname,self._pnames, active)
+        # print(x, _x)
+        return np.array([np.exp(r.predict(_x)) if pInBox(_x, r._scaler.box) else 0 for r in self._rapp[hname]])
+
 
     def __call__(self, x):
-        import numpy as np
-        return np.exp([r.predict(x) for r in self._rapp])
+        """
+        Note this only deals with one hist at the moment
+        """
 
+        for k, v in self._terms.items():
+            # msg = "We do {}".format(v[0])
+            # for num, o in enumerate(self._operations[k]):
+                # msg+= " {} {}".format(o, v[num+1])
+            # print(msg)
+            S = self.evaluate(v[0], x)
+            for num, o in enumerate(self._operations[k]):
+                if o == "+":
+                    S+=self.evaluate(v[num+1], x)
+                elif o == "-":
+                    S-=self.evaluate(v[num+1], x)
+                else:
+                    raise Exception("Wow, sorry I don't know how to evaluate {}".format(o))
+
+            return S
+
+def pInBox(P, box):
+    for i in range(len(P)):
+        if P[i] < box[i][0]: return False
+        if P[i] > box[i][1]: return False
+    return True
+
+class SignalGeneratorFull(object):
+    def __init__(self, template, ranges, executable, experiment, outputfile, outdir, rank):
+        self._out = "rank_{}_{}".format(rank,outputfile)
+        self._outdir = "rank_{}_{}".format(rank, outdir)
+        import os
+        if not os.path.exists(self._outdir):
+            os.makedirs(self._outdir)
+        self._tmpl = self.readTemplate(template)
+        self._rng  = self.readRanges(ranges)
+        self._pnames = [k for k in self._rng.keys()]
+        self._exe = executable
+        self._card = experiment
+        self._ncalls=0
+        self._rank = rank
+
+    def readTemplate(self, fname):
+        with open(fname, "r") as f:
+            T = f.read()
+        return T
+
+    def readRanges(self, fname):
+        from collections import OrderedDict
+        R = OrderedDict()
+        with open(fname, "r") as f:
+            for line in f:
+                l=line.strip()
+                if len(l)==0 or l.startswith("#"):continue
+                a,b,c = l.split()
+                R[a] = (float(b), float(c))
+        return R
+
+    @property
+    def pnames(self): return self._pnames
+
+    @property
+    def maxBox(self):
+        mb = []
+
+        for p in self.pnames:
+            mb.append( self._rng[p] )
+        return np.array(mb)
+
+    def instantiate(self,x):
+        _ = dict(zip(self._pnames, [10**i for i in x]))
+        txt = self._tmpl.format(**_)
+        return txt
+
+    def run(self, x):
+        with open(self._out, "w") as f:
+            f.write(self.instantiate(x))
+        import os
+        FNULL = open(os.devnull, 'w')
+        cmd ="{} {} {} {} 6 None NoHalo".format(self._exe, self._out, self._card, self._outdir)
+        # print("We are running:\n{}".format(cmd))
+        import subprocess
+        subprocess.call(cmd.split(), stdout=FNULL, stderr=FNULL)
+
+    def readOutput(self, fname="XENON.dat"):
+        import os
+        D = np.loadtxt(os.path.join(self._outdir, fname))
+        return D[:,2]
+
+    def __call__(self, x):
+        """
+        Note this only deals with one hist at the moment
+        """
+        self.run(x)
+        counts = self.readOutput()
+        self._ncalls+=1
+        if (self._ncalls%100==0):
+            print("[{}] --- {} calls".format(self._rank, self._ncalls))
+            sys.stdout.flush()
+        return counts
 
 # Import some prof stuff
 import optparse, os, sys
 op = optparse.OptionParser(usage=__doc__)
-op.add_option("--output", dest="OUTPUT", default="chains", type=str, help="Prefix for outputs (default: %default)")
+op.add_option("-o", "--output", dest="OUTPUT", default="chains", type=str, help="Prefix for outputs (default: %default)")
 op.add_option("--tol", dest="TOL", default=0.1, type=float, help="Evidence tolerance (default: %default)")
 op.add_option("--eff", dest="EFF", default=0.8, type=float, help="Sampling efficiency (default: %default)")
+op.add_option("--seed", dest="SEED", default=1, type=int, help="Random seed for pymultinest run (default: %default)")
 op.add_option("--points", dest="POINTS", default=1000, type=int, help="Number of live points in PyMultinest (default: %default)")
 op.add_option("--resume", dest="RESUME", default=False, action='store_true', help="Resume on previous run.")
+op.add_option("--imp", dest="IMPORTANCE", default=False, action='store_true', help="Do importance sampling.")
+op.add_option("--hard", dest="HARD", default=False, action='store_true', help="Run the actual code.")
+op.add_option("--mm", dest="MM", default=False, action='store_true', help="Run in multimodeal mode.")
 op.add_option("--update", dest="UPDATE", default=10000, type=int, help="Update inteval (default: %default iterations)")
 op.add_option("-d", "--datadir", dest="DATADIR", default=None, help="The data directory")
+op.add_option("-c", "--CONFIG", dest="CONFIG", default=None, help="A configuration file for math expressions.")
 op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
 op.add_option("-q", "--quiet", dest="QUIET", action="store_true", default=False, help="Turn off messages")
 opts, args = op.parse_args()
@@ -94,17 +243,42 @@ if opts.DATADIR is None:
     op.print_usage()
     sys.exit(1)
 
+if not opts.HARD:
 
-# Test if requested ipol files actually exist
-if not os.path.exists(args[0]):
-    print("Error, ipol file %s does not exist"%a)
-    sys.exit(1)
+    # Test if requested ipol files actually exist
+    if not os.path.exists(args[0]):
+        print("Error, ipol file %s does not exist"%args[0])
+        sys.exit(1)
 
-S = SignalGenerator(args[0])
-PMIN = S._rapp[0]._scaler._Xmin
-PMAX = S._rapp[0]._scaler._Xmax
+
+    d_expr = {}
+    if opts.CONFIG is not None:
+        with open(opts.CONFIG) as f:
+            for line in f:
+                l=line.strip()
+                if l.startswith("#") or len(l)==0:
+                    continue
+                hname, expr = l.split(":")
+                hname=hname.strip()
+                d_expr[hname] = expr
+    S = SignalGenerator(args[0], expression=d_expr)
+
+else:
+    S = SignalGeneratorFull(*args, rank)
+
+
+
+PMIN = S.maxBox[:,0]
+PMAX = S.maxBox[:,1]
 PLEN=[PMAX[i] - PMIN[i] for i in range(len(PMAX))]
 
+print(S.maxBox)
+sys.stdout.flush()
+# from IPython import embed
+# embed()
+
+
+# LA = SignalGenerator(args[1])
 ## Prepare lists of ibins and dbins
 from scipy.special import gamma
 from math import exp, log
@@ -118,8 +292,8 @@ for a in available:
     DVALS[a]=[]
     log_DGAMMA[a]=[]
     for nb in range(len(DATA)):
-        data    = DATA[nb] # log
-        dataerr = 0 # log
+        data    = DATA[nb][0] # log
+        dataerr = DATA[nb][1] # log
         if dataerr <0:
             DVALS[a].append(0.0)
             log_DGAMMA[a].append(0.0)
@@ -147,8 +321,6 @@ def myprior(cube, ndim, nparams):
 
 S(PMIN)
 
-# from IPython import embed
-# embed()
 
 from numpy import log, exp
 
@@ -158,13 +330,14 @@ def loli(N_ipol, log_N_ipol, DVALS, log_DGAMMA, available):
     for datakey in available:
         for i in range(len(DVALS[datakey])):
             N_data = DVALS[datakey][i]
-            LoLi += N_data * log_N_ipol[i] - log_DGAMMA[datakey][i]
-            LoLi -= N_ipol[i]
+            if N_ipol[i]>0:
+                LoLi += N_data * log_N_ipol[i] - log_DGAMMA[datakey][i]
+                LoLi -= N_ipol[i]
     return LoLi
 
 def myloglike(cube, ndim, nparams):
     N_ipol = S([cube[i] for i in range(n_params)])
-    return loli(N_ipol,  log(N_ipol), DVALS, log_DGAMMA, available)
+    return loli(N_ipol,  [log(N) if N>0 else 0 for N in N_ipol], DVALS, log_DGAMMA, available)
 
 
 if rank==0:
@@ -176,10 +349,10 @@ n_params = len(PMIN)
 
 
 # Run MultiNest
-pymultinest.run(myloglike, myprior, n_params, importance_nested_sampling = True, verbose = False,
-        multimodal=False, resume=opts.RESUME, n_iter_before_update=opts.UPDATE,
+pymultinest.run(myloglike, myprior, n_params, importance_nested_sampling = opts.IMPORTANCE, verbose = opts.DEBUG,
+        multimodal=opts.MM, resume=opts.RESUME, n_iter_before_update=opts.UPDATE,
         evidence_tolerance=opts.TOL, sampling_efficiency = opts.EFF,
-        n_live_points = opts.POINTS,
+        n_live_points = opts.POINTS, seed=opts.SEED,
         outputfiles_basename='%s/apphood'%opts.OUTPUT, init_MPI=False)
 
 

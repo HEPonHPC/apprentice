@@ -4,10 +4,13 @@ from numba import jit
 import apprentice
 import numpy as np
 
-def readObs(fname):
-    with open(fname) as f:
-        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
-    return r
+def specialParams(pnames, binids):
+    temp = []
+    for p in pnames:
+        for b in binids:
+            if p in b:
+                temp.append(p)
+    return list(set(temp))
 
 
 def numZeroCoeff(app, threshold=1e-6):
@@ -516,7 +519,6 @@ if __name__ == "__main__":
     op = optparse.OptionParser(usage=__doc__)
     op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
     op.add_option("-o", dest="OUTPUT", default="approx.json", help="Output filename (default: %default)")
-    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
     op.add_option("-s", dest="SEED", type=int, default=1234, help="Random seed (default: %default)")
     op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
     op.add_option("--ordermax", dest="ORDERMAX", default="-1,-1", help="Max orders (default: %default)")
@@ -547,9 +549,9 @@ if __name__ == "__main__":
         app = mkBestRACPL(X, Y, m_max=4, n_max=4, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN, mode=opts.MODE)
     except:
         import time
-        t1   = time.time()
-        DATA = apprentice.tools.readH52(args[0], [])
-        idx  = [i for i in range(len(DATA))]
+        t1 = time.time()
+        DATA       = apprentice.tools.readH52(args[0], [])
+        idx = [i for i in range(len(DATA))]
         # idx = [i for i in range(len(DATA))]
         # idx = range(312, 339)
         # idx = range(162, 163)
@@ -562,15 +564,12 @@ if __name__ == "__main__":
         t2 = time.time()
         if opts.DEBUG: print("Data preparation took {} seconds".format(t2-t1))
 
-        if opts.WEIGHTS is not None:
-            observables = readObs(opts.WEIGHTS)
-        else:
-            observables = []
-
-        _binids = []
-
         ras = []
         t1=time.time()
+
+        spec = specialParams(pnames, binids)
+        gene = [p for p in pnames if not p in spec]
+
         for num, (_X, _Y, _E) in  enumerate(DATA):
             t11=time.time()
 
@@ -578,10 +577,15 @@ if __name__ == "__main__":
             X=_X[USE]
             Y=_Y[USE]
 
-            if len(observables)!=0:
-                test=binids[num].split("#")[0]
-                if not test in observables: continue
-            _binids.append(binids[num])
+            thisp = list(set([sp for sp in spec if sp in binids[num]]))
+
+            if len(thisp)>0:
+                thisp.extend(gene)
+                use_idx = sorted([pnames.index(x) for x in thisp])
+                X=X[:,use_idx]
+                _pnames = [pnames[i] for i in use_idx]
+            else:
+                _pnames = pnames
 
 
             if opts.ORDER is None:
@@ -593,18 +597,18 @@ if __name__ == "__main__":
                 else: fplot=None
 
                 Mmin,Nmin=[int(x) for x in opts.ORDERMIN.split(",")]
-                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot, mode=opts.MODE)
+                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=_pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot, mode=opts.MODE)
                 ras.append(app)
             else:
                 M,N=[int(x) for x in opts.ORDER.split(",")]
                 if N==0:
-                    ras.append(apprentice.PolynomialApproximation(X, Y, order=M, pnames=pnames))
+                    ras.append(apprentice.PolynomialApproximation(X, Y, order=M, pnames=_pnames))
                 else:
                     hasPole=False
                     if opts.MODE == "la":
                         # for s in [2,1,3]:
                         for s in [2]:#,1,3]:
-                            _app = apprentice.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=s)
+                            _app = apprentice.RationalApproximation(X, Y, order=(M,N), pnames=_pnames, strategy=s)
                             hasPole=denomChangesSignMS(_app, 100)[0]
                             if hasPole:
                                 print("Pole found, trying next strategy")
@@ -613,12 +617,12 @@ if __name__ == "__main__":
                         if hasPole:
                             print("Giving up")
                     elif opts.MODE == "onb":
-                        _app = apprentice.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=-1)
+                        _app = apprentice.RationalApproximationONB(X, Y, order=(M,N), pnames=_pnames, tol=-1)
                         hasPole=denomChangesSignMS(_app, 100)[0]
                     elif opts.MODE == "sip":
                         # from IPython import embed
                         # embed()
-                        _app = apprentice.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames)
+                        _app = apprentice.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=_pnames)
                         hasPole=denomChangesSignMS(_app, 100)[0]
                     else: print("WTF?")
 
@@ -631,7 +635,7 @@ if __name__ == "__main__":
         if opts.DEBUG: print("Approximation took {} seconds".format(t2-t1))
 
         print("Testing for poles:")
-        for bid, app in zip(_binids, ras):
+        for bid, app in zip(binids, ras):
             try:
                 if denomChangesSignMS(app, 100)[0]:
                     print("Pole found in {}".format(bid))
@@ -640,7 +644,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print("Whoopsie: {}".format(e))
                 pass
-        JD = { x : y.asDict for x, y in zip(_binids, ras) }
+        JD = { x : y.asDict for x, y in zip(binids, ras) }
 
         import json
         with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)

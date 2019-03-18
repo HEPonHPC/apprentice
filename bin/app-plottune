@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+import numpy as np
+
+# Todo add binwidth in data model
+def readExpData(fname, binids):
+    import json
+    with open(fname) as f: dd = json.load(f)
+    Y = np.array([dd[b][0] for b in binids])
+    E = np.array([dd[b][1] for b in binids])
+    return dict([(b, (y, e)) for b,y,e in zip(binids,Y,E)])
+
+def readTuneResult(fname):
+    import json
+    with open(fname) as f:
+        return json.load(f)
+
+if __name__=="__main__":
+    import sys
+
+    data = {}
+
+    binids = []
+    for a in sys.argv[2:]:
+        fin, label = a.split(":")
+        data[label] = readTuneResult(fin)
+        binids.extend([x for x in data[label]["Y"].keys()])
+
+    binids = sorted(list(set(binids)))
+
+
+    dd = readExpData(sys.argv[1], binids)
+
+    hnames = sorted(list(set([b.split("#")[0] for b in binids])))
+
+    COL = ["r","b","g","m","c"]
+
+    import pylab
+    for hn in hnames:
+        pylab.clf()
+        _bins = [b for b in binids if hn in b]
+        _bins.sort(key = lambda x: int(x.split("#")[1]))
+
+        X = [int(x.split("#")[1]) for x in _bins]
+
+        D  = [dd[b][0] for b in _bins]
+        DY = [dd[b][1] for b in _bins]
+
+
+        pylab.title(hn)
+        pylab.errorbar(X,D,DY, color="k", marker="o", linewidth=0.01, markersize=1, label="Data")
+
+        for num, l in enumerate(sorted([_ for _ in data.keys()])):
+            _bins = [_ for _ in data[l]['Y'].keys() if hn in _]
+            try:
+                _bins.sort(key = lambda x: int(x.split("#")[1]))
+            except:
+                from IPython import embed
+                embed()
+
+            X = [int(x.split("#")[1]) for x in _bins]
+            Y = [data[l]['Y'][b] for b in _bins]
+            pylab.plot(X,Y, color=COL[num], linewidth=0.5, label=l)
+
+
+        pylab.legend()
+        pylab.savefig("{}.pdf".format(hn.replace("/","_")))
+
+    # from IPython import embed
+    # embed()
+
+
+
