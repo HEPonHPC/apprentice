@@ -55,8 +55,8 @@ def plotoptiterationmaps(farr,noisearr, ts):
 
             for file in filelist:
                 if file:
-        			with open(file, 'r') as fn:
-        				datastore = json.load(fn)
+                    with open(file, 'r') as fn:
+                        datastore = json.load(fn)
                 if(datastore["dim"] != 2):
                     print("{} cannot handle dim != 2 Dim found in datastore was {}".format(sys.argv[0],datastore["dim"]))
                     sys.exit(1)
@@ -74,8 +74,8 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 for iterno in range(3):
                     data[iterno] = {}
                     if file:
-            			with open(file, 'r') as fn:
-            				datastore = json.load(fn)
+                        with open(file, 'r') as fn:
+                            datastore = json.load(fn)
                     ii = datastore["iterationinfo"]
                     datastore['pcoeff'] = ii[iterno]['pcoeff']
                     datastore['qcoeff'] = ii[iterno]['qcoeff']
