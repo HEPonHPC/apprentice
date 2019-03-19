@@ -38,7 +38,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
         if(len(box) != 2):
             print("{} cannot handle dim != 2. Box len was {}".format(sys.argv[0],len(box)))
             sys.exit(1)
-        npoints = 100
+        npoints = 80
         X_test1 = np.linspace(box[0][0], box[0][1], num=npoints)
         X_test2 = np.linspace(box[1][0], box[1][1], num=npoints)
 
@@ -113,13 +113,22 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     data[iterno]['Y_pred_q'] = Y_pred_q
 
 
-                cmap='hot'
+                cmap2='hot'
+                import matplotlib
+                import matplotlib.colors as colors
+                cmap1 = matplotlib.cm.RdYlBu
                 import matplotlib as mpl
                 import matplotlib.pyplot as plt
                 import matplotlib.text as text
                 fig, axarr = plt.subplots(2,3, figsize=(17,8))
                 x1lim = (box[0][0]-0.5,box[0][1]+0.5)
                 x2lim = (box[1][0]-0.5,box[1][1]+0.5)
+                # if(abs(miny_pq) <  abs(maxy_pq)):
+                #     miny_pq = -abs(maxy_pq)
+                #     maxy_pq = abs(maxy_pq)
+                # elif(abs(miny_pq) >  abs(maxy_pq)):
+                #     miny_pq = -abs(miny_pq)
+                #     maxy_pq = abs(miny_pq)
                 # xx,yy = np.meshgrid(X_test1,X_test2)
                 for iterno in range(3):
                     min111 = min(data[iterno]['Y_pred_pq'])
@@ -130,7 +139,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     # im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap, vmin=min111, vmax=max111)
                     # im1 = axarr[0][iterno].pcolormesh(X_test1,X_test2, Y_pred_pq, cmap=cmap)
                     # im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq)
-                    im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap, vmin=miny_pq, vmax=maxy_pq)
+                    im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap1, vmin=miny_pq, vmax=maxy_pq)
                     axarr[0][iterno].set_xlabel('$x_1$', fontsize = 14)
                     axarr[0][iterno].set_ylabel('$x_2$', fontsize = 14)
                     axarr[0][iterno].set(xlim=x1lim,ylim=x2lim)
@@ -141,7 +150,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     # axarr[0][iterno].axis('tight')
 
                     Y_pred_q = np.reshape(data[iterno]['Y_pred_q'], [len(X_test1), len(X_test2)])
-                    im2 = axarr[1][iterno].contour(X_test1, X_test2, Y_pred_q, cmap=cmap, vmin=miny_q, vmax=maxy_q)
+                    im2 = axarr[1][iterno].contour(X_test1, X_test2, Y_pred_q, cmap=cmap2, vmin=miny_q, vmax=maxy_q)
                     axarr[1][iterno].set_xlabel('$x_1$', fontsize = 14)
                     axarr[1][iterno].set_ylabel('$x_2$', fontsize = 14)
                     axarr[1][iterno].set(xlim=x1lim,ylim=x2lim)
@@ -164,7 +173,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 plt.savefig(outfilepng)
                 plt.clf()
                 openfileStr += "open "+outfilepng+"; "
-
+        plt.close('all')
     print(openfileStr)
 
 
