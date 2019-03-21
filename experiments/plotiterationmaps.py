@@ -62,8 +62,8 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     sys.exit(1)
                 if(len(datastore["iterationinfo"]) != 3):
                     continue
-                if(datastore["m"] !=5 or datastore["n"] !=3):
-                    continue
+                # if(datastore["m"] !=5 or datastore["n"] !=3):
+                #     continue
                 print(file)
                 maxy_pq = 0
                 miny_pq = np.inf
