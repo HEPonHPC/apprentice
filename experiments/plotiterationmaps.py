@@ -62,6 +62,8 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     sys.exit(1)
                 if(len(datastore["iterationinfo"]) != 3):
                     continue
+                if(datastore["m"] !=5 or datastore["n"] !=3):
+                    continue
                 print(file)
                 maxy_pq = 0
                 miny_pq = np.inf
@@ -139,29 +141,33 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     # im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap, vmin=min111, vmax=max111)
                     # im1 = axarr[0][iterno].pcolormesh(X_test1,X_test2, Y_pred_pq, cmap=cmap)
                     # im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq)
-                    im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap1, vmin=miny_pq, vmax=maxy_pq)
+                    # im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap1, vmin=miny_pq, vmax=maxy_pq)
+                    im1 = axarr[0][iterno].pcolormesh(X_test1, X_test2, Y_pred_pq, cmap=cmap1, norm = colors.SymLogNorm(linthresh=0.1, linscale=1,vmin=miny_pq, vmax=maxy_pq))
+                    # im1 = axarr[0][iterno].imshow(Y_pred_pq, extent=[-1, 1, -1, 1], cmap=cmap1)
+                    # axarr[0][iterno].axis(aspect='image')
                     axarr[0][iterno].set_xlabel('$x_1$', fontsize = 14)
                     axarr[0][iterno].set_ylabel('$x_2$', fontsize = 14)
                     axarr[0][iterno].set(xlim=x1lim,ylim=x2lim)
                     if(iterno !=2):
-                        axarr[0][iterno].scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0], marker = 'x', c = "purple"  ,s=50, alpha = 1)
+                        axarr[0][iterno].scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0], marker = 'x', c = "black"  ,s=50, alpha = 1)
                     # if(iterno ==0):
                     # fig.colorbar(im1)
                     # axarr[0][iterno].axis('tight')
 
                     Y_pred_q = np.reshape(data[iterno]['Y_pred_q'], [len(X_test1), len(X_test2)])
-                    im2 = axarr[1][iterno].contour(X_test1, X_test2, Y_pred_q, cmap=cmap2, vmin=miny_q, vmax=maxy_q)
+                    # im2 = axarr[1][iterno].contour(X_test1, X_test2, Y_pred_q, cmap=cmap2, vmin=miny_q, vmax=maxy_q)
+                    im2 = axarr[1][iterno].pcolormesh(X_test1, X_test2, Y_pred_q, cmap=cmap1, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
                     axarr[1][iterno].set_xlabel('$x_1$', fontsize = 14)
                     axarr[1][iterno].set_ylabel('$x_2$', fontsize = 14)
                     axarr[1][iterno].set(xlim=x1lim,ylim=x2lim)
 
                     if(iterno !=2):
-                        axarr[1][iterno].scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0], marker = 'x', c = "purple"  ,s=50, alpha = 1)
+                        axarr[1][iterno].scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0], marker = 'x', c = "black"  ,s=50, alpha = 1)
                 for ax in axarr.flat:
                     ax.label_outer()
-                b1=fig.colorbar(im1,ax=axarr[0].ravel().tolist(), shrink=0.95)
+                b1=fig.colorbar(im1,ax=axarr[0].ravel().tolist(), shrink=0.95,extend='both')
                 b1.set_label("$\\frac{p_m(x_1,x_2)}{q_n(x_1,x_2)}$", fontsize = 16)
-                b2=fig.colorbar(im2,ax=axarr[1].ravel().tolist(), shrink=0.95)
+                b2=fig.colorbar(im2,ax=axarr[1].ravel().tolist(), shrink=0.95,extend='both')
                 b2.set_label("$q_n(x_1,x_2)$", fontsize = 16)
 
                 fig.suptitle("%s%s. m = %d, n = %d. trainingsize = %s "%(fname, noisestr,m,n,ts), fontsize = 18)
