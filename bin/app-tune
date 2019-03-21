@@ -1,52 +1,13 @@
 #!/usr/bin/env python
 
-import json
 import apprentice
 import numpy as np
-from numba import jit, njit
 
-def chunkIt(seq, num):
-    avg = len(seq) / float(num)
-    out = []
-    last = 0.0
-
-    while last < len(seq):
-        out.append(seq[int(last):int(last + avg)])
-        last += avg
-
-    # Fix size, sometimes there is spillover
-    # TODO: replace with while if problem persists
-    if len(out)>num:
-        out[-2].extend(out[-1])
-        out=out[0:-1]
-
-    if len(out)!=num:
-        raise Exception("something went wrong in chunkIt, the target size differs from the actual size")
-
-    return out
-
-
-
-
-def readApprox(fname):
-    with open(fname) as f: rd = json.load(f)
-    binids = sorted(rd.keys())
-    APP = {}
-    for b in binids:
-        try:
-            APP[b]=apprentice.RationalApproximation(initDict=rd[b])
-        except:
-            APP[b]=apprentice.PolynomialApproximation(initDict=rd[b])
-    return binids, [APP[b] for b in binids]
-
-def readExpData(fname, binids):
-    with open(fname) as f: dd = json.load(f)
-    Y = np.array([dd[b][0] for b in binids])
-    E = np.array([dd[b][1] for b in binids])
-    return Y, E
-
-def mkCov(yerrs):
-    return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
+def fast_chi(lW2, lY, lRA, lE2, nb):
+    s=0
+    for i in range(nb):
+        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+    return s
 
 if __name__ == "__main__":
     import sys
@@ -60,34 +21,80 @@ if __name__ == "__main__":
 
     np.random.seed(rank)
 
+    from apprentice.tools import TuningObjective, Outer
+
+    import optparse, os, sys
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-o", dest="OUTPUT", default="tune.json", help="Output file name (default: %default)")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+    op.add_option("-d", dest="DATA", default=None, help="Data file to compare to (default: %default)")
+    op.add_option("-s", "--startsample", dest="NSTART", type=int, default=100, help="Number of points to sample to find startpoint (default: %default)")
+    op.add_option("--filter", dest="FILTER", default=False, action='store_true', help="Filter bins that do no envelope data (default: %default)")
+    op.add_option("--filter-n", dest="FILTERN", default=10, type=int, help="Number of multistarts when determining fmin/max (default: %default)")
+    opts, args = op.parse_args()
+
+    if opts.WEIGHTS is None:
+        raise Exception("No weight file spefified -- use  -w on CL")
+    if opts.DATA is None:
+        raise Exception("No data file spefified -- use  -d on CL")
+
+    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0], debug=opts.DEBUG)
+    t1=time.time()
+    res = IO.minimize(opts.NSTART)
+    t2=time.time()
+    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0], debug=opts.DEBUG)
+    t1=time.time()
+    res = IO.minimize(opts.NSTART)
+    t2=time.time()
+    print("Minimum found at\n\t{}\nafter {} seconds".format("\n\t".join([ "{} {}".format(a,b) for a, b in zip(IO._SCLR.pnames, res["x"])]), t2-t1))
+    matchers=apprentice.weights.read_pointmatchers(opts.WEIGHTS)
+    weights = []
+
+    OO = Outer(opts.WEIGHTS, opts.DATA, args[0], debug=opts.DEBUG)
+    from IPython import embed
+    embed()
+
 
 
     # At the moment, the object selection for the chi2 minimisation is
     # simply everything that is in the approximation file
     if rank ==0:
-        binids, RA = readApprox(sys.argv[1])
-        print("[{}] len bids: {}".format(rank, len(binids)))
+        binids, RA = apprentice.tools.readApprox(args[0])
+        if opts.DEBUG: print("[{}] initially we have {} bins".format(rank, len(binids)))
+        hnames = [b.split("#")[0] for b in binids]
+        bnums  = [int(b.split("#")[1]) for b in binids]
 
+        for hn, bnum in zip(hnames, bnums):
+            pathmatch_matchers = [(m,wstr) for m,wstr in matchers.items() if m.match_path(hn)]
+            posmatch_matchers  = [(m,wstr) for (m,wstr) in pathmatch_matchers if m.match_pos(bnum)]
+            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0 #< NB. using last match
+            weights.append(w)
 
-        FMIN = [r.fmin(1) for r in RA]
-        FMAX = [r.fmax(1) for r in RA]
+        if opts.FILTER:
+            FMIN = [r.fmin(opts.FILTERN) for r in RA]
+            FMAX = [r.fmax(opts.FILTERN) for r in RA]
+        else:
+            FMIN=[-1e101 for r in RA]
+            FMAX=[ 1e101 for r in RA]
 
         # Filter here to use only certain bins/histos 
         # TODO put the filtering in readApprox?
-        Y, E = readExpData(sys.argv[2], [str(b) for b in  binids])
-
+        dd = apprentice.tools.readExpData(opts.DATA, [str(b) for b in  binids])
+        Y  = np.array([dd[b][0] for b in binids])
+        E  = np.array([dd[b][1] for b in binids])
         # Also filter for not enveloped data
-        good, bad = [],[]
+        good = []
         for num, bid in enumerate(binids):
-            if FMIN[num]<= Y[num] and FMAX[num]>= Y[num]: good.append(num)
-            else: bad.append(bid)
+            if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
 
         RA     = [RA[g]     for g in good]
         binids = [binids[g] for g in good]
         E      = E[good]
         Y      = Y[good]
+        W2     = [w*w for w in np.array(weights)[good]]
 
-        E2 = [e**2 for e in E]
+        E2 = [1./e**2 for e in E]
         SCLR = RA[0]._scaler
     else:
         Y=None
@@ -96,6 +103,7 @@ if __name__ == "__main__":
         binids=None
         E2=None
         SCLR=None
+        W2=None
 
     Y      = comm.bcast(Y     , root=0)
     E      = comm.bcast(E     , root=0)
@@ -103,25 +111,34 @@ if __name__ == "__main__":
     binids = comm.bcast(binids, root=0)
     E2     = comm.bcast(E2    , root=0)
     SCLR   = comm.bcast(SCLR  , root=0)
+    W2     = comm.bcast(W2    , root=0)
 
+    if opts.DEBUG: print("[{}] After filtering: len(binids) = {}".format(rank, len(binids)))
 
-    print("[{}] After filtering: len(binids) = {}".format(rank, len(binids)))
+    # from numba import jit, njit
+    # @jit(fastmath=True, parallel=True)
+    def fast_chi(lW2, lY, lRA, lE2, nb):
+        s=0
+        for i in range(nb):
+            s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+        return s
+
 
     def chi2(x):
-        return sum([ (Y[i] - RA[i](x))**2/E2[i] for i in range(len(binids))])
+        return fast_chi(W2, Y, [RA[i](x) for i in range(len(binids))], E2 , len(binids))
+        # return sum([ W2[i]*(Y[i] - RA[i](x))**2*E2[i] for i in range(len(binids))])
 
     def startPoint(ntrials):
         _PP = np.random.uniform(low=SCLR._Xmin,high=SCLR._Xmax,size=(ntrials,SCLR.dim))
         _CH = [chi2(p) for p in _PP]
+        if opts.DEBUG: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    MULTISTART=100
-    NSAMPLES = 100
 
     if rank==0:
         t1=time.time()
 
-        res = optimize.minimize(chi2, startPoint(MULTISTART), bounds=SCLR.box)
+        res = optimize.minimize(chi2, startPoint(opts.NSTART), bounds=SCLR.box)
         t2=time.time()
         print("Minimum found at\n\t{}\nafter {} seconds".format("\n\t".join([ "{} {}".format(a,b) for a, b in zip(SCLR.pnames, res["x"])]), t2-t1))
     else:
@@ -133,27 +150,28 @@ if __name__ == "__main__":
 
     Y_tune = {}
 
-    binids, RA = readApprox(sys.argv[1])
+    binids, RA = apprentice.tools.readApprox(args[0])
     for h in hnames:
         _bins = [b for b in binids if h in b]
         _bins.sort(key = lambda x: int(x.split("#")[1]))
         Y_min = [RA[binids.index(b)].predict(res["x"]) for b in _bins]
         Y_tune.update([(a,b) for a, b in zip(_bins, Y_min)])
 
-    d_out = {"Y":Y_tune, "X": res["x"].tolist(), "pnames":SCLR.pnames}
+    # TODO Add more stuff like input file names, startpoint etc.
+    d_out = {"Y":Y_tune, "X": res["x"].tolist(), "pnames":SCLR.pnames, "COV":res['hess_inv'].todense().tolist()}
 
 
-    with open(sys.argv[3], "w") as f:
-        json.dump(d_out, f)
+    import json
+    with open(opts.OUTPUT, "w") as f:
+        json.dump(d_out, f, indent=4)
 
 
 
-    # from IPython import embed
-    # embed()
     import sys
-    sys.exit(1)
+    sys.exit(0)
 
 
+    NSAMPLES = 100
 
     # Now do some more universes
 
