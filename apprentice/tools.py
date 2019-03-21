@@ -1,3 +1,9 @@
+def fast_chi(lW2, lY, lRA, lE2, nb):
+    s=0
+    for i in range(nb):
+        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+    return s
+
 def numNonZeroCoeff(app, threshold=1e-6):
     """
     Determine the number of non-zero coefficients for an approximation app.
@@ -238,3 +244,134 @@ def possibleOrders(N, dim, mirror=False):
             if not t in combs:
                 combs.append(t)
     return combs
+
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    # Fix size, sometimes there is spillover
+    # TODO: replace with while if problem persists
+    if len(out)>num:
+        out[-2].extend(out[-1])
+        out=out[0:-1]
+
+    if len(out)!=num:
+        raise Exception("something went wrong in chunkIt, the target size differs from the actual size")
+
+    return out
+# Todo add binwidth in data model
+def readExpData(fname, binids):
+    import json
+    import numpy as np
+    with open(fname) as f: dd = json.load(f)
+    Y = np.array([dd[b][0] for b in binids])
+    E = np.array([dd[b][1] for b in binids])
+    return dict([(b, (y, e)) for b,y,e in zip(binids,Y,E)])
+
+def readTuneResult(fname):
+    import json
+    with open(fname) as f:
+        return json.load(f)
+
+def readApprox(fname):
+    import json, apprentice
+    with open(fname) as f: rd = json.load(f)
+    binids = sorted(rd.keys())
+    APP = {}
+    for b in binids:
+        try:
+            APP[b]=apprentice.RationalApproximation(initDict=rd[b])
+        except:
+            APP[b]=apprentice.PolynomialApproximation(initDict=rd[b])
+    return binids, [APP[b] for b in binids]
+
+def mkCov(yerrs):
+    import numpy as np
+    return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
+
+
+class TuningObjective(object):
+    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False):
+        import apprentice
+        import numpy as np
+        matchers=apprentice.weights.read_pointmatchers(f_weights)
+        binids, RA = apprentice.tools.readApprox(f_approx)
+        if debug: print("Initially we have {} bins".format(len(binids)))
+        hnames = [b.split("#")[0] for b in binids]
+        bnums  = [int(b.split("#")[1]) for b in binids]
+
+        self._debug = debug
+
+        weights = []
+        for hn, bnum in zip(hnames, bnums):
+            pathmatch_matchers = [(m,wstr) for m,wstr in matchers.items() if m.match_path(hn)]
+            posmatch_matchers  = [(m,wstr) for (m,wstr) in pathmatch_matchers if m.match_pos(bnum)]
+            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0 #< NB. using last match
+            weights.append(w)
+
+        # TODO This should be passed from the outside for performance
+        if restart_filter is not None:
+            FMIN = [r.fmin(restart_filter) for r in RA]
+            FMAX = [r.fmax(restart_filter) for r in RA]
+        else:
+            FMIN=[-1e101 for r in RA]
+            FMAX=[ 1e101 for r in RA]
+
+        # TODO This needs to be a porperty
+        # Filter here to use only certain bins/histos
+        # TODO put the filtering in readApprox?
+        dd = apprentice.tools.readExpData(f_data, [str(b) for b in  binids])
+        Y  = np.array([dd[b][0] for b in binids])
+        E  = np.array([dd[b][1] for b in binids])
+        # Also filter for not enveloped data
+        good = []
+        for num, bid in enumerate(binids):
+            if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
+
+        # TODO --- upon calling a def filter() --- these should be properties
+        self._RA     = [RA[g]     for g in good]
+        self._binids = [binids[g] for g in good]
+        self._E      = E[good]
+        self._Y      = Y[good]
+        self._W2     = np.array([w*w for w in np.array(weights)[good]])
+
+        self._E2 = np.array([1./e**2 for e in self._E])
+        self._SCLR = RA[0]._scaler # Replace with min/max limits things
+        self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
+
+        if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
+
+    @property
+    def hnames(self): return self._hnames
+
+    def objective(self, x):
+        return fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
+
+    def startPoint(self, ntrials):
+        import numpy as np
+        _PP = np.random.uniform(low=self._SCLR._Xmin,high=self._SCLR._Xmax,size=(ntrials, self._SCLR.dim))
+        _CH = [self.objective(p) for p in _PP]
+        if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
+        return _PP[_CH.index(min(_CH))]
+
+    def minimize(self, nstart):
+        from scipy import optimize
+        res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._SCLR.box)
+        return res
+
+class Outer(TuningObjective):
+
+    def setWeights(self, wdict):
+        for num, b in enumerate(self._binids):
+            for hn, w in wdict.items():
+                if hn in b:
+                    self._W2[num] = w*w
+
+    def __call__(self, x, nstart):
+        self.setWeights({hn : _x for hn, _x in zip(self.hnames, x)})
+        return self.minimize(nstart)
