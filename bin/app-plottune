@@ -1,72 +1,79 @@
 #!/usr/bin/env python
 import numpy as np
-
-# Todo add binwidth in data model
-def readExpData(fname, binids):
-    import json
-    with open(fname) as f: dd = json.load(f)
-    Y = np.array([dd[b][0] for b in binids])
-    E = np.array([dd[b][1] for b in binids])
-    return dict([(b, (y, e)) for b,y,e in zip(binids,Y,E)])
-
-def readTuneResult(fname):
-    import json
-    with open(fname) as f:
-        return json.load(f)
+import apprentice
 
 if __name__=="__main__":
-    import sys
+    import optparse, os, sys, json
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-o", dest="OUTDIR", default="plots", help="Output directory name (default: %default)")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+    op.add_option("-d", dest="DATA", default=None, help="Data file to compare to (default: %default)")
+    op.add_option("--drawenvel", dest="DRAWENVEL", default=None, help="Load approximation file and draw min/max")
+    opts, args = op.parse_args()
 
     data = {}
 
     binids = []
-    for a in sys.argv[2:]:
+    for a in args:
         fin, label = a.split(":")
-        data[label] = readTuneResult(fin)
+        data[label] = apprentice.tools.readTuneResult(fin)
         binids.extend([x for x in data[label]["Y"].keys()])
 
     binids = sorted(list(set(binids)))
-
-
-    dd = readExpData(sys.argv[1], binids)
-
     hnames = sorted(list(set([b.split("#")[0] for b in binids])))
 
-    COL = ["r","b","g","m","c"]
+
+    dd = apprentice.tools.readExpData(opts.DATA, binids) if opts.DATA is not None else None
+
+    ii = apprentice.tools.readApprox(opts.DRAWENVEL) if opts.DRAWENVEL is not None else None
+
+
+    if not os.path.exists(opts.OUTDIR): os.makedirs(opts.OUTDIR)
+
+    COL = ["r","b","g","m","c", "y"]
 
     import pylab
     for hn in hnames:
         pylab.clf()
+        pylab.title(hn)
         _bins = [b for b in binids if hn in b]
         _bins.sort(key = lambda x: int(x.split("#")[1]))
 
         X = [int(x.split("#")[1]) for x in _bins]
 
-        D  = [dd[b][0] for b in _bins]
-        DY = [dd[b][1] for b in _bins]
+        if dd is not None:
+            D  = [dd[b][0] for b in _bins]
+            DY = [dd[b][1] for b in _bins]
+            pylab.errorbar(X,D,DY, color="k", marker="o", linewidth=0.01, markersize=1, label="Data")
 
+        if ii is not None:
 
-        pylab.title(hn)
-        pylab.errorbar(X,D,DY, color="k", marker="o", linewidth=0.01, markersize=1, label="Data")
+            idx = [ii[0].index(x) for  x in _bins]
+
+            FMIN = [ii[1][x].fmin(20) for x in idx]
+            FMAX = [ii[1][x].fmax(20) for x in idx]
+            pylab.fill_between(X, FMIN, FMAX, color="y")
+            # from IPython import embed
+            # embed()
+            # sys.exit(1)
+
 
         for num, l in enumerate(sorted([_ for _ in data.keys()])):
             _bins = [_ for _ in data[l]['Y'].keys() if hn in _]
-            try:
-                _bins.sort(key = lambda x: int(x.split("#")[1]))
-            except:
-                from IPython import embed
-                embed()
+            _bins.sort(key = lambda x: int(x.split("#")[1]))
 
             X = [int(x.split("#")[1]) for x in _bins]
             Y = [data[l]['Y'][b] for b in _bins]
-            pylab.plot(X,Y, color=COL[num], linewidth=0.5, label=l)
+            if dd is not None:
+                D  = [dd[b][0] for b in _bins]
+                DY = [dd[b][1] for b in _bins]
+
+                chi2 = sum([ (Y[i] - D[i])**2/DY[i]**2 for i in range(len(_bins))])
+                pylab.plot(X,Y, color=COL[num], linewidth=0.5, label="{} $\chi2/ndf$: {:.2f}".format(l,chi2/(len(_bins) - len(data[l]["X"])  )))
+            else:
+                pylab.plot(X,Y, color=COL[num], linewidth=0.5, label=l)
 
 
         pylab.legend()
-        pylab.savefig("{}.pdf".format(hn.replace("/","_")))
-
-    # from IPython import embed
-    # embed()
-
-
-
+        pylab.savefig(os.path.join(opts.OUTDIR, "{}.pdf".format(hn.replace("/","_"))))
