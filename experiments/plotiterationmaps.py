@@ -121,10 +121,15 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 import matplotlib.pyplot as plt
                 import matplotlib.text as text
                 cmap1 = matplotlib.cm.RdYlBu
+                cmap3 = matplotlib.cm.seismic
+                cmap4 = matplotlib.cm.viridis
+                cmap5 = matplotlib.cm.coolwarm
+                cmap6 = matplotlib.cm.magma
                 cmap2='hot'
                 x1lim = (box[0][0],box[0][1])
                 x2lim = (box[1][0],box[1][1])
                 fig = plt.figure(figsize=(17,8))
+                ypredmaster = []
 
                 # axarray = np.array([])
                 for iterno in range(3):
@@ -133,35 +138,52 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     max111 = max(data[iterno]['Y_pred_pq'])
                     Y_pred_pq = np.reshape(data[iterno]['Y_pred_pq'], [len(X_test1), len(X_test2)])
                     # im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap2, norm = colors.SymLogNorm(linthresh=1, linscale=1,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
-                    im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap2, norm = colors.SymLogNorm(linthresh=0.2, linscale=0.5,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
+                    im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap6, norm = colors.SymLogNorm(linthresh=0.2, linscale=0.5,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
 
-                    # im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, cmap=cmap1,vmin=miny_pq, vmax=maxy_pq)
+                    # im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, cmap=matplotlib.cm.seismic,vmin=miny_pq, vmax=maxy_pq)
                     # axarray = np.append(axarray,ax)
+                    if(iterno == 0):
+                        ypredmaster = Y_pred_pq
+                    if(iterno == 2):
+                        mmm = plt.cm.ScalarMappable(cmap=cmap6)
+                        mmm.set_array(ypredmaster)
+                        mmm.set_clim(miny_pq, maxy_pq)
+                        b1=fig.colorbar(mmm)
+                        b1.set_label("$\\frac{p_m(x_1,x_2)}{q_n(x_1,x_2)}$", fontsize = 16)
+
                     ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
                     ax.set_xlabel('$x_1$', fontsize = 14)
                     ax.set_ylabel('$x_2$', fontsize = 14)
-                    b1 = fig.colorbar(im1,ax=ax, shrink=0.95,extend='both')
-                    if(iterno ==2):
-                        b1.set_label("$\\frac{p_m(x_1,x_2)}{q_n(x_1,x_2)}$", fontsize = 14)
+                    # b1 = fig.colorbar(im1,ax=ax, shrink=0.95,extend='both')
+                    # if(iterno ==2):
+                    #     b1.set_label("$\\frac{p_m(x_1,x_2)}{q_n(x_1,x_2)}$", fontsize = 14)
                     ax.set(xlim=x1lim,ylim=x2lim)
                     ax.view_init(60, 35)
                     if(iterno !=2):
                         ax.scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0], marker = '*', c = "black"  ,s=333, alpha = 1,zorder=1)
-                # b1=fig.colorbar(im1,ax=axarray.ravel().tolist(), shrink=0.95,extend='both')
+
+
 
                 for iterno in range(3):
                     ax = fig.add_subplot(2, 3, iterno+4, projection='3d')
                     min111 = min(data[iterno]['Y_pred_pq'])
                     max111 = max(data[iterno]['Y_pred_pq'])
                     Y_pred_q = np.reshape(data[iterno]['Y_pred_q'], [len(X_test1), len(X_test2)])
-                    im2 = ax.contour3D(X_test1, X_test2, Y_pred_q,cmap=cmap2, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
+                    im2 = ax.contour3D(X_test1, X_test2, Y_pred_q,cmap=cmap6, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
                     # im2 = ax.contour3D(X_test1, X_test2, Y_pred_q, cmap=cmap2,vmin=miny_q, vmax=maxy_q)
                     ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
                     ax.set_xlabel('$x_1$', fontsize = 14)
                     ax.set_ylabel('$x_2$', fontsize = 14)
-                    b2 = fig.colorbar(im2,ax=ax, shrink=0.95,extend='both')
-                    if(iterno ==2):
+                    # b2 = fig.colorbar(im2,ax=ax, shrink=0.95,extend='both')
+                    if(iterno == 0):
+                        ypredmaster = Y_pred_q
+                    if(iterno == 2):
+                        mmm = plt.cm.ScalarMappable(cmap=cmap6)
+                        mmm.set_array(ypredmaster)
+                        mmm.set_clim(miny_q, maxy_q)
+                        b2=fig.colorbar(mmm)
                         b2.set_label("$q_n(x_1,x_2)$", fontsize = 12)
+
                     ax.view_init(60, 35)
                     if(iterno !=2):
                         ax.scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0],  marker = '*', c = "black"  ,s=333, alpha = 1,zorder=1)
