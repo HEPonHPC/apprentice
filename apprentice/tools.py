@@ -349,6 +349,9 @@ class TuningObjective(object):
     @property
     def hnames(self): return self._hnames
 
+    @property
+    def pnames(self): return self._SCLR.pnames
+
     def objective(self, x):
         return fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
 
