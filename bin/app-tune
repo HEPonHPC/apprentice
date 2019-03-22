@@ -3,11 +3,6 @@
 import apprentice
 import numpy as np
 
-def fast_chi(lW2, lY, lRA, lE2, nb):
-    s=0
-    for i in range(nb):
-        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
-    return s
 
 if __name__ == "__main__":
     import sys
