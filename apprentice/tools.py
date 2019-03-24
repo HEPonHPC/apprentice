@@ -346,6 +346,29 @@ class TuningObjective(object):
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
 
+    def setWeights(self, wdict):
+        """
+        Convenience function to update the bins weights.
+        """
+        for num, b in enumerate(self._binids):
+            for hn, w in wdict.items():
+                if hn in b:
+                    self._W2[num] = w*w
+
+    def obsGoF(self, hname, x):
+        """
+        Convenience function to get the (unweighted) contribution to the gof for obs hname at point x
+        """
+        import numpy as np
+        _bids = [num for num, b in enumerate(self._binids) if hname in b]
+        return fast_chi(np.ones(len(_bids)), self._Y[_bids], [self._RA[i](x) for i in _bids], self._E2[_bids] , len(_bids))
+
+    def meanCont(self, x):
+        """
+        Convenience function that return a list if the obsGof for all hnames at x
+        """
+        return [self.obsGoF(hn, x) for hn in self.hnames]
+
     @property
     def hnames(self): return self._hnames
 
