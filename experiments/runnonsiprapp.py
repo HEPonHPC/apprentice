@@ -22,12 +22,13 @@ def runRA(X, Y, fndesc, m, n, ts, outfile):
         raise Exception("Not enough data for pdeg = %d, qdeg = %d and dim = %d. Require %d (%s) and only have %d"%(m,n,dim,trainingsize,ts,len(X)))
 
     train = range(trainingsize)
+    from apprentice import RationalApproximationONB
     start = timer()
-    ra = apprentice.RationalApproximation(
+    ra = RationalApproximationONB(
     							X[train],
     							Y[train],
     							order=(m,n),
-                                strategy=1
+                                tol=-1
     )
     end = timer()
 
@@ -38,6 +39,10 @@ def runRA(X, Y, fndesc, m, n, ts, outfile):
     import json
     with open(outfile, "w") as f:
         json.dump(radict, f,indent=4, sort_keys=True)
+
+    # ra1 = RationalApproximationONB(initDict=radict)
+    # Y_pred = [ra1(x) for x in X]
+    # print(Y_pred)
 
 
 if __name__ == "__main__":
