@@ -82,37 +82,39 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         Xvals = range(1,int(iterationNoArr[index])+1)
 
         import matplotlib.pyplot as plt
-        f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
-        p0, = axes[0].plot(Xvals,np.ma.log10(noofmultistarts),'g')
-        p1, = axes[1].plot(Xvals,np.ma.log10(mstime),'r--',label="multistart time")
-        p2, = axes[2].plot(Xvals,robobj,'b-')
+        # f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
+        f, axes = plt.subplots(2, sharex=True, figsize=(12,12))
+        # p0, = axes[0].plot(Xvals,np.ma.log10(noofmultistarts),'g')
+        msax = axes[0].twinx()
+        p01, = axes[0].plot(Xvals,np.ma.log10(mstime),'r--',label="multistart time")
+        p02, = msax.plot(Xvals,robobj,'b-')
 
 
-        firerrorax = axes[3].twinx()
-        p31, = axes[3].plot(Xvals,np.ma.log10(fittime),'r--')
-        p32, = firerrorax.plot(Xvals,np.ma.log10(lsqobj),'b')
+        firerrorax = axes[1].twinx()
+        p11, = axes[1].plot(Xvals,np.ma.log10(fittime),'r--')
+        p12, = firerrorax.plot(Xvals,np.ma.log10(lsqobj),'b')
 
-        axes[3].set_xlabel("no. of iterations")
-        axes[0].set_ylabel("log$_{10}$(no. of multistarts)")
-        axes[1].set_ylabel("log$_{10}$(multistart time in sec)")
-        axes[2].set_ylabel("$min$ $q(x)$")
-        axes[3].set_ylabel("log$_{10}$(fit time in sec)")
+        axes[1].set_xlabel("no. of iterations")
+        # axes[0].set_ylabel("log$_{10}$(no. of multistarts)")
+        axes[0].set_ylabel("log$_{10}$(multistart time in sec)")
+        msax.set_ylabel("$min$ $q(x)$")
+        axes[1].set_ylabel("log$_{10}$(fit time in sec)")
         firerrorax.set_ylabel("$log_{10}\\left(min\ \\left|\\left|f-\\frac{p}{q}\\right|\\right||_2^2\\right)$")
 
         for ax in axes.flat:
             ax.label_outer()
-        axes[0].yaxis.label.set_color(p0.get_color())
-        axes[1].yaxis.label.set_color(p1.get_color())
-        axes[2].yaxis.label.set_color(p2.get_color())
-        axes[3].yaxis.label.set_color(p31.get_color())
-        firerrorax.yaxis.label.set_color(p32.get_color())
+        axes[0].yaxis.label.set_color(p01.get_color())
+        msax.yaxis.label.set_color(p02.get_color())
+        axes[1].yaxis.label.set_color(p11.get_color())
+        firerrorax.yaxis.label.set_color(p12.get_color())
 
         tkw = dict(size=4, width=1.5)
-        axes[0].tick_params(axis='y', colors=p0.get_color(), **tkw)
-        axes[1].tick_params(axis='y', colors=p1.get_color(), **tkw)
-        axes[2].tick_params(axis='y', colors=p2.get_color(), **tkw)
-        axes[3].tick_params(axis='y', colors=p31.get_color(), **tkw)
-        firerrorax.tick_params(axis='y', colors=p32.get_color(), **tkw)
+        axes[0].tick_params(axis='y', colors=p01.get_color(), **tkw)
+        msax.tick_params(axis='y', colors=p02.get_color(), **tkw)
+        # axes[1].tick_params(axis='y', colors=p1.get_color(), **tkw)
+        # axes[2].tick_params(axis='y', colors=p2.get_color(), **tkw)
+        axes[1].tick_params(axis='y', colors=p11.get_color(), **tkw)
+        firerrorax.tick_params(axis='y', colors=p12.get_color(), **tkw)
 
         nnzthreshold = 1e-6
         for i, p in enumerate(datastore['pcoeff']):
