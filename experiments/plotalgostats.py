@@ -38,8 +38,8 @@ def plotalgostat(folder, desc, plotdim):
 
     for file in filelist:
         if file:
-			with open(file, 'r') as fn:
-				datastore = json.load(fn)
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
 
         totaltime = datastore['log']['fittime']
         totaltimearr = np.append(totaltimearr,totaltime)

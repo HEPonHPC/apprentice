@@ -22,8 +22,8 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
 
     for file in filelist:
         if file:
-			with open(file, 'r') as fn:
-				datastore = json.load(fn)
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
         fileArr = np.append(fileArr,file)
         iterationNoArr = np.append(iterationNoArr,len(datastore['iterationinfo']))
 
@@ -43,8 +43,8 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         outfilepng = "%s/plots/Ptii_%s_topiterinfo_%d.png"%(folder, desc, i+1)
         file = fileArr[index]
         if file:
-			with open(file, 'r') as fn:
-				datastore = json.load(fn)
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
         m = datastore['m']
         n = datastore['n']
         ts = datastore['trainingscale']
