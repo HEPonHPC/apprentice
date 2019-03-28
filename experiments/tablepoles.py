@@ -93,6 +93,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
 
                 rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
                 rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                pappfile = "%s/outpa/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
                 # print(rappfile)
                 if not os.path.exists(rappsipfile):
                     print("rappsipfile %s not found"%(rappsipfile))
@@ -102,10 +103,16 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     print("rappfile %s not found"%(rappfile))
                     exit(1)
 
+                if not os.path.exists(pappfile):
+                    print("pappfile %s not found"%(pappfile))
+                    exit(1)
+
                 rappsip = RationalApproximationSIP(rappsipfile)
                 Y_pred_rappsip = rappsip.predictOverArray(X_test)
                 rapp = RationalApproximationONB(fname=rappfile)
                 Y_pred_rapp = np.array([rapp(x) for x in X_test])
+                papp = PolynomialApproximation(fname=pappfile)
+                Y_pred_papp = np.array([papp(x) for x in X_test])
                 # results[fname][noise] = {"rapp":{},"rappsip":{}}
                 # print(maxY_test)
                 for tval in thresholdvalarr:
@@ -141,6 +148,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     l2notcountrapp = np.sqrt(l2notcountrapp)
                     l2allrapp = np.sqrt(l2allrapp)
 
+                    l2allpapp = np.sum((Y_pred_papp-Y_test)**2)
+
 
 
                     # rappsipcount = sum(abs(i) >= tval for i in Y_pred_rappsip)
@@ -165,7 +174,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         'l2allrappsip' : l2allrappsip,
                         'l2countrapp' : l2countrapp,
                         'l2notcountrapp' : l2notcountrapp,
-                        'l2allrapp' : l2allrapp
+                        'l2allrapp' : l2allrapp,
+                        'l2allpapp': l2allpapp
                     }
                     tvalstr = str(int(tval))
                     pq = "p%d_q%d"%(optm,optn)
@@ -254,6 +264,35 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
                 s+="\\\\\\cline{2-14}\n"
                 s+="\\hline\n\n"
+    elif(table_or_latex =="latexall"):
+        for fname in farr:
+            for pq in results[fname][noisearr[0]].keys():
+                s+= "%s %s\n"%(fname,pq)
+                s += "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
+                for noise in noisearr:
+                    tvalstr = str(int(thresholdvalarr[0]))
+                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
+                s+="\\\\\\cline{2-12}\n"
+                s+="&$r$ (Algorithm \\ref{ALG:MVVandQR})"
+                for noise in noisearr:
+                    tvalstr = str(int(thresholdvalarr[0]))
+                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
+                s+="\\\\\\cline{2-12}\n"
+                s+="&$r_{N=0}$ (Algorithm \\ref{A:Polyak})"
+                for noise in noisearr:
+                    tvalstr = str(int(thresholdvalarr[0]))
+                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
+                    s+="&\\multicolumn{4}{c|}{}"
+                s+="\\\\\\cline{2-12}\n"
+                s+="\\hline\n\n"
 
     print(s)
 
@@ -263,9 +302,10 @@ if __name__ == "__main__":
 
  # python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f22  0,10-1 10,100,1000 2x  table
  # for fno in {1..5} {7..10} {12..20} 22; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  table> ../../debug/"tablepoles_"$name".log" 2>&1 & done
+ # for fno in 3 5 9 13 14 18 19; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  latex> ../../debug/"tablepoles_latex_"$name".log" 2>&1 & done
     import os, sys
     if len(sys.argv) != 6:
-        print("Usage: {} function noise thresholds ts testfilelist bottom_or_all table_or_latex".format(sys.argv[0]))
+        print("Usage: {} function noise thresholds ts testfilelist bottom_or_all table_or_latex_or_latexall".format(sys.argv[0]))
         sys.exit(1)
 
     farr = sys.argv[1].split(',')
