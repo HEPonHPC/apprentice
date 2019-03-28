@@ -1,29 +1,33 @@
 import numpy as np
-from apprentice import RationalApproximationSIP, RationalApproximation, PolynomialApproximation
+from apprentice import RationalApproximationSIP, RationalApproximationONB, PolynomialApproximation
 from apprentice import tools, readData
 import os
 
-def tablepoles(farr,noisearr, tarr, testfilearr, bottomallarr, ts, table_or_latex):
-    print farr
-    print noisearr
-    print thresholdarr
-    print testfilearr
-    print bottomallarr
+def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
+    print (farr)
+    print (noisearr)
+    print (thresholdarr)
+    # print (testfilearr)
+    # print (bottomallarr)
 
     thresholdvalarr = np.array([float(t) for t in tarr])
     thresholdvalarr = np.sort(thresholdvalarr)
 
     results = {}
 
-    # import glob
+    import glob
     import json
-    # import re
+    import re
     if not os.path.exists("plots"):
         os.mkdir('plots')
     for num,fname in enumerate(farr):
         results[fname] = {}
-        testfile = testfilearr[num]
-        bottom_or_all = bottomallarr[num]
+        # testfile = testfilearr[num]
+        # bottom_or_all = bottomallarr[num]
+        testfile = "../benchmarkdata/"+fname+"_test.txt"
+        # testfile = "../benchmarkdata/"+fname+".txt"
+        print(testfile)
+        bottom_or_all = all
         try:
             X, Y = readData(testfile)
         except:
@@ -40,71 +44,144 @@ def tablepoles(farr,noisearr, tarr, testfilearr, bottomallarr, ts, table_or_late
 
         maxY_test = max(Y_test)
         for noise in noisearr:
+            results[fname][noise] = {}
             noisestr = ""
             if(noise!="0"):
                 noisestr = "_noisepct"+noise
             folder = "%s%s_%s"%(fname,noisestr,ts)
+            filelist = np.array(glob.glob(folder+"/out/*.json"))
+            filelist = np.sort(filelist)
+            for file in filelist:
+                if file:
+                    with open(file, 'r') as fn:
+                        datastore = json.load(fn)
+                optm = datastore['m']
+                optn = datastore['n']
+                if(optm==1 or optn==1):
+                    continue
 
-            optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump.json"
+            # optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
+            #
+            # if not os.path.exists(optjsonfile):
+            #     print("optjsonfile: " + optjsonfile+ " not found")
+            #     exit(1)
+            #
+            # if optjsonfile:
+            #     with open(optjsonfile, 'r') as fn:
+            #         optjsondatastore = json.load(fn)
 
-            if not os.path.exists(optjsonfile):
-                print("optjsonfile: " + optjsonfile+ " not found")
-                exit(1)
-
-            if optjsonfile:
-                with open(optjsonfile, 'r') as fn:
-                    optjsondatastore = json.load(fn)
-
-            optm = optjsondatastore['optdeg']['m']
-            optn = optjsondatastore['optdeg']['n']
-
-            rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-            rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-
-            if not os.path.exists(rappsipfile):
-                print("rappsipfile %s not found"%(rappsipfile))
-                exit(1)
-
-            if not os.path.exists(rappfile):
-                print("rappfile %s not found"%(rappfile))
-                exit(1)
-
-            rappsip = RationalApproximationSIP(rappsipfile)
-            Y_pred_rappsip = rappsip.predictOverArray(X_test)
-            rapp = RationalApproximation(fname=rappfile)
-            Y_pred_rapp = np.array([rapp(x) for x in X_test])
-
-            results[fname][noise] = {"rapp":{},"rappsip":{}}
-
-            for tval in thresholdvalarr:
-                # print(fname, maxY_test)
-                # print(Y_pred_rappsip)
-
-                # rappsipcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rappsip))/float(len(Y_test))) *100
-                # rappcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rapp))/float(len(Y_test))) *100
-
-                rappsipcount = sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rappsip)
-                rappcount = sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rapp)
-
-
-                # rappsipcount = sum(abs(i) >= tval for i in Y_pred_rappsip)
-                # rappcount = sum(abs(i) >= tval for i in Y_pred_rapp)
-
-                # print("----------------")
-                # print(maxY_test,tval)
-                # for i in Y_pred_rappsip:
-                #     if abs(i)/abs(maxY_test) >= tval:
-                #         print(abs(i))
-                # for i in Y_pred_rapp:
-                #     if abs(i)/abs(maxY_test) >= tval:
-                #         print(abs(i))
-
-                tvalstr = str(tval)
-                results[fname][noise]["rapp"][tvalstr] = rappcount
-                results[fname][noise]["rappsip"][tvalstr] = rappsipcount
+            # # optm = optjsondatastore['optdeg']['m']
+            # # optn = optjsondatastore['optdeg']['n']
+            # # index = -1
+            # # while(optn ==0):
+            # #     index+=1
+            # #     if(index == 0 and "optdeg_p1" in optjsondatastore):
+            # #         optm = optjsondatastore['optdeg_p1']['m']
+            # #         optn = optjsondatastore['optdeg_p1']['n']
+            # #     if(index ==1 and "optdeg_m1" in optjsondatastore):
+            # #         optm = optjsondatastore['optdeg_m1']['m']
+            # #         optn = optjsondatastore['optdeg_m1']['n']
+            # #     if(index ==2):
+            # #         print("setting to 0")
+            # #         results[fname][noise] = {"rapp":{},"rappsip":{}}
+            # #         for tval in thresholdvalarr:
+            # #             tvalstr = str(int(tval))
+            # #             results[fname][noise]["rapp"][tvalstr] = "0"
+            # #             results[fname][noise]["rappsip"][tvalstr] = "0"
+            # #         continue
 
 
-    print (json.dumps(results,indent=4, sort_keys=True))
+                rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                # print(rappfile)
+                if not os.path.exists(rappsipfile):
+                    print("rappsipfile %s not found"%(rappsipfile))
+                    exit(1)
+
+                if not os.path.exists(rappfile):
+                    print("rappfile %s not found"%(rappfile))
+                    exit(1)
+
+                rappsip = RationalApproximationSIP(rappsipfile)
+                Y_pred_rappsip = rappsip.predictOverArray(X_test)
+                rapp = RationalApproximationONB(fname=rappfile)
+                Y_pred_rapp = np.array([rapp(x) for x in X_test])
+                # results[fname][noise] = {"rapp":{},"rappsip":{}}
+                # print(maxY_test)
+                for tval in thresholdvalarr:
+                    # print(fname, maxY_test)
+                    # print(Y_pred_rappsip)
+
+                    # rappsipcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rappsip))/float(len(Y_test))) *100
+                    # rappcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rapp))/float(len(Y_test))) *100
+
+                    l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
+                    l2countrappsip = 0.
+                    rappsipcount = 0
+                    for num,yp in enumerate(Y_pred_rappsip):
+                        if abs(yp)/abs(maxY_test) >= tval:
+                            rappsipcount+=1
+                            l2countrappsip += np.sum((yp-Y_test[num])**2)
+                    l2notcountrappsip = l2allrappsip - l2countrappsip
+
+                    l2countrappsip = np.sqrt(l2countrappsip)
+                    l2notcountrappsip = np.sqrt(l2notcountrappsip)
+                    l2allrappsip = np.sqrt(l2allrappsip)
+
+                    l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
+                    l2countrapp = 0.
+                    rappcount = 0
+                    for num,yp in enumerate(Y_pred_rapp):
+                        if abs(yp)/abs(maxY_test) >= tval:
+                            rappcount+=1
+                            l2countrapp += np.sum((yp-Y_test[num])**2)
+                    l2notcountrapp = l2allrapp - l2countrapp
+
+                    l2countrapp = np.sqrt(l2countrapp)
+                    l2notcountrapp = np.sqrt(l2notcountrapp)
+                    l2allrapp = np.sqrt(l2allrapp)
+
+
+
+                    # rappsipcount = sum(abs(i) >= tval for i in Y_pred_rappsip)
+                    # rappcount = sum(abs(i) >= tval for i in Y_pred_rapp)
+
+                    # print("----------------")
+                    # print(maxY_test,tval)
+                    # for i in Y_pred_rappsip:
+                    #     if abs(i)/abs(maxY_test) >= tval:
+                    #         print(abs(i))
+                    # for i in Y_pred_rapp:
+                    #     if abs(i)/abs(maxY_test) >= tval:
+                    #         print(abs(i))
+
+                    data = {
+                        'm':optm,
+                        'n':optn,
+                        'rapp':str(int(rappcount)),
+                        'rappsip':str(int(rappsipcount)),
+                        'l2countrappsip' : l2countrappsip,
+                        'l2notcountrappsip' : l2notcountrappsip,
+                        'l2allrappsip' : l2allrappsip,
+                        'l2countrapp' : l2countrapp,
+                        'l2notcountrapp' : l2notcountrapp,
+                        'l2allrapp' : l2allrapp
+                    }
+                    tvalstr = str(int(tval))
+                    pq = "p%d_q%d"%(optm,optn)
+
+                    if(pq in results[fname][noise]):
+                        resultsdata = results[fname][noise][pq]
+                        resultsdata[tvalstr] = data
+                    else:
+                        results[fname][noise][pq] = {tvalstr:data}
+
+
+                    # results[fname][noise][tvalstr] = str(int(rappcount))
+                    # results[fname][noise][tvalstr] = str(int(rappsipcount))
+
+    # print(results)
+    # print (json.dumps(results,indent=4, sort_keys=True))
 
 
     s = ""
@@ -118,83 +195,76 @@ def tablepoles(farr,noisearr, tarr, testfilearr, bottomallarr, ts, table_or_late
         s+="\n\n"
         for noise in noisearr:
             for tval in thresholdvalarr:
-                s += "\t%d"%(int(tval))
+                s += "\t%s"%(int(tval))
             s+="\t"
             for tval in thresholdvalarr:
-                s += "\t%d"%(int(tval))
+                s += "\t%s"%(int(tval))
             s+="\t"
         s += "\n"
         for fname in farr:
-            s += "%s"%(fname)
-            for noise in noisearr:
-                for tval in thresholdvalarr:
-                    tvalstr = str(tval)
-                    s += "\t%d"%(int(results[fname][noise]["rapp"][tvalstr]))
-                s+="\t"
-                for tval in thresholdvalarr:
-                    tvalstr = str(tval)
-                    s += "\t%d"%(int(results[fname][noise]["rappsip"][tvalstr]))
-                s+="\t"
-            s+="\n"
+            s += "%s\n"%(fname)
+            for pq in results[fname][noisearr[0]].keys():
+                s += "%s"%(pq)
+                for noise in noisearr:
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        sss = "-"
+                        if(results[fname][noise][pq][tvalstr]["rapp"] != "0"):
+                            sss= results[fname][noise][pq][tvalstr]["rapp"]
+                        s += "\t%s"%(sss)
+                    s+="\t"
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        sss = "-"
+                        if(results[fname][noise][pq][tvalstr]["rappsip"] != "0"):
+                            sss= results[fname][noise][pq][tvalstr]["rappsip"]
+                        s += "\t%s"%(sss)
+                    s+="\t"
+                s+="\n"
+
     elif(table_or_latex =="latex"):
         for fname in farr:
-            s += "\\ref{fn:%s}"%(fname)
-            for noise in noisearr:
-                for tval in thresholdvalarr:
-                    tvalstr = str(tval)
-                    s += "&%d"%(int(results[fname][noise]["rapp"][tvalstr]))
-                for tval in thresholdvalarr:
-                    tvalstr = str(tval)
-                    s += "&%d"% (int(results[fname][noise]["rappsip"][tvalstr]))
-            s+="\\\\\hline\n"
-
-
+            for pq in results[fname][noisearr[0]].keys():
+                s+= "%s %s\n"%(fname,pq)
+                s += "\\multirow{3}{*}{\\ref{fn:%s}}&$|W_t|$"%(fname)
+                for noise in noisearr:
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%s"%(results[fname][noise][pq][tvalstr]["rapp"])
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%s"%(results[fname][noise][pq][tvalstr]["rappsip"])
+                s+="\\\\\\cline{2-14}\n"
+                s+="&$E_t$"
+                for noise in noisearr:
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                s+="\\\\\\cline{2-14}\n"
+                s+="&$E'_t$"
+                for noise in noisearr:
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
+                    for tval in thresholdvalarr:
+                        tvalstr = str(int(tval))
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
+                s+="\\\\\\cline{2-14}\n"
+                s+="\\hline\n\n"
 
     print(s)
 
-# python plot2Dsurface.py f21_2x/out/f21_2x_p12_q12_ts2x.json ../benchmarkdata/f21_test.txt f21_2x f21_2x all
 
 if __name__ == "__main__":
 
-    # import apprentice
-    # name = "f14"
-    # noisestr = "_noisepct10-3"
-    # # noisestr = ""
-    # trainfile = "../benchmarkdata/"+name+noisestr+".txt"
-    # X, Y = readData(trainfile)
-    # folder = "poletest"
-    # if not os.path.exists(folder):
-    #     os.mkdir(folder)
-    # for m in range(1,6):
-    #     for n in range(1,6):
-    #         trainingsize = 2 * tools.numCoeffsRapp(2,(m,n))
-    #         i_train = [i for i in range(trainingsize)]
-    #         rapp = apprentice.RationalApproximation(X[i_train],Y[i_train],order=(m,n), strategy=1)
-    #
-    #         # rappsip  = apprentice.RationalApproximationSIP(X[i_train],Y[i_train],m=m,n=n,trainingscale="Cp",
-    #         #                     strategy=0,roboptstrategy = 'msbarontime',fitstrategy = 'filter',localoptsolver = 'scipy')
-    #         # rappsip.save(folder+"/rappsip.json")
-    #
-    #
-    #         rapp.save(folder+"/rapp.json")
-    #
-    #         testfile = "../benchmarkdata/"+name+"_test.txt"
-    #
-    #         plot2Dsurface(folder+"/rapp.json", testfile, folder, name+noisestr+"_rapp","all")
-    #
-    #         rappsipfile = "%s%s_2x/out/%s%s_2x_p%d_q%d_ts2x.json"%(name,noisestr,name,noisestr,m,n)
-    #         plot2Dsurface(rappsipfile, testfile, folder, name+noisestr+"_rappsip","all")
-    #
-    #         # plot2Dsurface(folder+"/rappsip.json", testfile, folder, name+noisestr+"_rappsip","all")
-    #
-    # exit(1)
 
-
-
-
-# python tablepoles.py f7,f8  0,10-1 1,10,100,1000 2x ../benchmarkdata/f7.txt,../benchmarkdata/f8.txt all,all table
+ # python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f22  0,10-1 10,100,1000 2x  table
+ # for fno in {1..5} {7..10} {12..20} 22; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  table> ../../debug/"tablepoles_"$name".log" 2>&1 & done
     import os, sys
-    if len(sys.argv) != 8:
+    if len(sys.argv) != 6:
         print("Usage: {} function noise thresholds ts testfilelist bottom_or_all table_or_latex".format(sys.argv[0]))
         sys.exit(1)
 
@@ -213,16 +283,17 @@ if __name__ == "__main__":
         print("please specify comma saperated threshold levels")
         sys.exit(1)
 
-    testfilearr = sys.argv[5].split(',')
-    if len(testfilearr) == 0:
-        print("please specify comma saperated testfile paths")
-        sys.exit(1)
+    # testfilearr = sys.argv[5].split(',')
+    # if len(testfilearr) == 0:
+    #     print("please specify comma saperated testfile paths")
+    #     sys.exit(1)
+    #
+    # bottomallarr = sys.argv[6].split(',')
+    # if len(bottomallarr) == 0:
+    #     print("please specify comma saperated bottom or all options")
+    #     sys.exit(1)
 
-    bottomallarr = sys.argv[6].split(',')
-    if len(bottomallarr) == 0:
-        print("please specify comma saperated bottom or all options")
-        sys.exit(1)
 
-
-    tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
+    # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
+    tablepoles(farr,noisearr, thresholdarr, sys.argv[4],sys.argv[5])
 ###########
