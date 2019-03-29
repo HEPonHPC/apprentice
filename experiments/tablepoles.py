@@ -267,34 +267,91 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     elif(table_or_latex =="latexall"):
         for fname in farr:
             for pq in results[fname][noisearr[0]].keys():
-                s+= "%s %s\n"%(fname,pq)
-                s += "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
+                sspecific = ""
+                s+= '%'+" %s %s\n"%(fname,pq)
+                s+= "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
+                sspecific+= '%'+" %s %s\n"%(fname,pq)
+                sspecific+= "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
                 for noise in noisearr:
                     tvalstr = str(int(thresholdvalarr[0]))
-                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
+                    if(results[fname][noise][pq][tvalstr]["l2allrappsip"]==0):
+                        s+="&0"
+                        sspecific+="&0"
+                    else:
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
+                        sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
-                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
+                        if(results[fname][noise][pq][tvalstr]["l2countrappsip"]==0):
+                            s+="&0"
+                            sspecific+="&0"
+                        else:
+                            s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                            sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+
+                        if(results[fname][noise][pq][tvalstr]["l2notcountrappsip"] ==0):
+                            s+="&0"
+                            sspecific+="&0"
+                        else:
+                            s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
+                            sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
+
                 s+="\\\\\\cline{2-12}\n"
                 s+="&$r$ (Algorithm \\ref{ALG:MVVandQR})"
+                sspecific+="\\\\\\cline{2-12}\n"
+                sspecific+="&$r$ (Algorithm \\ref{ALG:MVVandQR})"
                 for noise in noisearr:
                     tvalstr = str(int(thresholdvalarr[0]))
-                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                    if(results[fname][noise][pq][tvalstr]["l2allrapp"] == 0):
+                        s+="&0"
+                        sspecific+="&0"
+                    else:
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                        sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
-                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
-                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
+                        if(results[fname][noise][pq][tvalstr]["l2countrapp"] ==0):
+                            s+="&0"
+                            sspecific+="&0"
+                        else:
+                            s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
+                            sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
+                        if(results[fname][noise][pq][tvalstr]["l2notcountrapp"] == 0):
+                            s+="&0"
+                            sspecific+="&0"
+                        else:
+                            s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
+                            sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
                 s+="\\\\\\cline{2-12}\n"
                 s+="&$r_{N=0}$ (Algorithm \\ref{A:Polyak})"
+                sspecific+="\\\\\\cline{2-12}\n"
+                sspecific+="&$r_{N=0}$ (Algorithm \\ref{A:Polyak})"
                 for noise in noisearr:
                     tvalstr = str(int(thresholdvalarr[0]))
-                    s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
+                    if(results[fname][noise][pq][tvalstr]["l2allpapp"] == 0):
+                        s+="&0"
+                        sspecific+="&0"
+                    else:
+                        s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
+                        sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
                     s+="&\\multicolumn{4}{c|}{}"
+                    sspecific+="&\\multicolumn{4}{c|}{}"
                 s+="\\\\\\cline{2-12}\n"
                 s+="\\hline\n\n"
+                sspecific+="\\\\\\cline{2-12}\n"
+                sspecific+="\\hline\n\n"
+                if (fname=='f3' and pq == "p4_q3")\
+                    or (fname=='f5' and pq == "p2_q3")\
+                    or (fname=='f8' and pq == "p3_q3")\
+                    or (fname=='f9' and pq == "p3_q7")\
+                    or (fname=='f13' and pq == "p2_q7")\
+                    or (fname=='f14' and pq == "p3_q6")\
+                    or (fname=='f18' and pq == "p2_q3")\
+                    or (fname=='f19' and pq == "p3_q3"):
+                    print(sspecific)
 
-    print(s)
+    # print(s)
 
 
 if __name__ == "__main__":
