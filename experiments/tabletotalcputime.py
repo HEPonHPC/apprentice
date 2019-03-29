@@ -56,6 +56,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 with open(rappsipfile, 'r') as fn:
                     datastore = json.load(fn)
             rappsiptime = datastore['log']['fittime']
+            rdof = int(datastore['M'] + datastore['N'])
+
 
             if rappfile:
                 with open(rappfile, 'r') as fn:
@@ -66,8 +68,11 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 with open(pafile, 'r') as fn:
                     datastore = json.load(fn)
             papptime = datastore['log']['fittime']
+            pdof = int(datastore['trainingsize']/2)
 
-            results[fname][noise] = {"rapp":rapptime, "rappsip":rappsiptime, "papp":papptime}
+            results[fname][noise] = {"rapp":rapptime, "rappsip":rappsiptime, "papp":papptime,'pdof':pdof,'rdof':rdof}
+
+
     # from IPython import embed
     # embed()
 
@@ -76,15 +81,19 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     if(table_or_latex == "table"):
         s+= "\t\t\t"
         for noise in noisearr:
-            s+= "%s\t\t\t\t\t\t\t\t\t"%(noise)
+            s+= "%s\t\t\t\t\t\t\t\t\t\t"%(noise)
         s+="\n"
-        for noise in noisearr:
-            s += "\t\tPoly App\tRat Apprx\tRat Apprx SIP\t\t"
+        for num,noise in enumerate(noisearr):
+            if(num==0):
+                s += "\t\tpdof\trdof"
+            s += "\tPoly App\tRat Apprx\tRat Apprx SIP\t"
         s+="\n\n"
         for fname in farr:
             s += "%s"%(fname)
-            for noise in noisearr:
-                s += "\t\t\t%.4f"%(results[fname][noise]["papp"])
+            for num,noise in enumerate(noisearr):
+                if(num==0):
+                    s += "\t\t%d\t%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
+                s += "\t\t%.4f"%(results[fname][noise]["papp"])
                 s+="\t"
                 s += "\t%.4f"%(results[fname][noise]["rapp"])
                 s+="\t"
@@ -94,9 +103,11 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     elif(table_or_latex =="latex"):
         for fname in farr:
             s += "\\ref{fn:%s}"%(fname)
-            for noise in noisearr:
-                s += "&%.3f"%(results[fname][noise]["rapp"])
+            for num,noise in enumerate(noisearr):
+                if(num==0):
+                    s+="&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
                 s += "&%.3f"%(results[fname][noise]["papp"])
+                s += "&%.3f"%(results[fname][noise]["rapp"])
                 s += "&%.3f"%(results[fname][noise]["rappsip"])
             s+="\\\\\hline\n"
 
