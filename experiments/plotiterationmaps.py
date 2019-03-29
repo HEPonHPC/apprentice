@@ -130,6 +130,27 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 x2lim = (box[1][0],box[1][1])
                 fig = plt.figure(figsize=(17,8))
                 ypredmaster = []
+                from matplotlib.colors import LinearSegmentedColormap
+                def CustomCmap(from_rgb,to_rgb):
+
+                    # from color r,g,b
+                    r1,g1,b1 = from_rgb
+
+                    # to color r,g,b
+                    r2,g2,b2 = to_rgb
+
+                    cdict = {'red': ((0, r1, r1),
+                                   (1, r2, r2)),
+                           'green': ((0, g1, g1),
+                                    (1, g2, g2)),
+                           'blue': ((0, b1, b1),
+                                   (1, b2, b2))}
+
+                    ccc = LinearSegmentedColormap('custom_cmap', cdict)
+                    return ccc
+                cmap7 = CustomCmap([0.00, 0.00, 0.00], [0.02, 0.75, 1.00])
+                cmap8 = CustomCmap([1.00, 0.42, 0.04], [0.02, 0.75, 1.00])
+                cmap = cmap8
 
                 # axarray = np.array([])
                 for iterno in range(3):
@@ -138,14 +159,14 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     max111 = max(data[iterno]['Y_pred_pq'])
                     Y_pred_pq = np.reshape(data[iterno]['Y_pred_pq'], [len(X_test1), len(X_test2)])
                     # im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap2, norm = colors.SymLogNorm(linthresh=1, linscale=1,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
-                    im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap6, norm = colors.SymLogNorm(linthresh=0.2, linscale=0.5,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
+                    im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, 100, cmap=cmap, norm = colors.SymLogNorm(linthresh=0.2, linscale=0.5,vmin=miny_pq, vmax=maxy_pq),alpha=0.8)
 
                     # im1 = ax.contour3D(X_test1, X_test2, Y_pred_pq, cmap=matplotlib.cm.seismic,vmin=miny_pq, vmax=maxy_pq)
                     # axarray = np.append(axarray,ax)
                     if(iterno == 0):
                         ypredmaster = Y_pred_pq
                     if(iterno == 2):
-                        mmm = plt.cm.ScalarMappable(cmap=cmap6)
+                        mmm = plt.cm.ScalarMappable(cmap=cmap)
                         mmm.set_array(ypredmaster)
                         mmm.set_clim(miny_pq, maxy_pq)
                         b1=fig.colorbar(mmm)
@@ -169,7 +190,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     min111 = min(data[iterno]['Y_pred_pq'])
                     max111 = max(data[iterno]['Y_pred_pq'])
                     Y_pred_q = np.reshape(data[iterno]['Y_pred_q'], [len(X_test1), len(X_test2)])
-                    im2 = ax.contour3D(X_test1, X_test2, Y_pred_q,cmap=cmap6, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
+                    im2 = ax.contour3D(X_test1, X_test2, Y_pred_q,cmap=cmap, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
                     # im2 = ax.contour3D(X_test1, X_test2, Y_pred_q, cmap=cmap2,vmin=miny_q, vmax=maxy_q)
                     ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
                     ax.set_xlabel('$x_1$', fontsize = 14)
@@ -178,7 +199,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     if(iterno == 0):
                         ypredmaster = Y_pred_q
                     if(iterno == 2):
-                        mmm = plt.cm.ScalarMappable(cmap=cmap6)
+                        mmm = plt.cm.ScalarMappable(cmap=cmap)
                         mmm.set_array(ypredmaster)
                         mmm.set_clim(miny_q, maxy_q)
                         b2=fig.colorbar(mmm)
@@ -188,7 +209,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     if(iterno !=2):
                         ax.scatter(data[iterno]['robarg'][1], data[iterno]['robarg'][0],  marker = '*', c = "black"  ,s=333, alpha = 1,zorder=1)
                 # b2=fig.colorbar(im2,ax=ax, shrink=0.95,extend='both')
-                fig.suptitle("%s%s. m = %d, n = %d. trainingsize = %s "%(fname, noisestr,m,n,ts), fontsize = 18)
+                # fig.suptitle("%s%s. m = %d, n = %d. trainingsize = %s "%(fname, noisestr,m,n,ts), fontsize = 18)
                 # plt.show()
 
 
@@ -254,10 +275,11 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 if not os.path.exists(folder+"/plots"):
                     os.mkdir(folder+'/plots')
 
-                outfilepng = "%s/plots/Pimap_%s%s_p%d_q%d_ts%s.png"%(folder, fname, noisestr,m,n,ts)
-                plt.savefig(outfilepng)
+                outfile = "%s/plots/Pimap_%s%s_p%d_q%d_ts%s.pdf"%(folder, fname, noisestr,m,n,ts)
+                plt.savefig(outfile)
                 plt.clf()
-                openfileStr += "open "+outfilepng+"; "
+                openfileStr += "open "+outfile+"; "
+                print(openfileStr)
         plt.close('all')
     print(openfileStr)
 
