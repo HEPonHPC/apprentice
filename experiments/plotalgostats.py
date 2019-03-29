@@ -21,7 +21,7 @@ def plotalgostat(folder, desc, plotdim):
     fileArr = np.array([])
     iterationNoArr = np.array([])
 
-    outfilepng = "%s/plots/Palg_%s_%s_from_plotalgostat.png"%(folder, desc,plotdim)
+    outfile = "%s/plots/Palg_%s_%s_from_plotalgostat.pdf"%(folder, desc,plotdim)
 
     totaltimearr = np.array([])
     qptimearr  = np.array([])
@@ -188,8 +188,10 @@ def plotalgostat(folder, desc, plotdim):
         # axes[3][1].legend(prop=fontP)
         # axes[3][1].set_xlabel('n', fontsize = 12)
 
-        fig.suptitle("%s algorithm statistics"%(desc), size=15)
-        plt.savefig(outfilepng)
+        # fig.suptitle("%s algorithm statistics"%(desc), size=15)
+        # from IPython import embed
+        # embed()
+        plt.savefig(outfile)
         # plt.show()
         plt.clf()
 

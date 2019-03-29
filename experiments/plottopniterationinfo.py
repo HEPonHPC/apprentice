@@ -40,7 +40,7 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
 
     for i in range(len(topnindex)):
         index = topnindex[i]
-        outfilepng = "%s/plots/Ptii_%s_topiterinfo_%d.png"%(folder, desc, i+1)
+        outfile = "%s/plots/Ptii_%s_topiterinfo_%d.pdf"%(folder, desc, i+1)
         file = fileArr[index]
         if file:
             with open(file, 'r') as fn:
@@ -136,8 +136,8 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         l2divnnz = l2/float(nnz)
 
 
-        f.suptitle("%s. m = %d, n = %d, ts = %d (%s). \n Total CPU time = %.4f, Total # of iterations = %d.\nl1 = %.4f, l2 = %.4f, linf = %.4f, nnz = %d, l2/nnz = %f"%(desc,m,n,trainingsize,ts,totaltime,len(interationinfo),l1,l2,linf,nnz,l2/nnz), size=15)
-        plt.savefig(outfilepng)
+        # f.suptitle("%s. m = %d, n = %d, ts = %d (%s). \n Total CPU time = %.4f, Total # of iterations = %d.\nl1 = %.4f, l2 = %.4f, linf = %.4f, nnz = %d, l2/nnz = %f"%(desc,m,n,trainingsize,ts,totaltime,len(interationinfo),l1,l2,linf,nnz,l2/nnz), size=15)
+        plt.savefig(outfile)
         plt.clf()
 
 # python plottopniterationinfo.py f20_2x ../benchmarkdata/f20_test.txt f20 10 all
