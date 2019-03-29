@@ -170,9 +170,9 @@ def plotoptiterationmaps(farr,noisearr, ts):
                         mmm.set_array(ypredmaster)
                         mmm.set_clim(miny_pq, maxy_pq)
                         b1=fig.colorbar(mmm)
-                        b1.set_label("$\\frac{p_m(x_1,x_2)}{q_n(x_1,x_2)}$", fontsize = 16)
+                        b1.set_label("$\\frac{p(x_1,x_2)}{q(x_1,x_2)}$", fontsize = 16)
 
-                    ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
+                    # ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
                     ax.set_xlabel('$x_1$', fontsize = 14)
                     ax.set_ylabel('$x_2$', fontsize = 14)
                     # b1 = fig.colorbar(im1,ax=ax, shrink=0.95,extend='both')
@@ -192,7 +192,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     Y_pred_q = np.reshape(data[iterno]['Y_pred_q'], [len(X_test1), len(X_test2)])
                     im2 = ax.contour3D(X_test1, X_test2, Y_pred_q,cmap=cmap, norm = colors.SymLogNorm(linthresh=4, linscale=0.6,vmin=miny_q, vmax=maxy_q))
                     # im2 = ax.contour3D(X_test1, X_test2, Y_pred_q, cmap=cmap2,vmin=miny_q, vmax=maxy_q)
-                    ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
+                    # ax.set_title('Iteration: %d'%(iterno+1), fontsize = 12)
                     ax.set_xlabel('$x_1$', fontsize = 14)
                     ax.set_ylabel('$x_2$', fontsize = 14)
                     # b2 = fig.colorbar(im2,ax=ax, shrink=0.95,extend='both')
@@ -203,7 +203,7 @@ def plotoptiterationmaps(farr,noisearr, ts):
                         mmm.set_array(ypredmaster)
                         mmm.set_clim(miny_q, maxy_q)
                         b2=fig.colorbar(mmm)
-                        b2.set_label("$q_n(x_1,x_2)$", fontsize = 12)
+                        b2.set_label("$q(x_1,x_2)$", fontsize = 12)
 
                     ax.view_init(60, 35)
                     if(iterno !=2):
