@@ -1,6 +1,10 @@
-filename_X = 'f8_noisepct10-1_2x/plots/Cfnsurf_X_f8_noisepct10-1_p4_q3_ts2x.csv';
-filename_Y = 'f8_noisepct10-1_2x/plots/Cfnsurf_Y_f8_noisepct10-1_p4_q3_ts2x.csv';
-zlimit = [-6.3 2.8]
+% filename_X = 'f8_noisepct10-1_2x/plots/Cfnsurf_X_f8_noisepct10-1_p4_q3_ts2x.csv';
+% filename_Y = 'f8_noisepct10-1_2x/plots/Cfnsurf_Y_f8_noisepct10-1_p4_q3_ts2x.csv';
+% zlimit = [-6.3 2.8]
+
+filename_X = 'f8_2x/plots/Cfnsurf_X_f8_p2_q3_ts2x.csv';
+filename_Y = 'f8_2x/plots/Cfnsurf_Y_f8_p2_q3_ts2x.csv';
+zlimit = [-16 2]
 
 % filename_X = 'f8_2x/plots/Cfnsurf_X_f8_p3_q3_ts2x.csv';
 % filename_Y = 'f8_2x/plots/Cfnsurf_Y_f8_p3_q3_ts2x.csv';
@@ -45,16 +49,27 @@ for index = 1:4
   s = surf(X11,X22,Y,'FaceAlpha',0.5);
   hold on
   colormap(hsv)
-  if (index == 4)
-    colorbar()
-  end
-
+  xlabel('x_{1}','Interpreter','tex','FontSize',17)
+  ylabel('x_{2}','Interpreter','tex','FontSize',17)
+  zlabel('log_{10}(\Delta_{r})','Interpreter','tex','FontSize',17)
+  a = get(gca,'XTickLabel');
+  b = get(gca,'YTickLabel');
+  c = get(gca,'ZTickLabel');
+  set(gca,'XTickLabel',a,'fontsize',14)
+  set(gca,'YTickLabel',b,'fontsize',14)
+  set(gca,'ZTickLabel',c,'fontsize',14)
   caxis(zlimit)
-  xlabel('x1')
-  ylabel('x2')
   xlim([-1 1])
   ylim([-1 1])
   zlim(zlimit)
+
+  if (index == 4)
+    cb = colorbar()
+    set(groot,'defaultTextInterpreter','latex')
+    ylabel(cb, 'log_{10}(\Delta_{r})','FontSize',17)
+  end
+
+
   % view(90,0)
   % surf(X1, X2, Z,'FaceColor', [1.0 0.5 0.0], 'EdgeColor', 'none','FaceAlpha',0.3)
   % view(3); camlight; axis vis3d
