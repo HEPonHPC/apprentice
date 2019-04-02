@@ -239,7 +239,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                 s+= '%'+" %s %s\n"%(fname,pq)
                 s+= "\\multirow{4}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
                 sspecific+= '%'+" %s %s\n"%(fname,pq)
-                sspecific += "\\multirow{3}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
+                sspecific += "\\multirow{4}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
                 for noise in noisearr:
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
