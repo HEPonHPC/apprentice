@@ -58,9 +58,13 @@ def plot2Dsurface(fname, noise, m, n, ts, fndesc, papp_or_no_papp):
     if(len(box) != 2):
         print("{} cannot handle dim != 2. Box len was {}".format(sys.argv[0],len(box)))
         sys.exit(1)
-    npoints = 100
+    npoints = 250
     X_test1 = np.linspace(box[0][0], box[0][1], num=npoints)
     X_test2 = np.linspace(box[1][0], box[1][1], num=npoints)
+
+    outx1 = "%s/plots/Cfnsurf_X_%s%s_p%s_q%s_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+    outy = "%s/plots/Cfnsurf_Y_%s%s_p%s_q%s_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+
 
     rappsipfile = "%s/out/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,m,n,ts)
     rappfile = "%s/outra/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,m,n,ts)
@@ -107,8 +111,11 @@ def plot2Dsurface(fname, noise, m, n, ts, fndesc, papp_or_no_papp):
             for y in X_test2:
                 Y_pred_papp.append(papp([x,y]))
 
-
-
+    np.savetxt(outx1,np.stack((X_test1,X_test2),axis=1), delimiter=",")
+    Y_pred_papp_diff = np.absolute(np.array(Y_pred_papp)-np.array(Y_test))
+    Y_pred_rapp_diff = np.absolute(np.array(Y_pred_rapp)-np.array(Y_test))
+    Y_pred_rappsip_diff = np.absolute(np.array(Y_pred_rappsip)-np.array(Y_test))
+    np.savetxt(outy,np.stack((np.ma.log10(Y_pred_papp_diff),np.ma.log10(Y_pred_rapp_diff),np.ma.log10(Y_pred_rappsip_diff)),axis=1), delimiter=",")
 
     minyval = np.inf
     maxyval = 0

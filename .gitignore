@@ -9,4 +9,5 @@ dist
 *.log
 *.png
 *.pgf
+*.csv
 *.299445.*

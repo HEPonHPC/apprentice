@@ -50,6 +50,8 @@ def plotoptiterationmaps(farr,noisearr, ts):
             if not os.path.exists(folder):
                 print("Folder '{}' not found.".format(folder))
                 sys.exit(1)
+            if not os.path.exists(folder+"/plots"):
+                os.mkdir(folder+'/plots')
             filelist = np.array(glob.glob(folder+"/out/*.json"))
             filelist = np.sort(filelist)
 
@@ -73,6 +75,11 @@ def plotoptiterationmaps(farr,noisearr, ts):
                 m = datastore["m"]
                 n = datastore["n"]
 
+                outx1 = "%s/plots/Cimap_X_%s%s_p%d_q%d_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+                outy_pq = "%s/plots/Cimap_Y_pq_%s%s_p%d_q%d_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+                outy_q = "%s/plots/Cimap_Y_q_%s%s_p%d_q%d_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+                polex  = "%s/plots/Cimap_pole_x_%s%s_p%d_q%d_ts%s.csv"%(folder, fname, noisestr,m,n,ts)
+
                 for iterno in range(3):
                     data[iterno] = {}
                     if file:
@@ -81,7 +88,9 @@ def plotoptiterationmaps(farr,noisearr, ts):
                     ii = datastore["iterationinfo"]
                     datastore['pcoeff'] = ii[iterno]['pcoeff']
                     datastore['qcoeff'] = ii[iterno]['qcoeff']
-                    data[iterno]['robarg'] = ii[iterno]['robOptInfo']['robustArg']
+                    iro = ii[iterno]['robOptInfo']['robustArg']
+                    iro.append(ii[iterno]['robOptInfo']['robustObj'])
+                    data[iterno]['robarg'] = iro
 
                     rappsip = RationalApproximationSIP(datastore)
                     Y_pred_pq = []
@@ -114,6 +123,11 @@ def plotoptiterationmaps(farr,noisearr, ts):
                         miny_q = mmm
                     data[iterno]['Y_pred_q'] = Y_pred_q
 
+                    np.savetxt(outx1,np.stack((X_test1,X_test2),axis=1), delimiter=",")
+
+                np.savetxt(outy_pq,np.stack((data[0]['Y_pred_pq'],data[1]['Y_pred_pq'],data[2]['Y_pred_pq']),axis=1), delimiter=",")
+                np.savetxt(outy_q,np.stack((data[0]['Y_pred_q'],data[1]['Y_pred_q'],data[2]['Y_pred_q']),axis=1), delimiter=",")
+                np.savetxt(polex,np.stack((data[0]['robarg'],data[1]['robarg'],data[2]['robarg']),axis=1), delimiter=",")
 
                 import matplotlib
                 import matplotlib.colors as colors
