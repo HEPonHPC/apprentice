@@ -430,8 +430,8 @@ def plotoptdegreecompsubplots(farr, noisearr,ts):
         ]
     }
     mpl.rcParams.update(pgf_with_custom_preamble)
-    lx="$\\log_{10}(\\alpha(M) + \\alpha(N))$"
-    ly="$\\log_{10}(\\Delta_{MN})$"
+    lx="$\\log_{10}(\\eta_r)$"
+    ly="$\\log_{10}(\\Delta_{r})$"
     logy=True
     logx=True
     f, axarr = plt.subplots(2,2, figsize=(15,8))
