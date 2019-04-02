@@ -237,9 +237,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
             for pq in results[fname][noisearr[0]].keys():
                 sspecific = ""
                 s+= '%'+" %s %s\n"%(fname,pq)
-                s+= "\\multirow{3}{*}{\\ref{fn:%s}}&$|W_t|$"%(fname)
+                s+= "\\multirow{4}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
                 sspecific+= '%'+" %s %s\n"%(fname,pq)
-                sspecific += "\\multirow{3}{*}{\\ref{fn:%s}}&$|W_t|$"%(fname)
+                sspecific += "\\multirow{3}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
                 for noise in noisearr:
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
@@ -249,10 +249,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         tvalstr = str(int(tval))
                         s+="&%s"%(results[fname][noise][pq][tvalstr]["rappsip"])
                         sspecific+="&%s"%(results[fname][noise][pq][tvalstr]["rappsip"])
-                s+="\\\\\\cline{2-14}\n"
-                s+="&$E_t$"
-                sspecific+="\\\\\\cline{2-14}\n"
-                sspecific+="&$E_t$"
+                s+="\\\\\\cline{2-10}\n"
+                s+="&$E_{r,t}$"
+                sspecific+="\\\\\\cline{2-10}\n"
+                sspecific+="&$E_{r,t}$"
                 for noise in noisearr:
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
@@ -270,10 +270,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         else:
                             s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
                             sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-                s+="\\\\\\cline{2-14}\n"
-                s+="&$E'_t$"
-                sspecific+="\\\\\\cline{2-14}\n"
-                sspecific+="&$E'_t$"
+                s+="\\\\\\cline{2-10}\n"
+                s+="&$E'_{r,t}$"
+                sspecific+="\\\\\\cline{2-10}\n"
+                sspecific+="&$E'_{r,t}$"
                 for noise in noisearr:
                     for tval in thresholdvalarr:
                         tvalstr = str(int(tval))
@@ -291,9 +291,27 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         else:
                             s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
                             sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
-                s+="\\\\\\cline{2-14}\n"
+                s+="\\\\\\cline{2-10}\n"
+                s+="&$\\Delta_r$"
+                sspecific+="\\\\\\cline{2-10}\n"
+                sspecific+="&$\\Delta_r$"
+                for noise in noisearr:
+                    tvalstr = str(int(thresholdvalarr[0]))
+                    if(results[fname][noise][pq][tvalstr]["l2allrapp"]==0):
+                        s+="&\\multicolumn{2}{|c|}{0}"
+                        sspecific+="&\\multicolumn{2}{|c|}{0}"
+                    else:
+                        s+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                        sspecific+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                    if(results[fname][noise][pq][tvalstr]["l2allrappsip"]==0):
+                        s+="&\\multicolumn{2}{|c|}{0}"
+                        sspecific+="&\\multicolumn{2}{|c|}{0}"
+                    else:
+                        s+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                        sspecific+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                s+="\\\\\\cline{2-10}\n"
                 s+="\\hline\n\n"
-                sspecific+="\\\\\\cline{2-14}\n"
+                sspecific+="\\\\\\cline{2-10}\n"
                 sspecific+="\\hline\n\n"
                 if (fname=='f3' and pq == "p4_q3")\
                     or (fname=='f5' and pq == "p2_q3")\
