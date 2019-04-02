@@ -73,28 +73,28 @@ def plotalgostat(folder, desc, plotdim):
         # 3 y axis from https://matplotlib.org/gallery/ticks_and_spines/multiple_yaxis_with_spines.html
         import matplotlib.pyplot as plt
         fig, host = plt.subplots()
-        fig.subplots_adjust(right=0.75)
+        # fig.subplots_adjust(right=0.75)
 
         par1 = host.twinx()
-        par2 = host.twinx()
+        # par2 = host.twinx()
 
-        par2.spines["right"].set_position(("axes", 1.2))
-        make_patch_spines_invisible(par2)
-        par2.spines["right"].set_visible(True)
+        # par2.spines["right"].set_position(("axes", 1.2))
+        # make_patch_spines_invisible(par2)
+        # par2.spines["right"].set_visible(True)
 
         maxtotaltimeperq = np.zeros(maxn+1, dtype=np.float64)
         for i in range(len(narr)):
             n = int(narr[i])
             if(totaltimearr[i] > maxtotaltimeperq[n]):
                 maxtotaltimeperq[n] = totaltimearr[i]
-        p1, = host.plot(range(maxn+1),np.ma.log10(maxtotaltimeperq),'b', label="log$_{10}$(CPU time in sec)")
+        p1, = host.plot(range(maxn+1),np.ma.log10(maxtotaltimeperq),'b', label="log$_{10}$(total time in sec)")
 
         maxqptimeperq = np.zeros(maxn+1, dtype=np.float64)
         for i in range(len(narr)):
             n = int(narr[i])
             if(qptimearr[i] > maxqptimeperq[n]):
                 maxqptimeperq[n] = qptimearr[i]
-        p2, = par1.plot(range(maxn+1),np.ma.log10(maxqptimeperq), "r--", label="log$_{10}$(fit time in sec)")
+        p2, = host.plot(range(maxn+1),np.ma.log10(maxqptimeperq), "r--", label="log$_{10}$(fit time in sec)")
 
         maxiterpern = np.zeros(maxn+1)
         for n in range(1,maxn+1):
@@ -103,26 +103,26 @@ def plotalgostat(folder, desc, plotdim):
                 if(narr[i] == n):
                     iterarr = np.append(iterarr,noofitersarr[i])
             maxiterpern[n] = np.max(iterarr)
-        p3, = par2.plot(range(maxn+1),np.ma.log10(maxiterpern), "g-.", label="log$_{10}$(no. of iterations)")
+        p3, = par1.plot(range(maxn+1),np.ma.log10(maxiterpern), "g-.", label="log$_{10}$(no. of iterations)")
 
         # host.set_xlim(0, 2)
         # host.set_ylim(0, 2)
         # par1.set_ylim(0, 4)
         # par2.set_ylim(1, 65)
 
-        host.set_xlabel("$N$ (Degree of denominator)")
-        host.set_ylabel("log$_{10}$(CPU time in sec)")
-        par1.set_ylabel("log$_{10}$(fit time in sec)")
-        par2.set_ylabel("log$_{10}$(no. of iterations)")
+        host.set_xlabel("$N$ (degree of denominator)")
+        host.set_ylabel("log$_{10}$(time in sec)")
+        # par1.set_ylabel("log$_{10}$(fit time in sec)")
+        par1.set_ylabel("log$_{10}$(no. of iterations)")
 
-        host.yaxis.label.set_color(p1.get_color())
-        par1.yaxis.label.set_color(p2.get_color())
-        par2.yaxis.label.set_color(p3.get_color())
+        # host.yaxis.label.set_color(p1.get_color())
+        # par1.yaxis.label.set_color(p3.get_color())
+        # par2.yaxis.label.set_color(p3.get_color())
 
         tkw = dict(size=4, width=1.5)
-        host.tick_params(axis='y', colors=p1.get_color(), **tkw)
-        par1.tick_params(axis='y', colors=p2.get_color(), **tkw)
-        par2.tick_params(axis='y', colors=p3.get_color(), **tkw)
+        # host.tick_params(axis='y', colors=p1.get_color(), **tkw)
+        # par1.tick_params(axis='y', colors=p2.get_color(), **tkw)
+        # par2.tick_params(axis='y', colors=p3.get_color(), **tkw)
         host.tick_params(axis='x', **tkw)
 
         lines = [p1, p2, p3]
