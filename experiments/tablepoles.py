@@ -301,14 +301,14 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         s+="&\\multicolumn{2}{|c|}{0}"
                         sspecific+="&\\multicolumn{2}{|c|}{0}"
                     else:
-                        s+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
-                        sspecific+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                        s+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
+                        sspecific+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
                     if(results[fname][noise][pq][tvalstr]["l2allrappsip"]==0):
                         s+="&\\multicolumn{2}{|c|}{0}"
                         sspecific+="&\\multicolumn{2}{|c|}{0}"
                     else:
-                        s+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-                        sspecific+="&\\multicolumn{2}{|c|}{&%.1E}"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
+                        s+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
+                        sspecific+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
                 s+="\\\\\\cline{2-10}\n"
                 s+="\\hline\n\n"
                 sspecific+="\\\\\\cline{2-10}\n"
@@ -322,6 +322,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     or (fname=='f18' and pq == "p2_q3")\
                     or (fname=='f19' and pq == "p3_q3"):
                     print(sspecific)
+                    exit(1)
     elif(table_or_latex =="latexall"):
         for fname in farr:
             for pq in results[fname][noisearr[0]].keys():
