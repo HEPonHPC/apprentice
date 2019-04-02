@@ -112,9 +112,42 @@ def plot2Dsurface(fname, noise, m, n, ts, fndesc, papp_or_no_papp):
                 Y_pred_papp.append(papp([x,y]))
 
     np.savetxt(outx1,np.stack((X_test1,X_test2),axis=1), delimiter=",")
+
+    def removezeros(YYY):
+        for num,y in enumerate(YYY):
+            if(y==0):
+                # print(y, num)
+                lower = 0
+                upper = len(YYY)-1
+
+                index = num
+                index -=1
+                while(index >= 0):
+                    if(YYY[index]!=0):
+                        lower = index
+                        break
+                    index -=1
+
+                index = num
+                index +=1
+                while(index < len(YYY)):
+                    if(YYY[index]!=0):
+                        upper = index
+                        break
+                    index +=1
+                YYY[num] = (YYY[lower] + YYY[upper])/2
+                # print("became")
+                # print(YYY[num], num)
+        return YYY
     Y_pred_papp_diff = np.absolute(np.array(Y_pred_papp)-np.array(Y_test))
+    Y_pred_papp_diff = removezeros(Y_pred_papp_diff)
+
     Y_pred_rapp_diff = np.absolute(np.array(Y_pred_rapp)-np.array(Y_test))
+    Y_pred_rapp_diff = removezeros(Y_pred_rapp_diff)
+
     Y_pred_rappsip_diff = np.absolute(np.array(Y_pred_rappsip)-np.array(Y_test))
+    Y_pred_rappsip_diff = removezeros(Y_pred_rappsip_diff)
+
     np.savetxt(outy,np.stack((np.ma.log10(Y_pred_papp_diff),np.ma.log10(Y_pred_rapp_diff),np.ma.log10(Y_pred_rappsip_diff)),axis=1), delimiter=",")
 
     minyval = np.inf
