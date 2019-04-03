@@ -16,8 +16,15 @@ for iterno = 1:3
   Y_pq = reshape(Y_pq,numel(X1),numel(X2))
   s = surf(X11,X22,Y_pq,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
   hold on
-  xlabel('x1')
-  ylabel('x2')
+  xlabel('x_{1}','Interpreter','tex','FontSize',17)
+  ylabel('x_{2}','Interpreter','tex','FontSize',17)
+  zlabel('$\frac{p(x_1,x_2)}{q(x_1,x_2)}$','Interpreter','latex','FontSize',17)
+  a = get(gca,'XTickLabel');
+  b = get(gca,'YTickLabel');
+  c = get(gca,'ZTickLabel');
+  set(gca,'XTickLabel',a,'fontsize',14)
+  set(gca,'YTickLabel',b,'fontsize',14)
+  set(gca,'ZTickLabel',c,'fontsize',14)
   if(iterno ~= 3)
     sc = scatter3(polex(1, iterno),polex(2, iterno),polex(3, iterno),400,'black','c','filled')
     uistack(s,'bottom');
@@ -35,8 +42,15 @@ for iterno = 1:3
   Y_q = reshape(Y_q,numel(X1),numel(X2))
   s = surf(X11,X22,Y_q,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
   hold on
-  xlabel('x1')
-  ylabel('x2')
+  xlabel('x_{1}','Interpreter','tex','FontSize',17)
+  ylabel('x_{2}','Interpreter','tex','FontSize',17)
+  zlabel('$q(x_1,x_2)$','Interpreter','latex','FontSize',17)
+  a = get(gca,'XTickLabel');
+  b = get(gca,'YTickLabel');
+  c = get(gca,'ZTickLabel');
+  set(gca,'XTickLabel',a,'fontsize',14)
+  set(gca,'YTickLabel',b,'fontsize',14)
+  set(gca,'ZTickLabel',c,'fontsize',14)
   if(iterno ~= 3)
     sc = scatter3(polex(1, iterno),polex(2, iterno),polex(3, iterno),400,'black','c','filled')
     uistack(sc,'top');
