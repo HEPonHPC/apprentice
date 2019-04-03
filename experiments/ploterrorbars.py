@@ -434,7 +434,7 @@ def ploterrorbars():
     ra1 = []
     rasip1 = []
 
-    fff = ['f3','f5','f8','f13','f14','f18','f19','f22']
+    fff = ['f3','f5','f13','f14','f18','f19','f22']
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
