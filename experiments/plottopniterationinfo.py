@@ -85,6 +85,9 @@ def plottopniterationinfo(folder,testfile, desc,topn, bottom_or_all):
         # f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
         f, axes = plt.subplots(2, sharex=True, figsize=(12,12))
         # p0, = axes[0].plot(Xvals,np.ma.log10(noofmultistarts),'g')
+        tmp = axes[0]
+        axes[0] = axes[1]
+        axes[1] = tmp
         msax = axes[0].twinx()
         p01, = axes[0].plot(Xvals,np.ma.log10(mstime),'r--',label="multistart time")
         p02, = msax.plot(Xvals,robobj,'b-')
