@@ -434,7 +434,7 @@ def ploterrorbars():
     ra1 = []
     rasip1 = []
 
-    fff = ['f3','f5','f13','f14','f18','f19','f22']
+    fff = ['f3','f5','f8','f13','f14','f18','f19','f22']
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
@@ -554,8 +554,8 @@ def ploterrorbars():
     p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
     p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
 
-    ax1.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-    ax2.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
+    ax1.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}~', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
+    ax2.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}~', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
 
     ax1.set_xticks(X111 + 2*width / 2)
     ax2.set_xticks(X111 + 2*width / 2)
