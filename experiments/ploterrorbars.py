@@ -554,8 +554,8 @@ def ploterrorbars():
     p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
     p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
 
-    ax1.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}~', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-    ax2.legend((p1[0], p2[0],p3[0]), ('$r_{N=0}$ using Algorithm \\ref{A:Polyak}~', '$r$ using Algorithm \\ref{ALG:MVVandQR}','$r$ using Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
+    ax1.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
+    ax2.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
 
     ax1.set_xticks(X111 + 2*width / 2)
     ax2.set_xticks(X111 + 2*width / 2)

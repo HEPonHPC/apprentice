@@ -35,7 +35,13 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
             optm = optjsondatastore['optdeg']['m']
             optn = optjsondatastore['optdeg']['n']
-
+            break
+        for noise in noisearr:
+            results[fname][noise] = {}
+            noisestr = ""
+            if(noise!="0"):
+                noisestr = "_noisepct"+noise
+            folder = "%s%s_%s"%(fname,noisestr,ts)
             rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
             rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
             pafile = "%s/outpa/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
@@ -57,6 +63,10 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                     datastore = json.load(fn)
             rappsiptime = datastore['log']['fittime']
             rdof = int(datastore['M'] + datastore['N'])
+            rnoiters = len(datastore['iterationinfo'])
+            dim = datastore['dim']
+            rpnnl = datastore['M'] - (dim+1)
+            rqnnl = datastore['N'] - (dim+1)
 
 
             if rappfile:
@@ -70,7 +80,9 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             papptime = datastore['log']['fittime']
             pdof = int(datastore['trainingsize']/2)
 
-            results[fname][noise] = {"rapp":rapptime, "rappsip":rappsiptime, "papp":papptime,'pdof':pdof,'rdof':rdof}
+            results[fname][noise] = {"rapp":rapptime, "rappsip":rappsiptime,
+            "papp":papptime,'pdof':pdof,'rdof':rdof,'rnoiters':rnoiters,
+            'rpnnl':rpnnl,'rqnnl':rqnnl}
 
 
     # from IPython import embed
@@ -93,22 +105,31 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             for num,noise in enumerate(noisearr):
                 if(num==0):
                     s += "\t\t%d\t%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
-                s += "\t\t%.4f"%(results[fname][noise]["papp"])
+                    continue
+                # s += "\t\t%.4f"%(results[fname][noise]["papp"])
+                # s+="\t"
+                # s += "\t%.4f"%(results[fname][noise]["rapp"])
+                # s+="\t"
+                s += "\t%.2f"%(results[fname][noise]["rappsip"])
                 s+="\t"
-                s += "\t%.4f"%(results[fname][noise]["rapp"])
+                s += "\t%d"%(results[fname][noise]["rnoiters"])
                 s+="\t"
-                s += "\t%.4f"%(results[fname][noise]["rappsip"])
+                s += "\t%d"%(results[fname][noise]["rpnnl"])
                 s+="\t"
+                s += "\t%d"%(results[fname][noise]["rqnnl"])
+                s+="\t"
+                # break
             s+="\n"
     elif(table_or_latex =="latex"):
         for fname in farr:
             s += "\\ref{fn:%s}"%(fname)
             for num,noise in enumerate(noisearr):
                 if(num==0):
-                    s+="&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
+                    s+="&%d&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"],results[fname][noise]["rqnnl"])
                 s += "&%.3f"%(results[fname][noise]["papp"])
                 s += "&%.3f"%(results[fname][noise]["rapp"])
                 s += "&%.3f"%(results[fname][noise]["rappsip"])
+                s += "&%d"%(results[fname][noise]["rnoiters"])
             s+="\\\\\hline\n"
 
     print(s)
