@@ -26,9 +26,7 @@ def runsinc(m,n,ts):
     seed = seed1
 
     noisestr = ""
-    m=2
-    n=3
-
+    
     folder = "%s%s_%s/sincrun"%(fname,noisestr,ts)
     if not os.path.exists(folder):
         os.mkdir(folder)
