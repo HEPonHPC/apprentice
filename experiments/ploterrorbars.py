@@ -474,6 +474,7 @@ def ploterrorbars():
         optm = optjsondatastore['optdeg']['m']
         optn = optjsondatastore['optdeg']['n']
         pq = "p%d_q%d"%(optm,optn)
+        print(fname,noisestr,optm,optn)
         rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
         rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
         pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
@@ -516,7 +517,7 @@ def ploterrorbars():
         rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
         rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
         pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-        print(fname,optm,optn)
+        print(fname,noisestr,optm,optn)
         if not os.path.exists(rappsipfile):
             print("rappsipfile %s not found"%(rappsipfile))
             exit(1)
