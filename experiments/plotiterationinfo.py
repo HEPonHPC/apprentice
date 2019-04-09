@@ -4,7 +4,7 @@ from sklearn.model_selection import KFold
 from apprentice import tools, readData
 import os
 
-def plotiterationinfo(fname,noise, m,n,ts):
+def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     # import glob
     import json
     # import re
@@ -43,6 +43,9 @@ def plotiterationinfo(fname,noise, m,n,ts):
     lsqobj = np.array([])
 
     interationinfo = datastore['iterationinfo']
+    robargdata = {0:[],1:[],2:[]}
+
+
     for num,iter in enumerate(interationinfo):
         roboinfo = iter["robOptInfo"]["info"]
         noofmultistarts = np.append(noofmultistarts,roboinfo[len(roboinfo)-1]["log"]["noRestarts"])
@@ -52,7 +55,10 @@ def plotiterationinfo(fname,noise, m,n,ts):
         lsqobj = np.append(lsqobj,iter["leastSqObj"])
         print(str(num))
         print(roboinfo[0]["robustArg"])
-
+        if(plot == "yes"):
+            for i in range(3):
+                robargdata[i].append(roboinfo[0]["robustArg"][i])
+    print(robargdata)
     Xvals = range(1,len(interationinfo)+1)
     import matplotlib.pyplot as plt
     # f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
@@ -97,13 +103,31 @@ def plotiterationinfo(fname,noise, m,n,ts):
     print("open %s;"%(outfile))
     plt.clf()
 
+    if(plot=="yes"):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        fig = plt.figure(figsize=(15,10))
+
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+        ax.scatter(robargdata[0],robargdata[1],robargdata[2])
+        ax.set_xlabel('$x1$', fontsize = 12)
+        ax.set_ylabel('$x2$', fontsize = 12)
+        ax.set_zlabel('$x3$', fontsize = 12)
+        plt.show()
+
+
+
 # python plottopniterationinfo.py f20_2x ../benchmarkdata/f20_test.txt f20 10 all
 
 if __name__ == "__main__":
     import os, sys
-    if len(sys.argv)!=6:
-        print("Usage: {} fname noise m n ts".format(sys.argv[0]))
+    if len(sys.argv)!=6 and len(sys.argv)!=7:
+        print("Usage: {} fname noise m n ts [plot(yes)]".format(sys.argv[0]))
         sys.exit(1)
+    if(len(sys.argv)==7):
+        plot = sys.argv[6]
+    else:
+        plot = "no"
 
-    plotiterationinfo(sys.argv[1], sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])
+    plotiterationinfo(sys.argv[1], sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5], plot)
 ###########

@@ -132,6 +132,11 @@ def f23(P):
     x1, x2, x3 = P
     return (np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3))/((x1**2-1)*(x2**2-1))
 
+def f24(P):
+    # Box for P [-0.95, 0.95)
+    x1, x2 = P
+    return (np.arctanh(x1)+np.arctanh(x2))/((x1**2-1)*(x2**2-1))
+
 def mkRes(X_train, X_test, order, fn):
     import pyrapp
     if fn==1:
@@ -200,6 +205,9 @@ def mkRes(X_train, X_test, order, fn):
     elif fn==23:
         Y_train = [f23(x) for x in X_train]
         Y_test  = [f23(x) for x in X_test]
+    elif fn==24:
+        Y_train = [f24(x) for x in X_train]
+        Y_test  = [f24(x) for x in X_test]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 

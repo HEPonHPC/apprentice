@@ -48,6 +48,13 @@ for i in 23; do if [ ! -e "../f${i}_noisepct10-6.txt" ]; then python mkBenchmark
 for i in 23; do if [ ! -e "../f${i}_noisepct10-9.txt" ]; then python mkBenchmarkData.py -o ../f${i}_noisepct10-9.txt             -d 3 -n 1000   -r $(bc -l <<< "10 ^(-9)")  -f ${i} --xmin -0.95 --xmax 0.95; fi done
 for i in 23; do if [ ! -e "../f${i}_test.txt" ];         then python mkBenchmarkData.py -o ../f${i}_test.txt           -s 9999   -d 3 -n 100000 -r 0                        -f ${i} --xmin -0.95 --xmax 0.95; fi done
 
+for i in 24; do if [ ! -e "../f${i}.txt" ];              then python mkBenchmarkData.py -o ../f${i}.txt                          -d 2 -n 1000   -r 0                        -f ${i} --xmin -0.95 --xmax 0.95; fi done
+for i in 24; do if [ ! -e "../f${i}_noisepct10-1.txt" ]; then python mkBenchmarkData.py -o ../f${i}_noisepct10-1.txt             -d 2 -n 1000   -r $(bc -l <<< "10 ^(-1)")  -f ${i} --xmin -0.95 --xmax 0.95; fi done
+for i in 24; do if [ ! -e "../f${i}_noisepct10-3.txt" ]; then python mkBenchmarkData.py -o ../f${i}_noisepct10-3.txt             -d 2 -n 1000   -r $(bc -l <<< "10 ^(-3)")  -f ${i} --xmin -0.95 --xmax 0.95; fi done
+for i in 24; do if [ ! -e "../f${i}_noisepct10-6.txt" ]; then python mkBenchmarkData.py -o ../f${i}_noisepct10-6.txt             -d 2 -n 1000   -r $(bc -l <<< "10 ^(-6)")  -f ${i} --xmin -0.95 --xmax 0.95; fi done
+for i in 24; do if [ ! -e "../f${i}_noisepct10-9.txt" ]; then python mkBenchmarkData.py -o ../f${i}_noisepct10-9.txt             -d 2 -n 1000   -r $(bc -l <<< "10 ^(-9)")  -f ${i} --xmin -0.95 --xmax 0.95; fi done
+for i in 24; do if [ ! -e "../f${i}_test.txt" ];         then python mkBenchmarkData.py -o ../f${i}_test.txt           -s 9999   -d 2 -n 100000 -r 0                        -f ${i} --xmin -0.95 --xmax 0.95; fi done
+
 for i in 19; do if [ ! -e "../f${i}.txt" ];                 then python mkBenchmarkData.py -c -o ../f${i}.txt                         -d 4 -n 1000   -r 0                         -f ${i}; fi done
 for i in 19; do if [ ! -e "../f${i}_noisepct10-1.txt" ];    then python mkBenchmarkData.py -c -o ../f${i}_noisepct10-1.txt            -d 4 -n 1000   -r $(bc -l <<< "10 ^(-1)")   -f ${i}; fi done
 for i in 19; do if [ ! -e "../f${i}_noisepct10-3.txt" ];    then python mkBenchmarkData.py -c -o ../f${i}_noisepct10-3.txt            -d 4 -n 1000   -r $(bc -l <<< "10 ^(-3)")   -f ${i}; fi done
