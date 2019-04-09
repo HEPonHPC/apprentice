@@ -43,7 +43,11 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     lsqobj = np.array([])
 
     interationinfo = datastore['iterationinfo']
-    robargdata = {0:[],1:[],2:[]}
+    if(plot == "yes_2"):
+        robargdata = {0:[],1:[]}
+    elif(plot == "yes_3"):
+        robargdata = {0:[],1:[],2:[]}
+
 
 
     for num,iter in enumerate(interationinfo):
@@ -55,10 +59,13 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
         lsqobj = np.append(lsqobj,iter["leastSqObj"])
         print(str(num))
         print(roboinfo[0]["robustArg"])
-        if(plot == "yes"):
+        if(plot == "yes_3"):
             for i in range(3):
                 robargdata[i].append(roboinfo[0]["robustArg"][i])
-    print(robargdata)
+        elif(plot == "yes_2"):
+            for i in range(2):
+                robargdata[i].append(roboinfo[0]["robustArg"][i])
+    
     Xvals = range(1,len(interationinfo)+1)
     import matplotlib.pyplot as plt
     # f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
@@ -103,8 +110,8 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     print("open %s;"%(outfile))
     plt.clf()
 
-    if(plot=="yes"):
-        import matplotlib.pyplot as plt
+    if(plot=="yes_3"):
+
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure(figsize=(15,10))
 
@@ -113,8 +120,18 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
         ax.set_xlabel('$x1$', fontsize = 12)
         ax.set_ylabel('$x2$', fontsize = 12)
         ax.set_zlabel('$x3$', fontsize = 12)
-        plt.show()
-
+        outfile = "%s/plots/Piterinfo_robarg_%s%s_p%s_q%s_ts%s.pdf"%(folder, fname,noisestr,m,n,ts )
+        plt.savefig(outfile)
+        print("open %s;"%(outfile))
+        # plt.show()
+    elif(plot == "yes_2"):
+        plt.scatter(robargdata[0],robargdata[1])
+        plt.xlabel('$x1$', fontsize = 12)
+        plt.ylabel('$x2$', fontsize = 12)
+        outfile = "%s/plots/Piterinfo_robarg_%s%s_p%s_q%s_ts%s.pdf"%(folder, fname,noisestr,m,n,ts )
+        plt.savefig(outfile)
+        print("open %s;"%(outfile))
+        # plt.show()
 
 
 # python plottopniterationinfo.py f20_2x ../benchmarkdata/f20_test.txt f20 10 all
@@ -122,7 +139,7 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
 if __name__ == "__main__":
     import os, sys
     if len(sys.argv)!=6 and len(sys.argv)!=7:
-        print("Usage: {} fname noise m n ts [plot(yes)]".format(sys.argv[0]))
+        print("Usage: {} fname noise m n ts [plot(yes_2 or yes_3)]".format(sys.argv[0]))
         sys.exit(1)
     if(len(sys.argv)==7):
         plot = sys.argv[6]
