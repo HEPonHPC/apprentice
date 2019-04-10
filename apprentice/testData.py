@@ -128,7 +128,9 @@ def f22(P):
     return x1**2 + x2**2 + x1*x2 - x2 + 1
 
 def f23(P):
-    # Box for P [-0.95, 0.95)
+    # Box for P (-0.95, 0.95) f23
+    # Box for P (-0.999999, 0.999999) f23-1
+    # Box for P (-0.9, 0.9) f23-2
     x1, x2, x3 = P
     return (np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3))/((x1**2-1)*(x2**2-1))
 
