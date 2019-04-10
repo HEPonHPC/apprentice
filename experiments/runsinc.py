@@ -51,9 +51,9 @@ def runsinc(m,n,ts):
                     val = []
                     for i in range(dim):
                         if(binArr[i] == 0):
-                            val.append(minarr[i])
+                            val.append(lb)
                         else:
-                            val.append(maxarr[i])
+                            val.append(ub)
                     X[d] = val
                 Y = [sinc(x,dim) for x in X]
                 Y = np.atleast_2d(np.array(Y))
