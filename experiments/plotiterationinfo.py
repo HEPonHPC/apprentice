@@ -35,6 +35,7 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     ts = datastore['trainingscale']
     trainingsize =datastore['trainingsize']
     totaltime = datastore['log']['fittime']
+    iterationinfono = len(datastore['iterationinfo'])
 
     noofmultistarts = np.array([])
     mstime = np.array([])
@@ -43,10 +44,7 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     lsqobj = np.array([])
 
     interationinfo = datastore['iterationinfo']
-    if(plot == "yes_2"):
-        robargdata = {0:[],1:[]}
-    elif(plot == "yes_3"):
-        robargdata = {0:[],1:[],2:[]}
+    robargdata = {0:[],1:[],2:[]}
 
 
 
@@ -59,13 +57,10 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
         lsqobj = np.append(lsqobj,iter["leastSqObj"])
         print(str(num))
         print(roboinfo[0]["robustArg"])
-        if(plot == "yes_3"):
+        if(plot == "yes_3" or plot == "yes_2"):
             for i in range(3):
                 robargdata[i].append(roboinfo[0]["robustArg"][i])
-        elif(plot == "yes_2"):
-            for i in range(2):
-                robargdata[i].append(roboinfo[0]["robustArg"][i])
-    
+
     Xvals = range(1,len(interationinfo)+1)
     import matplotlib.pyplot as plt
     # f, axes = plt.subplots(4, sharex=True,figsize=(12,12))
@@ -116,22 +111,79 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
         fig = plt.figure(figsize=(15,10))
 
         ax = fig.add_subplot(1, 1, 1, projection='3d')
-        ax.scatter(robargdata[0],robargdata[1],robargdata[2])
+        for num in range(len(robargdata[0])):
+            if(abs(robargdata[0][num]) == 1 and abs(robargdata[1][num]) == 1):
+                ax.scatter(robargdata[0][num],robargdata[1][num], robargdata[2][num], marker='o',c='blue',s=1000,alpha = 1.0)
+            else:
+                ax.scatter(robargdata[0][num],robargdata[1][num],robargdata[2][num], marker='x',c='red',s=200,alpha = 1.0)
+        # ax.view_init(azim=135, elev=90)
+
+        # ax.scatter(robargdata[0],robargdata[1],robargdata[2])
         ax.set_xlabel('$x1$', fontsize = 12)
         ax.set_ylabel('$x2$', fontsize = 12)
         ax.set_zlabel('$x3$', fontsize = 12)
         outfile = "%s/plots/Piterinfo_robarg_%s%s_p%s_q%s_ts%s.pdf"%(folder, fname,noisestr,m,n,ts )
-        plt.savefig(outfile)
-        print("open %s;"%(outfile))
-        # plt.show()
+        ZZ = np.arange(-1, 1, 0.01)
+        for l1 in [-1,1]:
+            for l2 in [-1,1]:
+                XX = l1*np.ones(len(ZZ))
+                YY = l2*np.ones(len(ZZ))
+                ax.plot(XX,YY,ZZ,c='orange')
+        # plt.savefig(outfile)
+        # print("open %s;"%(outfile))
+        plt.show()
     elif(plot == "yes_2"):
-        plt.scatter(robargdata[0],robargdata[1])
-        plt.xlabel('$x1$', fontsize = 12)
-        plt.ylabel('$x2$', fontsize = 12)
-        outfile = "%s/plots/Piterinfo_robarg_%s%s_p%s_q%s_ts%s.pdf"%(folder, fname,noisestr,m,n,ts )
-        plt.savefig(outfile)
-        print("open %s;"%(outfile))
+        props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
+        from math import ceil,sqrt
+        no = int(ceil(sqrt(iterationinfono)))
+        rows = no
+        cols = no
+        fig, axarr = plt.subplots(rows,cols,figsize=(15,15),sharex=True)
+        index = 0
+        for index in range(iterationinfono):
+            r = int(index / no)
+            c = index % no
+            if rappsipfile:
+                with open(rappsipfile, 'r') as fn:
+                    datastore = json.load(fn)
+            datastore['pcoeff'] = datastore['iterationinfo'][index]['pcoeff']
+            datastore['qcoeff'] = datastore['iterationinfo'][index]['qcoeff']
+            rappsip = RationalApproximationSIP(datastore)
+            ZZ = np.arange(-0.95, 0.95, 0.01)
+            for l1 in [-0.95,0.95]:
+                for l2 in [-0.95,0.95]:
+                    XX = l1*np.ones(len(ZZ))
+                    YY = l2*np.ones(len(ZZ))
+                    qx = []
+                    for num in range(len(ZZ)):
+                        X=rappsip._scaler.scale(np.array([XX[num],YY[num],ZZ[num]]))
+                        qx.append(rappsip.denom(X))
+                    axarr[r][c].plot(ZZ,qx, label="x1 = %.2f, x2 = %.2f"%(l1,l2), linewidth=1)
+                    if(abs(robargdata[0][index]) == 1 and abs(robargdata[1][index]) == 1):
+                        x1 = np.array([robargdata[0][index],robargdata[1][index],robargdata[2][index]])
+                        qx1 = rappsip.denom(x1)
+                        ux = rappsip._scaler.unscale(x1)
+                        axarr[r][c].scatter(ux[2],qx1, marker='o',c='black',s=100,alpha = 1.0)
+
+            # axarr[r][c].set_xlabel('$x3$', fontsize = 12)
+            # axarr[r][c].set_ylabel('$q(x)$', fontsize = 12)
+            # axarr[r][c].legend()
+            axarr[r][c].set_title("Iteration: %d"%(index+1))
+            index+=1
+
+        l= ("x1 = -0.95, x2 = -0.95","x1 = -0.95, x2 = 0.95", "x1 = 0.95, x2 = -0.95", "x1 = 0.95, x2 = 0.95")
+        fig.legend(l,loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.93), borderaxespad=0.,shadow=False)
+
+
+
+
+        # plt.scatter(robargdata[0],robargdata[1])
+
+        # outfile = "%s/plots/Piterinfo_robarg_%s%s_p%s_q%s_ts%s.pdf"%(folder, fname,noisestr,m,n,ts )
+        # plt.savefig(outfile)
+        # print("open %s;"%(outfile))
         # plt.show()
+        plt.savefig("/Users/mkrishnamoorthy/Desktop/f18_2d1.pdf")
 
 
 # python plottopniterationinfo.py f20_2x ../benchmarkdata/f20_test.txt f20 10 all
