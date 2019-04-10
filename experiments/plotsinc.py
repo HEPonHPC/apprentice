@@ -3,6 +3,7 @@ import apprentice
 import numpy as np
 import os, sys
 import json
+from apprentice import RationalApproximationSIP
 
 def tablesinc(m,n,ts,table_or_latex):
     fname = "f20"
@@ -51,6 +52,30 @@ def tablesinc(m,n,ts,table_or_latex):
                 data[dim][key]['rpnnl'] = rappsiptime
                 data[dim][key]['rqnnl'] = rqnnl
     # print(data)
+
+    dim =3
+    fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[0],ubdesc[1])
+    file = folder+"/"+fndesc+'/out/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".json"
+    if not os.path.exists(file):
+        print("%s not found"%(file))
+
+    if file:
+        with open(file, 'r') as fn:
+            datastore = json.load(fn)
+
+    iterinfo = datastore['iterationinfo']
+    for iter in iterinfo:
+        print(iter['robOptInfo']['robustArg'])
+
+    rappsip = RationalApproximationSIP(datastore)
+
+    print("\nUnscaled\n")
+    print(datastore['scaler'])
+    for iter in iterinfo:
+        x = rappsip._scaler.unscale(iter['robOptInfo']['robustArg'])
+        print(x)
+
+
 
     s =""
     if(table_or_latex == "table"):

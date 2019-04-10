@@ -13,20 +13,22 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
     if(noise!="0"):
         noisestr = "_noisepct"+noise
     folder = "%s%s_%s"%(fname,noisestr,ts)
+    if not os.path.exists(folder+"/plots"):
+        os.mkdir(folder+'/plots')
 
-    optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
-
-    if not os.path.exists(optjsonfile):
-        print("optjsonfile: " + optjsonfile+ " not found")
-        exit(1)
-
-    if optjsonfile:
-        with open(optjsonfile, 'r') as fn:
-            optjsondatastore = json.load(fn)
-
-    optm = optjsondatastore['optdeg']['m']
-    optn = optjsondatastore['optdeg']['n']
-    print(optm,optn)
+    # optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
+    #
+    # if not os.path.exists(optjsonfile):
+    #     print("optjsonfile: " + optjsonfile+ " not found")
+    #     exit(1)
+    #
+    # if optjsonfile:
+    #     with open(optjsonfile, 'r') as fn:
+    #         optjsondatastore = json.load(fn)
+    #
+    # optm = optjsondatastore['optdeg']['m']
+    # optn = optjsondatastore['optdeg']['n']
+    # print(optm,optn)
     rappsipfile = "%s/out/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,m,n,ts)
 
     if rappsipfile:
@@ -149,9 +151,11 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
             datastore['pcoeff'] = datastore['iterationinfo'][index]['pcoeff']
             datastore['qcoeff'] = datastore['iterationinfo'][index]['qcoeff']
             rappsip = RationalApproximationSIP(datastore)
-            ZZ = np.arange(-0.95, 0.95, 0.01)
-            for l1 in [-0.95,0.95]:
-                for l2 in [-0.95,0.95]:
+            lbbb=-0.95
+            ubbb=0.95
+            ZZ = np.arange(lbbb, ubbb, 0.01)
+            for l1 in [lbbb,ubbb]:
+                for l2 in [lbbb,ubbb]:
                     XX = l1*np.ones(len(ZZ))
                     YY = l2*np.ones(len(ZZ))
                     qx = []
@@ -171,7 +175,11 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
             axarr[r][c].set_title("Iteration: %d"%(index+1))
             index+=1
 
-        l= ("x1 = -0.95, x2 = -0.95","x1 = -0.95, x2 = 0.95", "x1 = 0.95, x2 = -0.95", "x1 = 0.95, x2 = 0.95")
+        l= ("x1 = %.2f, x2 = %.2f"%(lbbb,lbbb),
+            "x1 = %.2f, x2 = %.2f"%(lbbb,ubbb),
+            "x1 = %.2f, x2 = %.2f"%(ubbb,lbbb),
+            "x1 = %.2f, x2 = %.2f"%(ubbb,ubbb)
+        )
         fig.legend(l,loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.93), borderaxespad=0.,shadow=False)
 
 
@@ -183,7 +191,7 @@ def plotiterationinfo(fname,noise, m,n,ts,plot="no"):
         # plt.savefig(outfile)
         # print("open %s;"%(outfile))
         # plt.show()
-        plt.savefig("/Users/mkrishnamoorthy/Desktop/f18_2d1.pdf")
+        plt.savefig("/Users/mkrishnamoorthy/Desktop/f23-2.pdf")
 
 
 # python plottopniterationinfo.py f20_2x ../benchmarkdata/f20_test.txt f20 10 all

@@ -26,7 +26,7 @@ def runsinc(m,n,ts):
     seed = seed1
 
     noisestr = ""
-    
+
     folder = "%s%s_%s/sincrun"%(fname,noisestr,ts)
     if not os.path.exists(folder):
         os.mkdir(folder)
@@ -45,6 +45,16 @@ def runsinc(m,n,ts):
                     Xperdim = Xperdim + (np.random.rand(1000,)*(ub-lb)+lb,)
 
                 X = np.column_stack(Xperdim)
+                formatStr = "{0:0%db}"%(dim)
+                for d in range(2**dim):
+                    binArr = [int(x) for x in formatStr.format(d)[0:]]
+                    val = []
+                    for i in range(dim):
+                        if(binArr[i] == 0):
+                            val.append(minarr[i])
+                        else:
+                            val.append(maxarr[i])
+                    X[d] = val
                 Y = [sinc(x,dim) for x in X]
                 Y = np.atleast_2d(np.array(Y))
                 fndesc = "%s%s_d%d_lb%s_ub%s"%(fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
