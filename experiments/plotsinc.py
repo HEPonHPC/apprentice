@@ -4,6 +4,20 @@ import numpy as np
 import os, sys
 import json
 from apprentice import RationalApproximationSIP
+from mpl_toolkits.mplot3d import Axes3D
+
+def sinc(X,dim):
+    ret = 10
+    for d in range(dim):
+        x = X[d]
+        ret *= np.sin(x)/x
+    return ret
+
+def raNorm(ra, X, Y, norm=2):
+    nrm = 0
+    for num, x in enumerate(X):
+        nrm+= abs(ra.predict(x) - Y[num])**norm
+    return nrm
 
 def tablesinc(m,n,ts,table_or_latex):
     fname = "f20"
@@ -53,6 +67,24 @@ def tablesinc(m,n,ts,table_or_latex):
                 data[dim][key]['rqnnl'] = rqnnl
     # print(data)
 
+    import matplotlib.pyplot as plt
+    X = range(2,8)
+    rangearr = []
+    labelarr = []
+    for numlb,lb in enumerate(larr):
+        for numub,ub in enumerate(uarr):
+            rangearr.append(lbdesc[numlb]+ubdesc[numub])
+            labelarr.append(lblatex[numlb]+ " - "+ ublatex[numub])
+    for r in rangearr:
+        Y = []
+        for x in X:
+            Y.append(data[x][r]['rnoiters'])
+        plt.plot(X,np.log2(Y), linewidth=1)
+    plt.legend(labelarr,loc='upper left')
+    # plt.show()
+    plt.savefig("/Users/mkrishnamoorthy/Desktop/sinc.pdf")
+    plt.clf()
+    # ##############################################
     dim =3
     fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[0],ubdesc[1])
     file = folder+"/"+fndesc+'/out/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".json"
@@ -64,17 +96,214 @@ def tablesinc(m,n,ts,table_or_latex):
             datastore = json.load(fn)
 
     iterinfo = datastore['iterationinfo']
+    print("#################")
     for iter in iterinfo:
         print(iter['robOptInfo']['robustArg'])
+    print("#################")
 
     rappsip = RationalApproximationSIP(datastore)
 
+    X1vals = np.arange(lb,ub,0.1)
+    X2vals = np.arange(lb,ub,0.1)
+    X3vals = np.arange(lb,ub,0.1)
+    print(len(X1vals)*len(X2vals)*len(X3vals))
+
+    Y_pred = []
+    Y_orig = []
+    for x1 in X1vals:
+        for x2 in X2vals:
+            for x3 in X3vals:
+                Y_pred.append(rappsip([x1,x2,x3]))
+                Y_orig.append(sinc([x1,x2,x3],3))
+    l22 =np.sum((np.array(Y_pred)-np.array(Y_orig))**2)
+    l22 = l22/(len(X1vals)*len(X2vals)*len(X3vals))
+
     print("\nUnscaled\n")
     print(datastore['scaler'])
+    print("#################")
     for iter in iterinfo:
         x = rappsip._scaler.unscale(iter['robOptInfo']['robustArg'])
         print(x)
 
+    print("#################")
+    print("Min max  for n=3 after final iteration")
+    print(min(Y_pred),max(Y_pred))
+    print(min(Y_orig),max(Y_orig))
+    print("#################")
+
+    print("#################")
+    print("\nMean error after the final approximation = %f\n"%(l22))
+    print("#################")
+
+
+    datastore['pcoeff'] = iterinfo[0]['pcoeff']
+    datastore['qcoeff'] = iterinfo[0]['qcoeff']
+    rappsip = RationalApproximationSIP(datastore)
+    lb = larr[0]
+    ub = uarr[1]
+
+    Y_pred = []
+    Y_orig = []
+    for x1 in X1vals:
+        for x2 in X2vals:
+            for x3 in X3vals:
+                Y_pred.append(rappsip([x1,x2,x3]))
+                Y_orig.append(sinc([x1,x2,x3],3))
+    print("#################")
+    print("Min max  for n=3 after first iteration")
+    print(min(Y_pred),max(Y_pred))
+    print(min(Y_orig),max(Y_orig))
+    l22 =np.sum((np.array(Y_pred)-np.array(Y_orig))**2)
+    l22 = l22/(len(X1vals)*len(X2vals)*len(X3vals))
+    print("#################")
+    print("\nMean error after the first approximation = %f\n"%(l22))
+    print("#################")
+    print("#################")
+    print("#################")
+    print("#################")
+    # exit(1)
+    # ##############################################
+    # Plotting
+    import matplotlib.pyplot as plt
+
+
+    if file:
+        with open(file, 'r') as fn:
+            datastore = json.load(fn)
+
+    iterinfo = datastore['iterationinfo']
+    iterinfono = len(iterinfo)
+    for iterno in range(iterinfono):
+        if file:
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
+        iterinfo = datastore['iterationinfo']
+        datastore['pcoeff'] = iterinfo[iterno]['pcoeff']
+        datastore['qcoeff'] = iterinfo[iterno]['qcoeff']
+        rappsip = RationalApproximationSIP(datastore)
+        fig = plt.figure(figsize=(15,15))
+        for num,s in enumerate(['x1=-1','x2=-1','x3-1']):
+            other1 = []
+            other2 = []
+            Y_pred=[]
+            Y_orig=[]
+            q_pred=[]
+
+            for x2 in X1vals:
+                for x3 in X1vals:
+                    if(num == 0):
+                        X111 = [lb,x2,x3]
+                    if(num == 1):
+                        X111 = [x2,lb,x3]
+                    if(num == 2):
+                        X111 = [x2,x3,lb]
+                    other1.append(x2)
+                    other2.append(x3)
+                    Y_pred.append(rappsip(X111))
+                    Y_orig.append(sinc(X111,3))
+                    X111 = rappsip._scaler.scale(np.array(X111))
+                    q_pred.append(rappsip.denom(X111))
+
+            # Y_pred = np.reshape(np.array(Y_pred), [len(other1), len(other2)])
+            # Y_orig = np.reshape(np.array(Y_orig), [len(other1), len(other2)])
+            # q_pred = np.reshape(np.array(q_pred), [len(other1), len(other2)])
+
+            ax = fig.add_subplot(3, 3, 3*num+1, projection='3d')
+            ax.plot3D(other1, other2, Y_orig ,"b.",alpha=0.5)
+            ax.set_xlabel("x2")
+            ax.set_ylabel("x3")
+            ax = fig.add_subplot(3, 3, 3*num+2, projection='3d')
+            ax.plot3D(other1, other2, Y_pred ,"r.",alpha=0.5)
+            ax.set_xlabel("x2")
+            ax.set_ylabel("x3")
+            ax = fig.add_subplot(3, 3, 3*num+3, projection='3d')
+            ax.plot3D(other1, other2, q_pred ,"g.",alpha=0.5)
+            ax.set_xlabel("x2")
+            ax.set_ylabel("x3")
+        plt.savefig("/Users/mkrishnamoorthy/Desktop/sinc/iter" +str(iterno)+".pdf")
+
+        plt.clf()
+    exit(1)
+    # ##############################################
+    dim =4
+    fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[0],ubdesc[1])
+    file = folder+"/"+fndesc+'/out/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".json"
+    if not os.path.exists(file):
+        print("%s not found"%(file))
+
+    if file:
+        with open(file, 'r') as fn:
+            datastore = json.load(fn)
+
+    iterinfo = datastore['iterationinfo']
+    print("#################")
+    for iter in iterinfo:
+        print(iter['robOptInfo']['robustArg'])
+    print("#################")
+
+    rappsip = RationalApproximationSIP(datastore)
+
+    X1vals = np.arange(lb,ub,0.3)
+    X2vals = np.arange(lb,ub,0.3)
+    X3vals = np.arange(lb,ub,0.3)
+    X4vals = np.arange(lb,ub,0.3)
+    for x1 in X1vals:
+        for x2 in X2vals:
+            for x3 in X3vals:
+                for x4 in X4vals:
+                    Y_pred.append(rappsip([x1,x2,x3,x4]))
+                    Y_orig.append(sinc([x1,x2,x3,x4],4))
+    print("min max for n=4 after final iteration")
+    print(min(Y_pred),max(Y_pred))
+    print(min(Y_orig),max(Y_orig))
+    l22 =np.sum((np.array(Y_pred)-np.array(Y_orig))**2)
+    l22 = l22/(len(X1vals)*len(X2vals)*len(X3vals)*len(X4vals))
+
+
+    print(len(X1vals)*len(X2vals)*len(X3vals)*len(X4vals))
+
+    print("\nUnscaled\n")
+    print(datastore['scaler'])
+    print("#################")
+    for iter in iterinfo:
+        x = rappsip._scaler.unscale(iter['robOptInfo']['robustArg'])
+        print(x)
+    print("#################")
+
+    print("#################")
+    print("Min max  for n=4 after final iteration")
+    print(min(Y_pred),max(Y_pred))
+    print(min(Y_orig),max(Y_orig))
+    print("#################")
+    print("#################")
+    print("Mean error after the final approximation = %f\n"%(l22))
+    print("#################")
+
+    datastore['pcoeff'] = iterinfo[0]['pcoeff']
+    datastore['qcoeff'] = iterinfo[0]['qcoeff']
+    rappsip = RationalApproximationSIP(datastore)
+    lb = larr[0]
+    ub = uarr[1]
+
+
+    Y_pred = []
+    Y_orig = []
+    for x1 in X1vals:
+        for x2 in X2vals:
+            for x3 in X3vals:
+                for x4 in X4vals:
+                    Y_pred.append(rappsip([x1,x2,x3,x4]))
+                    Y_orig.append(sinc([x1,x2,x3,x4],4))
+    print("#################")
+    print("Min max  for n=4 after final iteration")
+    print(min(Y_pred),max(Y_pred))
+    print(min(Y_orig),max(Y_orig))
+    print("#################")
+    l22 =np.sum((np.array(Y_pred)-np.array(Y_orig))**2)
+    l22 = l22/(len(X1vals)*len(X2vals)*len(X3vals)*len(X4vals))
+    print("#################")
+    print("\nMean error after the first approximation = %f\n"%(l22))
+    # ##############################################
 
 
     s =""
@@ -91,22 +320,7 @@ def tablesinc(m,n,ts,table_or_latex):
                     s+="\\\\\hline\n"
     # print(s)
 
-    import matplotlib.pyplot as plt
-    X = range(2,8)
-    rangearr = []
-    labelarr = []
-    for numlb,lb in enumerate(larr):
-        for numub,ub in enumerate(uarr):
-            rangearr.append(lbdesc[numlb]+ubdesc[numub])
-            labelarr.append(lblatex[numlb]+ " - "+ ublatex[numub])
-    for r in rangearr:
-        Y = []
-        for x in X:
-            Y.append(data[x][r]['rnoiters'])
-        plt.plot(X,np.log10(Y), linewidth=1)
-    plt.legend(labelarr,loc='upper left')
-    # plt.show()
-    plt.savefig("/Users/mkrishnamoorthy/Desktop/sinc.pdf")
+
 
 
 
