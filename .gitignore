@@ -10,4 +10,5 @@ dist
 *.png
 *.pgf
 *.csv
+NLPproblem.summary
 *.299445.*
