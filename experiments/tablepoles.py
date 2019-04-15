@@ -410,7 +410,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     or (fname=='f19' and pq == "p3_q3"):
                     print(sspecific)
 
-    # print(s)
+    print(s)
 
 
 if __name__ == "__main__":
