@@ -3,6 +3,28 @@ from apprentice import RationalApproximationSIP, RationalApproximationONB, Polyn
 from apprentice import tools, readData
 import os
 
+# def getpqstr(fname):
+#     if (fname=='f1'): pq = "p2_q4"
+#     if (fname=='f2'): pq = "p5_q2"
+#     if (fname=='f3'): pq = "p4_q3"
+#     if (fname=='f4'): pq =
+#     if (fname=='f5') : pq = "p2_q3"
+#     if (fname=='f7') : pq =
+#     if fname=='f8' : pq = "p3_q3"
+#     if fname=='f9' : pq = "p3_q7"
+#     if fname=='f10' : pq =
+#     if fname=='f12' : pq =
+#     if fname=='f13' : pq = "p2_q7"
+#     if fname=='f14' : pq = "p3_q6"
+#     if fname=='f15' : pq =
+#     if fname=='f16' : pq =
+#     if fname=='f17' : pq =
+#     if fname=='f18' : pq = "p2_q3"
+#     if fname=='f19' : pq = "p3_q3"
+#     if fname=='f20' : pq =
+#     if fname=='f21' : pq =
+#     if fname=='f22' : pq =
+# return pq
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     print (farr)
     print (noisearr)
@@ -111,9 +133,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                 Y_pred_rappsip = rappsip.predictOverArray(X_test)
                 rapp = RationalApproximationONB(fname=rappfile)
                 Y_pred_rapp = np.array([rapp(x) for x in X_test])
-                papp = PolynomialApproximation(fname=pappfile)
-                Y_pred_papp = np.array([papp(x) for x in X_test])
-                # results[fname][noise] = {"rapp":{},"rappsip":{}}
+                # papp = PolynomialApproximation(fname=pappfile)
+                # Y_pred_papp = np.array([papp(x) for x in X_test])
+                # # results[fname][noise] = {"rapp":{},"rappsip":{}}
                 # print(maxY_test)
                 for tval in thresholdvalarr:
                     # print(fname, maxY_test)
@@ -148,7 +170,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     l2notcountrapp = np.sqrt(l2notcountrapp)
                     l2allrapp = np.sqrt(l2allrapp)
 
-                    l2allpapp = np.sum((Y_pred_papp-Y_test)**2)
+                    # l2allpapp = np.sum((Y_pred_papp-Y_test)**2)
 
 
 
@@ -174,8 +196,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         'l2allrappsip' : l2allrappsip,
                         'l2countrapp' : l2countrapp,
                         'l2notcountrapp' : l2notcountrapp,
-                        'l2allrapp' : l2allrapp,
-                        'l2allpapp': l2allpapp
+                        'l2allrapp' : l2allrapp
+                        # 'l2allpapp': l2allpapp
                     }
                     tvalstr = str(int(tval))
                     pq = "p%d_q%d"%(optm,optn)

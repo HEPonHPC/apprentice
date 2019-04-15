@@ -41,48 +41,71 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             noisestr = ""
             if(noise!="0"):
                 noisestr = "_noisepct"+noise
-            folder = "%s%s_%s"%(fname,noisestr,ts)
-            rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-            rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-            pafile = "%s/outpa/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
 
-            if not os.path.exists(rappsipfile):
-                print("rappsipfile %s not found"%(rappsipfile))
-                exit(1)
+            timepa = []
+            timera = []
+            timerasip = []
+            iterrasip = []
+            for run in ["./","../experiments2/","../experiments3/","../experiments4/","../experiments5/"]:
+                folder = "%s%s%s_%s"%(run,fname,noisestr,ts)
+                print(folder)
+                rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                pafile = "%s/outpa/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
 
-            if not os.path.exists(rappfile):
-                print("rappfile %s not found"%(rappfile))
-                exit(1)
+                if not os.path.exists(rappsipfile):
+                    print("rappsipfile %s not found"%(rappsipfile))
+                    exit(1)
 
-            if not os.path.exists(pafile):
-                print("pappfile %s not found"%(pafile))
-                exit(1)
+                if not os.path.exists(rappfile):
+                    print("rappfile %s not found"%(rappfile))
+                    exit(1)
 
-            if rappsipfile:
-                with open(rappsipfile, 'r') as fn:
-                    datastore = json.load(fn)
-            rappsiptime = datastore['log']['fittime']
-            rdof = int(datastore['M'] + datastore['N'])
-            rnoiters = len(datastore['iterationinfo'])
-            dim = datastore['dim']
-            rpnnl = datastore['M'] - (dim+1)
-            rqnnl = datastore['N'] - (dim+1)
+                if not os.path.exists(pafile):
+                    print("pappfile %s not found"%(pafile))
+                    exit(1)
+
+                if rappsipfile:
+                    with open(rappsipfile, 'r') as fn:
+                        datastore = json.load(fn)
+                rappsiptime = datastore['log']['fittime']
+                rdof = int(datastore['M'] + datastore['N'])
+                rnoiters = len(datastore['iterationinfo'])
+                dim = datastore['dim']
+                rpnnl = datastore['M'] - (dim+1)
+                rqnnl = datastore['N'] - (dim+1)
+                timerasip.append(rappsiptime)
+                iterrasip.append(rnoiters)
 
 
-            if rappfile:
-                with open(rappfile, 'r') as fn:
-                    datastore = json.load(fn)
-            rapptime = datastore['log']['fittime']
+                if rappfile:
+                    with open(rappfile, 'r') as fn:
+                        datastore = json.load(fn)
+                rapptime = datastore['log']['fittime']
+                timera.append(rapptime)
 
-            if pafile:
-                with open(pafile, 'r') as fn:
-                    datastore = json.load(fn)
-            papptime = datastore['log']['fittime']
-            pdof = int(datastore['trainingsize']/2)
 
-            results[fname][noise] = {"rapp":rapptime, "rappsip":rappsiptime,
-            "papp":papptime,'pdof':pdof,'rdof':rdof,'rnoiters':rnoiters,
-            'rpnnl':rpnnl,'rqnnl':rqnnl}
+                if pafile:
+                    with open(pafile, 'r') as fn:
+                        datastore = json.load(fn)
+                papptime = datastore['log']['fittime']
+                pdof = int(datastore['trainingsize']/2)
+                timepa.append(papptime)
+
+            results[fname][noise] = {
+                "rapp":np.average(timera),
+                "rappsip":np.average(timerasip),
+                'rnoiters':np.average(iterrasip),
+                "papp":np.average(timepa),
+                "rappsd":np.std(timera),
+                "rappsipsd":np.std(timerasip),
+                'rnoiterssd':np.std(iterrasip),
+                "pappsd":np.std(timepa),
+                'pdof':pdof,
+                'rdof':rdof,
+                'rpnnl':rpnnl,
+                'rqnnl':rqnnl}
+            
 
 
     # from IPython import embed
@@ -91,7 +114,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
     s = ""
     if(table_or_latex == "table"):
-        s+= "\t\t\t"
+        s+= "WRONG \n\n \t\t\t"
         for noise in noisearr:
             s+= "%s\t\t\t\t\t\t\t\t\t\t"%(noise)
         s+="\n"
@@ -126,10 +149,10 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             for num,noise in enumerate(noisearr):
                 if(num==0):
                     s+="&%d&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"],results[fname][noise]["rqnnl"])
-                s += "&%.3f"%(results[fname][noise]["papp"])
-                s += "&%.3f"%(results[fname][noise]["rapp"])
-                s += "&%.3f"%(results[fname][noise]["rappsip"])
-                s += "&%d"%(results[fname][noise]["rnoiters"])
+                s += "&%.1f&%.1f"%(results[fname][noise]["papp"],results[fname][noise]["pappsd"])
+                s += "&%.1f&%.1f"%(results[fname][noise]["rapp"],results[fname][noise]["rappsd"])
+                s += "&%.1f&%.1f"%(results[fname][noise]["rappsip"],results[fname][noise]["rappsipsd"])
+                s += "&%.1f&%.1f"%(results[fname][noise]["rnoiters"],results[fname][noise]["rnoiterssd"])
             s+="\\\\\hline\n"
 
     print(s)
