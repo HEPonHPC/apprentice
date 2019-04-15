@@ -7,15 +7,15 @@ import os
 def ploterrorbars():
     import matplotlib as mpl
     import json
-    # mpl.use('pgf')
-    # pgf_with_custom_preamble = {
-    #     "text.usetex": True,    # use inline math for ticks
-    #     "pgf.rcfonts": False,   # don't setup fonts from rc parameters
-    #     "pgf.preamble": [
-    #         "\\usepackage{amsmath}",         # load additional packages
-    #     ]
-    # }
-    # mpl.rcParams.update(pgf_with_custom_preamble)
+    mpl.use('pgf')
+    pgf_with_custom_preamble = {
+        "text.usetex": True,    # use inline math for ticks
+        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+        "pgf.preamble": [
+            "\\usepackage{amsmath}",         # load additional packages
+        ]
+    }
+    mpl.rcParams.update(pgf_with_custom_preamble)
 
     width = 0.15
         # import matplotlib.pyplot as plt
@@ -43,6 +43,7 @@ def ploterrorbars():
 
     fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f20','f21','f22']
     # fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10']
+    # fff = ['f1','f2','f3','f4']
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
@@ -86,7 +87,7 @@ def ploterrorbars():
                 optm1 = optjsondatastore['optdeg']['m']
                 optn1 = optjsondatastore['optdeg']['n']
             pq = "p%d_q%d"%(optm1,optn1)
-            print(fname,noisestr,optm1,optn1)
+            print(run, fname,noisestr,optm1,optn1)
             rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
             rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
             pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
@@ -150,7 +151,7 @@ def ploterrorbars():
             rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
             pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
 
-            print(fname,noisestr,optm2,optn2)
+            print(run, fname,noisestr,optm2,optn2)
             if not os.path.exists(rappsipfile):
                 print("rappsipfile %s not found"%(rappsipfile))
                 exit(1)
@@ -208,8 +209,7 @@ def ploterrorbars():
             rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
             pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
 
-            print(fname,noisestr,optm2,optn2)
-            print(fname,noisestr,optm2,optn2)
+            print(run, fname,noisestr,optm2,optn2)
             if not os.path.exists(rappsipfile):
                 print("rappsipfile %s not found"%(rappsipfile))
                 exit(1)
@@ -248,22 +248,37 @@ def ploterrorbars():
     import matplotlib.pyplot as plt
     plt.rc('ytick',labelsize=14)
     fig, (ax1, ax2,ax3) = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+    ecolor = 'black'
 
-    # p1 = ax1.bar(X111, np.log2(pa), width,color='#900C3F', yerr=paerror,align='center',  ecolor='black', capsize=5)
-    # p2 = ax1.bar(X111+width, np.log2(ra), width,color='#FF5733',yerr=raerror,align='center',ecolor='black', capsize=5)
-    # p3 = ax1.bar(X111+2*width, np.log2(rasip), width,color='#FFC300',yerr=rasiperror,align='center', alpha=0.5, ecolor='black', capsize=5)
+    p1 = ax1.bar(X111, np.log10(pa), width,color='#C70039', yerr=np.log10(paerror),align='center',  ecolor=ecolor, capsize=3)
+    p2 = ax1.bar(X111+width, np.log10(ra), width,color='#FF5733',yerr=np.log10(raerror),align='center',ecolor=ecolor, capsize=3)
+    p3 = ax1.bar(X111+2*width, np.log10(rasip), width,color='#FFC300',yerr=np.log10(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
 
-    p1 = ax1.bar(X111, np.log10(pa), width,color='#900C3F')
-    p2 = ax1.bar(X111+width, np.log10(ra), width,color='#FF5733')
-    p3 = ax1.bar(X111+2*width, np.log10(rasip), width,color='#FFC300')
+    # p1 = ax1.bar(X111, np.log10(pa), width,color='#900C3F')
+    # p2 = ax1.bar(X111+width, np.log10(ra), width,color='#FF5733')
+    # p3 = ax1.bar(X111+2*width, np.log10(rasip), width,color='#FFC300')
 
-    p1 = ax2.bar(X111, np.log10(pa1), width,color='#900C3F')
-    p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
-    p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
+    p1 = ax2.bar(X111, np.log10(pa1), width,color='#C70039', yerr=np.log10(paerror1),align='center',  ecolor=ecolor, capsize=3)
+    p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733',yerr=np.log10(raerror1),align='center',ecolor=ecolor, capsize=3)
+    p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300',yerr=np.log10(rasiperror1),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
 
-    p1 = ax2.bar(X111, np.log10(pa2), width,color='#900C3F')
-    p2 = ax2.bar(X111+width, np.log10(ra2), width,color='#FF5733')
-    p3 = ax2.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300')
+    # p1 = ax2.bar(X111, np.log10(pa1), width,color='#900C3F')
+    # p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
+    # p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
+
+    # p1= ax3.errorbar(X111, np.log10(pa1), np.log10(paerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
+    # p1= ax3.errorbar(X111+width, np.log10(ra1), np.log10(raerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
+    # p1= ax3.errorbar(X111+2*width, np.log10(rasip1), np.log10(rasiperror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
+
+    p1 = ax3.bar(X111, np.log10(pa2), width,color='#C70039', yerr=np.log10(paerror2),align='center',  ecolor=ecolor, capsize=3)
+    p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733',yerr=np.log10(raerror2),align='center',ecolor=ecolor, capsize=3)
+    p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300',yerr=np.log10(rasiperror2),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+
+    # p1 = ax3.bar(X111, np.log10(pa2), width,color='#900C3F')
+    # p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733')
+    # p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300')
+
+
 
     ax1.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
     ax2.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
@@ -292,12 +307,32 @@ def ploterrorbars():
 
     # ax.set_ylim([-9,4])
     plt.tight_layout()
-    plt.show()
-    # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+    # plt.show()
+    plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+
+    s = ""
+    for num,fname in enumerate(fff):
+        s += "\\ref{fn:%s}"%(fname)
+        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa[num],paerror[num],ra[num],raerror[num],rasip[num],rasiperror[num])
+        s+="\\\\\hline\n"
+
+    s += "\n"
+    for num,fname in enumerate(fff):
+        s += "\\ref{fn:%s}"%(fname)
+        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa1[num],paerror1[num],ra1[num],raerror1[num],rasip1[num],rasiperror1[num])
+        s+="\\\\\hline\n"
+
+    s += "\n"
+    for num,fname in enumerate(fff):
+        s += "\\ref{fn:%s}"%(fname)
+        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa2[num],paerror2[num],ra2[num],raerror2[num],rasip2[num],rasiperror2[num])
+        s+="\\\\\hline\n"
+    print(s)
 
 
-
-
+# for each \ep =0,10-1,10-3
+# FNO     \Delta_r for PA     \Delta_r for 3.1        \Delta_r for 4.1
+#             M SD                     M SD                   M SD
 
 
     # print(s)
