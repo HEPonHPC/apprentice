@@ -4,6 +4,7 @@ from apprentice import tools, readData
 import os
 
 def getpqstr(fname):
+    pq = ""
     if (fname=='f1'): pq = "p2_q4"
     if (fname=='f2'): pq = "p5_q2"
     if (fname=='f3'): pq = "p4_q3"
