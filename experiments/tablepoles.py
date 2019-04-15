@@ -3,28 +3,27 @@ from apprentice import RationalApproximationSIP, RationalApproximationONB, Polyn
 from apprentice import tools, readData
 import os
 
-# def getpqstr(fname):
-#     if (fname=='f1'): pq = "p2_q4"
-#     if (fname=='f2'): pq = "p5_q2"
-#     if (fname=='f3'): pq = "p4_q3"
-#     if (fname=='f4'): pq =
-#     if (fname=='f5') : pq = "p2_q3"
-#     if (fname=='f7') : pq =
-#     if fname=='f8' : pq = "p3_q3"
-#     if fname=='f9' : pq = "p3_q7"
-#     if fname=='f10' : pq =
-#     if fname=='f12' : pq =
-#     if fname=='f13' : pq = "p2_q7"
-#     if fname=='f14' : pq = "p3_q6"
-#     if fname=='f15' : pq =
-#     if fname=='f16' : pq =
-#     if fname=='f17' : pq =
-#     if fname=='f18' : pq = "p2_q3"
-#     if fname=='f19' : pq = "p3_q3"
-#     if fname=='f20' : pq =
-#     if fname=='f21' : pq =
-#     if fname=='f22' : pq =
-#     return pq
+def getpqstr(fname):
+    if (fname=='f1'): pq = "p2_q4"
+    if (fname=='f2'): pq = "p5_q2"
+    if (fname=='f3'): pq = "p4_q3"
+    if (fname=='f4'): pq = 'p3_q2'
+    if (fname=='f5') : pq = "p2_q3"
+    if (fname=='f7') : pq = 'p2_q7'
+    if fname=='f8' : pq = "p3_q3"
+    if fname=='f9' : pq = "p3_q7"
+    if fname=='f10' : pq = 'p2_q4'
+    if fname=='f12' : pq = 'p3_q3'
+    if fname=='f13' : pq = "p2_q7"
+    if fname=='f14' : pq = "p3_q6"
+    if fname=='f15' : pq = "p2_q5"
+    if fname=='f16' : pq = "p3_q7"
+    if fname=='f17' : pq = 'p4_q6'
+    if fname=='f18' : pq = "p2_q3"
+    if fname=='f19' : pq = "p3_q3"
+    if fname=='f21' : pq = "p5_q2"
+    if fname=='f22' : pq = "p2_q4"
+    return pq
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     print (farr)
@@ -80,12 +79,12 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                         datastore = json.load(fn)
                 optm = datastore['m']
                 optn = datastore['n']
-                if(optm==1 or optn==1):
-                    continue
+                # if(optm==1 or optn==1):
+                #     continue
                 pq = "p%d_q%d"%(optm,optn)
-                # if(getpqstr(fname) != pq):
-                #     if(table_or_latex !='table'):
-                #         continue
+                if(getpqstr(fname) != pq):
+                    if(table_or_latex !='table'):
+                        continue
 
 
 
