@@ -24,7 +24,8 @@ import os
 #     if fname=='f20' : pq =
 #     if fname=='f21' : pq =
 #     if fname=='f22' : pq =
-# return pq
+#     return pq
+
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     print (farr)
     print (noisearr)
@@ -81,6 +82,12 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                 optn = datastore['n']
                 if(optm==1 or optn==1):
                     continue
+                pq = "p%d_q%d"%(optm,optn)
+                # if(getpqstr(fname) != pq):
+                #     if(table_or_latex !='table'):
+                #         continue
+
+
 
             # optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
             #
@@ -125,9 +132,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     print("rappfile %s not found"%(rappfile))
                     exit(1)
 
-                if not os.path.exists(pappfile):
-                    print("pappfile %s not found"%(pappfile))
-                    exit(1)
+                # if not os.path.exists(pappfile):
+                #     print("pappfile %s not found"%(pappfile))
+                #     exit(1)
 
                 rappsip = RationalApproximationSIP(rappsipfile)
                 Y_pred_rappsip = rappsip.predictOverArray(X_test)
