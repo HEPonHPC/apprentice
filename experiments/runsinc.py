@@ -10,6 +10,74 @@ def sinc(X,dim):
         ret *= np.sin(x)/x
     return ret
 
+def runrapp(m,n,ts):
+    fname = "f20"
+
+    larr = [10**-6,10**-3]
+    uarr = [2*np.pi,4*np.pi]
+    lbdesc = {0:"-6",1:"-3"}
+    ubdesc = {0:"2pi",1:"4pi"}
+
+    noisestr = ""
+
+    folder = "%s%s_%s/sincrun"%(fname,noisestr,ts)
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+
+    if not os.path.exists(folder+"/benchmarkdata"):
+        os.mkdir(folder+'/benchmarkdata')
+
+    dim = 4
+    numlb = 0
+    numub = 1
+    fndesc = "%s%s_d%d_lb%s_ub%s"%(fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
+    outfile = "%s/benchmarkdata/%s.csv"%(folder,fndesc)
+    fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[numlb],ubdesc[numub])
+    if not os.path.exists(folder+"/"+fndesc):
+        os.mkdir(folder+'/'+fndesc)
+    if not os.path.exists(folder+"/"+fndesc+'/outra'):
+        os.mkdir(folder+'/'+fndesc+'/outra')
+    if not os.path.exists(folder+"/"+fndesc+'/log/consolelogra'):
+        os.makedirs(folder+'/'+fndesc+'/log/consolelogra',exist_ok = True)
+    l = "_p%d_q%d_ts%s.json"%(m,n, ts)
+    jsonfile = folder+'/'+fndesc+"/outra/"+fndesc+l
+    consolelog = folder+'/'+fndesc+'/log/consolelogra/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".log"
+    cmd = 'nohup python runnonsiprapp.py %s %s %d %d %s %s >%s 2>&1 &'%(outfile,fndesc,m,n,ts,jsonfile,consolelog)
+    print(cmd)
+    os.system(cmd)
+
+def runrappsip(m,n,ts):
+    fname = "f20"
+
+    larr = [10**-6,10**-3]
+    uarr = [2*np.pi,4*np.pi]
+    lbdesc = {0:"-6",1:"-3"}
+    ubdesc = {0:"2pi",1:"4pi"}
+    noisestr = ""
+
+    folder = "%s%s_%s/sincrun"%(fname,noisestr,ts)
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+
+    dim = 4
+    numlb = 0
+    numub = 1
+    fndesc = "%s%s_d%d_lb%s_ub%s"%(fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
+    outfile = "%s/benchmarkdata/%s.csv"%(folder,fndesc)
+    fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[numlb],ubdesc[numub])
+    if not os.path.exists(folder+"/"+fndesc):
+        os.mkdir(folder+'/'+fndesc)
+    if not os.path.exists(folder+"/"+fndesc+'/out'):
+        os.mkdir(folder+'/'+fndesc+'/out')
+    if not os.path.exists(folder+"/"+fndesc+'/log/consolelog'):
+        os.makedirs(folder+'/'+fndesc+'/log/consolelog',exist_ok = True)
+    outfolder = folder+'/'+fndesc
+    consolelog = folder+'/'+fndesc+'/log/consolelog/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".log"
+    cmd = 'nohup python runrappsip.py %s %s %d %d %s %s >%s 2>&1 &'%(outfile,fndesc,m,n,ts,outfolder,consolelog)
+    print(cmd)
+    os.system(cmd)
+
+
 def runsinc(m,n,ts):
     fname = "f20"
 
@@ -74,6 +142,48 @@ def runsinc(m,n,ts):
                 os.system(cmd)
 
 
+def createtestfiles(ts):
+    fname = "f20"
+    testseed =9999
+
+    noisestr = ""
+    larr = [10**-6,10**-3]
+    uarr = [2*np.pi,4*np.pi]
+    lbdesc = {0:"-6",1:"-3"}
+    ubdesc = {0:"2pi",1:"4pi"}
+
+    folder = "%s%s_%s/sincrun"%(fname,noisestr,ts)
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+
+    if not os.path.exists(folder+"/benchmarkdata"):
+        os.mkdir(folder+'/benchmarkdata')
+
+    np.random.seed(testseed)
+    for dim in range(2,8):
+        for numlb,lb in enumerate(larr):
+            for numub,ub in enumerate(uarr):
+                Xperdim = ()
+                for d in range(dim):
+                    Xperdim = Xperdim + (np.random.rand(100000,)*(ub-lb)+lb,)
+
+                X = np.column_stack(Xperdim)
+                formatStr = "{0:0%db}"%(dim)
+                for d in range(2**dim):
+                    binArr = [int(x) for x in formatStr.format(d)[0:]]
+                    val = []
+                    for i in range(dim):
+                        if(binArr[i] == 0):
+                            val.append(lb)
+                        else:
+                            val.append(ub)
+                    X[d] = val
+                Y = [sinc(x,dim) for x in X]
+                Y = np.atleast_2d(np.array(Y))
+                fndesc = "%s%s_d%d_lb%s_ub%s"%(fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
+                outfile = "%s/benchmarkdata/%s_test.csv"%(folder,fndesc)
+                np.savetxt(outfile, np.hstack((X,Y.T)), delimiter=",")
+
 
 
 if __name__ == "__main__":
@@ -83,4 +193,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
 
-    runsinc(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
+    # runsinc(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
+    # createtestfiles(sys.argv[3])
+    # runrapp(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
+    runrappsip(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
