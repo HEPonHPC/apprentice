@@ -59,7 +59,7 @@ def runrappsip(m,n,ts):
     if not os.path.exists(folder):
         os.mkdir(folder)
 
-    dim = 4
+    dim = 3
     numlb = 0
     numub = 1
     fndesc = "%s%s_d%d_lb%s_ub%s"%(fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
