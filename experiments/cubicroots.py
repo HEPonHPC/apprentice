@@ -155,39 +155,34 @@ def findsincroots():
     if not os.path.exists(jsonfile):
         print("%s not found"%(jsonfile))
         exit(1)
+    if not os.path.exists(folder+'/'+fndesc+"/plots"):
+        os.mkdir(folder+'/'+fndesc+'/plots')
     import json
     if jsonfile:
         with open(jsonfile, 'r') as fn:
             datastore = json.load(fn)
-    iter =0
-    datastore['pcoeff'] = datastore['iterationinfo'][iter]['pcoeff']
-    datastore['qcoeff'] = datastore['iterationinfo'][iter]['qcoeff']
-    from apprentice import RationalApproximationSIP
-    rappsip = RationalApproximationSIP(datastore)
+    for iter in range(len(datastore['iterationinfo'])):
+        print("Doing iter = %d"%(iter+1))
+        if jsonfile:
+            with open(jsonfile, 'r') as fn:
+                datastore = json.load(fn)
+        datastore['pcoeff'] = datastore['iterationinfo'][iter]['pcoeff']
+        datastore['qcoeff'] = datastore['iterationinfo'][iter]['qcoeff']
+        from apprentice import RationalApproximationSIP
+        rappsip = RationalApproximationSIP(datastore)
 
-    X = np.linspace(-1, 1, num=1000)
-    Y = np.linspace(-1, 1, num=1000)
-    X0 = np.array([])
-    Y0 = np.array([])
-    Z0 = np.array([])
-    N = np.array([])
-    for x in X:
-        for y in Y:
-            a,b,c,d = appgetonevardenom(x,y,rappsip)
-            roots,res = solve(a,b,c,d)
-            if(res == "threeequal" or res == "onereal"):
-                r = np.real(roots[0])
-                if(r>=-1 and r <=1):
-                    xu,yu,ru = rappsip._scaler.unscale([x,y,r])
-                    qnormu = appevaldenom(xu,yu,ru,rappsip,1,0)
-                    if(qnormu == 0):
-                        X0 = np.append(X0,xu)
-                        Y0 = np.append(Y0,yu)
-                        Z0 = np.append(Z0,ru)
-                        N = np.append(N,appevalnumer(xu,yu,ru,rappsip,1,0))
-            elif(res == 'threereal'):
-                for r in roots:
-                    r = np.real(r)
+        X = np.linspace(-1, 1, num=1000)
+        Y = np.linspace(-1, 1, num=1000)
+        X0 = np.array([])
+        Y0 = np.array([])
+        Z0 = np.array([])
+        N = np.array([])
+        for x in X:
+            for y in Y:
+                a,b,c,d = appgetonevardenom(x,y,rappsip)
+                roots,res = solve(a,b,c,d)
+                if(res == "threeequal" or res == "onereal"):
+                    r = np.real(roots[0])
                     if(r>=-1 and r <=1):
                         xu,yu,ru = rappsip._scaler.unscale([x,y,r])
                         qnormu = appevaldenom(xu,yu,ru,rappsip,1,0)
@@ -196,13 +191,21 @@ def findsincroots():
                             Y0 = np.append(Y0,yu)
                             Z0 = np.append(Z0,ru)
                             N = np.append(N,appevalnumer(xu,yu,ru,rappsip,1,0))
+                elif(res == 'threereal'):
+                    for r in roots:
+                        r = np.real(r)
+                        if(r>=-1 and r <=1):
+                            xu,yu,ru = rappsip._scaler.unscale([x,y,r])
+                            qnormu = appevaldenom(xu,yu,ru,rappsip,1,0)
+                            if(qnormu == 0):
+                                X0 = np.append(X0,xu)
+                                Y0 = np.append(Y0,yu)
+                                Z0 = np.append(Z0,ru)
+                                N = np.append(N,appevalnumer(xu,yu,ru,rappsip,1,0))
 
-    if not os.path.exists(folder+'/'+fndesc+"/plots"):
-        os.mkdir(folder+'/'+fndesc+'/plots')
-
-    outcsv = "%s/%s/plots/Croots_iter%d.csv"%(folder, fndesc, iter+1)
-    np.savetxt(outcsv,np.stack((X0,Y0,Z0,N),axis=1), delimiter=",")
-    print("CSV written to %s"%(outcsv))
+        outcsv = "%s/%s/plots/Croots_iter%d.csv"%(folder, fndesc, iter+1)
+        np.savetxt(outcsv,np.stack((X0,Y0,Z0,N),axis=1), delimiter=",")
+        # print("CSV written to %s"%(outcsv))
 
 
 if __name__ == "__main__":

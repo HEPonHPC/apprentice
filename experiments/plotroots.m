@@ -7,7 +7,13 @@ X = read_roots(:, 1);
 Y = read_roots(:, 2);
 Z = read_roots(:, 3);
 
-plot3(X,Y,Z);
+scatter3(X,Y,Z,'MarkerFaceColor',[0 .75 .75]);
+
+hold on
+xlabel('x_{1}','Interpreter','tex','FontSize',17)
+ylabel('x_{2}','Interpreter','tex','FontSize',17)
+zlabel('x_{3}','Interpreter','tex','FontSize',17)
+hold off
 print(outfile,'-dpdf','-fillpage');
 % [X11,X22] = meshgrid(X1,X2);
 % for iterno = 1:3
