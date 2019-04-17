@@ -22,6 +22,7 @@ def getpqstr(fname):
     if fname=='f17' : pq = 'p4_q6'
     if fname=='f18' : pq = "p2_q3"
     if fname=='f19' : pq = "p3_q3"
+    if fname=='f20' : pq = "p2_q3"
     if fname=='f21' : pq = "p5_q2"
     if fname=='f22' : pq = "p2_q4"
     return pq
@@ -47,7 +48,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
         results[fname] = {}
         # testfile = testfilearr[num]
         # bottom_or_all = bottomallarr[num]
-        testfile = "../benchmarkdata/"+fname+"_test.txt"
+        if(fname == "f20"):
+            testfile = "f20_2x/sincrun/benchmarkdata/f20_d4_lb-6_ub4pi_test.csv"
+        else:
+            testfile = "../benchmarkdata/"+fname+"_test.txt"
         # testfile = "../benchmarkdata/"+fname+".txt"
         print(testfile)
         bottom_or_all = all
@@ -119,10 +123,15 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
             # #             results[fname][noise]["rappsip"][tvalstr] = "0"
             # #         continue
 
-
-                rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-                rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
-                pappfile = "%s/outpa/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                if(fname=='f20'):
+                    d = 4
+                    bound = "lb-6_ub4pi"
+                    rappsipfile = "f20_2x/sincrun/f20_2x_p5_q2_ts2x_d4_lb-6_ub4pi/out/f20_2x_p5_q2_ts2x_d4_lb-6_ub4pi_p5_q2_ts2x.json"
+                    rappfile = "f20_2x/sincrun/f20_2x_p5_q2_ts2x_d4_lb-6_ub4pi/outra/f20_2x_p5_q2_ts2x_d4_lb-6_ub4pi_p5_q2_ts2x.json"
+                else:
+                    rappsipfile = "%s/out/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                    rappfile = "%s/outra/%s%s_%s_p%d_q%d_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
+                # pappfile = "%s/outpa/%s%s_%s_p%s_q%s_ts%s.json"%(folder,fname,noisestr,ts,optm,optn,ts)
                 # print(rappfile)
                 if not os.path.exists(rappsipfile):
                     print("rappsipfile %s not found"%(rappsipfile))
@@ -144,6 +153,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                 # Y_pred_papp = np.array([papp(x) for x in X_test])
                 # # results[fname][noise] = {"rapp":{},"rappsip":{}}
                 # print(maxY_test)
+                maxY_test = max(1,abs(maxY_test))
                 for tval in thresholdvalarr:
                     # print(fname, maxY_test)
                     # print(Y_pred_rappsip)
@@ -219,7 +229,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                     # results[fname][noise][tvalstr] = str(int(rappcount))
                     # results[fname][noise][tvalstr] = str(int(rappsipcount))
 
-    # print(results)
+    print(results)
     # print (json.dumps(results,indent=4, sort_keys=True))
 
 
@@ -342,16 +352,16 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
                 s+="\\hline\n\n"
                 sspecific+="\\\\\\cline{2-10}\n"
                 sspecific+="\\hline\n\n"
-                if (fname=='f3' and pq == "p4_q3")\
-                    or (fname=='f5' and pq == "p2_q3")\
-                    or (fname=='f8' and pq == "p3_q3")\
-                    or (fname=='f9' and pq == "p3_q7")\
-                    or (fname=='f13' and pq == "p2_q7")\
-                    or (fname=='f14' and pq == "p3_q6")\
-                    or (fname=='f18' and pq == "p2_q3")\
-                    or (fname=='f19' and pq == "p3_q3"):
-                    print(sspecific)
-                    exit(1)
+                # if (fname=='f3' and pq == "p4_q3")\
+                #     or (fname=='f5' and pq == "p2_q3")\
+                #     or (fname=='f8' and pq == "p3_q3")\
+                #     or (fname=='f9' and pq == "p3_q7")\
+                #     or (fname=='f13' and pq == "p2_q7")\
+                #     or (fname=='f14' and pq == "p3_q6")\
+                #     or (fname=='f18' and pq == "p2_q3")\
+                #     or (fname=='f19' and pq == "p3_q3"):
+                #     print(sspecific)
+
     elif(table_or_latex =="latexall"):
         for fname in farr:
             for pq in results[fname][noisearr[0]].keys():

@@ -4,6 +4,7 @@ import numpy as np
 import os, sys
 import json
 from apprentice import RationalApproximationSIP
+from apprentice import tools, readData
 from mpl_toolkits.mplot3d import Axes3D
 
 def sinc(X,dim):
@@ -20,6 +21,8 @@ def raNorm(ra, X, Y, norm=2):
     return nrm
 
 def tablesinc(m,n,ts,table_or_latex):
+    from apprentice import monomial
+    print(apprentice.monomialStructure(3, 3))
     fname = "f20"
 
     larr = [10**-6,10**-3]
@@ -47,14 +50,48 @@ def tablesinc(m,n,ts,table_or_latex):
                 key = lbdesc[numlb]+ubdesc[numub]
                 data[dim][key] = {}
                 fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[numlb],ubdesc[numub])
-
                 file = folder+"/"+fndesc+'/out/'+fndesc+"_p"+str(m)+"_q"+str(n)+"_ts"+ts+".json"
                 if not os.path.exists(file):
                     print("%s not found"%(file))
+                    exit(1)
 
                 if file:
                     with open(file, 'r') as fn:
                         datastore = json.load(fn)
+
+                data[dim][key]['l2error'] = 0
+
+
+                testfile = "%s/benchmarkdata/%s%s_d%d_lb%s_ub%s_test.csv"%(folder,fname,noisestr,dim,lbdesc[numlb],ubdesc[numub])
+                if not os.path.exists(testfile):
+                    print("%s not found"%(testfile))
+                    exit(1)
+                bottom_or_all = all
+                try:
+                    X, Y = readData(testfile)
+                except:
+                    DATA = tools.readH5(testfile, [0])
+                    X, Y= DATA[0]
+
+                if(bottom_or_all == "bottom"):
+                    testset = [i for i in range(trainingsize,len(X_test))]
+                    X_test = X[testset]
+                    Y_test = Y[testset]
+                else:
+                    X_test = X
+                    Y_test = Y
+
+                rappsip = RationalApproximationSIP(datastore)
+                Y_pred_rappsip = rappsip.predictOverArray(X_test)
+                Y_diff = (Y_pred_rappsip-Y_test)**2
+                print(dim,key)
+                print(np.c_[Y_test[1:10],Y_pred_rappsip[1:10],Y_diff[1:10]])
+                l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
+                l2allrappsip = np.sqrt(l2allrappsip)
+                data[dim][key]['l2error'] = l2allrappsip
+
+
+
                 rappsiptime = datastore['log']['fittime']
                 rdof = int(datastore['M'] + datastore['N'])
                 rnoiters = len(datastore['iterationinfo'])
@@ -65,25 +102,62 @@ def tablesinc(m,n,ts,table_or_latex):
                 data[dim][key]['rnoiters'] = rnoiters
                 data[dim][key]['rpnnl'] = rappsiptime
                 data[dim][key]['rqnnl'] = rqnnl
+
     # print(data)
+    s =""
+    if(table_or_latex == "table"):
+        print("TBD")
+    elif(table_or_latex =="latex"):
+        for dim in range(2,8):
+            for numlb,lb in enumerate(larr):
+                for numub,ub in enumerate(uarr):
+
+                    key = lbdesc[numlb]+ubdesc[numub]
+                    s += "%d&%d&%d&%s&%s&%.3f&%d&%.3f"%(dim,data[dim][key]['rdof'],data[dim][key]['rqnnl'],
+                                lblatex[numlb],ublatex[numub],data[dim][key]['rappsiptime'],data[dim][key]['rnoiters'],
+                                data[dim][key]['l2error'])
+                    s+="\\\\\hline\n"
+    # print(s)
 
     import matplotlib.pyplot as plt
     X = range(2,8)
     rangearr = []
     labelarr = []
-    for numlb,lb in enumerate(larr):
-        for numub,ub in enumerate(uarr):
+    for numub,ub in enumerate(uarr):
+        for numlb,lb in enumerate(larr):
+            rangearr.append(lbdesc[numlb]+ubdesc[numub])
+            labelarr.append(lblatex[numlb]+ " - "+ ublatex[numub])
+    for r in rangearr:
+        Y = []
+        for x in X:
+            Y.append(data[x][r]['l2error'])
+        plt.plot(X,np.log10(Y), linewidth=1)
+    plt.legend(labelarr,loc='upper right')
+    # plt.show()
+    plt.savefig("/Users/mkrishnamoorthy/Desktop/sincerror.pdf")
+    plt.clf()
+
+    # ##############################################
+
+    import matplotlib.pyplot as plt
+    X = range(2,8)
+    rangearr = []
+    labelarr = []
+    for numub,ub in enumerate(uarr):
+        for numlb,lb in enumerate(larr):
             rangearr.append(lbdesc[numlb]+ubdesc[numub])
             labelarr.append(lblatex[numlb]+ " - "+ ublatex[numub])
     for r in rangearr:
         Y = []
         for x in X:
             Y.append(data[x][r]['rnoiters'])
-        plt.plot(X,np.log2(Y), linewidth=1)
+        plt.plot(X,np.log10(Y), linewidth=1)
     plt.legend(labelarr,loc='upper left')
     # plt.show()
     plt.savefig("/Users/mkrishnamoorthy/Desktop/sinc.pdf")
     plt.clf()
+
+    exit(1)
     # ##############################################
     dim =3
     fndesc = "%s%s_%s_p%d_q%d_ts%s_d%d_lb%s_ub%s"%(fname,noisestr,ts,m,n, ts, dim,lbdesc[0],ubdesc[1])
@@ -306,19 +380,7 @@ def tablesinc(m,n,ts,table_or_latex):
     # ##############################################
 
 
-    s =""
-    if(table_or_latex == "table"):
-        print("TBD")
-    elif(table_or_latex =="latex"):
-        for dim in range(2,8):
-            for numlb,lb in enumerate(larr):
-                for numub,ub in enumerate(uarr):
 
-                    key = lbdesc[numlb]+ubdesc[numub]
-                    s += "%d&%d&%d&%s&%s&%.3f&%d"%(dim,data[dim][key]['rdof'],data[dim][key]['rqnnl'],
-                                lblatex[numlb],ublatex[numub],data[dim][key]['rappsiptime'],data[dim][key]['rnoiters'])
-                    s+="\\\\\hline\n"
-    # print(s)
 
 
 
