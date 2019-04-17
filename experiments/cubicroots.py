@@ -94,6 +94,17 @@ def findsincroots():
 
         return app.denom(X)
 
+    def appevalnumer(x,y,z,app,toscale,printnumer):
+        if(toscale ==1):
+            X = app._scaler.scale(np.array([x,y,z]))
+        else:
+            X = np.array([x,y,z])
+        n = app.numer(X)
+        if(printnumer==1):
+            print("numer=%f"%(n))
+
+        return n
+
     def appgetonevardenom(x,y,app):
         import apprentice
         struct_q = apprentice.monomialStructure(datastore['dim'], datastore['n'])
@@ -148,13 +159,18 @@ def findsincroots():
     if jsonfile:
         with open(jsonfile, 'r') as fn:
             datastore = json.load(fn)
-    # datastore['pcoeff'] = datastore['iterationinfo'][0]['pcoeff']
-    # datastore['qcoeff'] = datastore['iterationinfo'][0]['qcoeff']
+    iter =0
+    datastore['pcoeff'] = datastore['iterationinfo'][iter]['pcoeff']
+    datastore['qcoeff'] = datastore['iterationinfo'][iter]['qcoeff']
     from apprentice import RationalApproximationSIP
     rappsip = RationalApproximationSIP(datastore)
 
     X = np.linspace(-1, 1, num=1000)
     Y = np.linspace(-1, 1, num=1000)
+    X0 = np.array([])
+    Y0 = np.array([])
+    Z0 = np.array([])
+    N = np.array([])
     for x in X:
         for y in Y:
             a,b,c,d = appgetonevardenom(x,y,rappsip)
@@ -162,18 +178,32 @@ def findsincroots():
             if(res == "threeequal" or res == "onereal"):
                 r = np.real(roots[0])
                 if(r>=-1 and r <=1):
-                    qnorm = appevaldenom(x,y,r,rappsip,0,0)
-                    if(qnorm == 0):
-                        print(x,y,r)
-                        print(appevaldenom(x,y,r,rappsip,0,1))
+                    xu,yu,ru = rappsip._scaler.unscale([x,y,r])
+                    qnormu = appevaldenom(xu,yu,ru,rappsip,1,0)
+                    if(qnormu == 0):
+                        X0 = np.append(X0,xu)
+                        Y0 = np.append(Y0,yu)
+                        Z0 = np.append(Z0,ru)
+                        N = np.append(N,appevaldenom(xu,yu,ru,rappsip,1,0))
             elif(res == 'threereal'):
                 for r in roots:
                     r = np.real(r)
                     if(r>=-1 and r <=1):
-                        fnorm = appevaldenom(x,y,r,rappsip,0,0)
-                        if(fnorm == 0):
-                            print(x,y,r)
-                            print(appevaldenom(x,y,r,rappsip,0,1))
+                        xu,yu,ru = rappsip._scaler.unscale([x,y,r])
+                        qnormu = appevaldenom(xu,yu,ru,rappsip,1,0)
+                        if(qnormu == 0):
+                            X0 = np.append(X0,xu)
+                            Y0 = np.append(Y0,yu)
+                            Z0 = np.append(Z0,ru)
+                            N = np.append(N,appevaldenom(xu,yu,ru,rappsip,1,0))
+
+    if not os.path.exists(folder+'/'+fndesc+"/plots"):
+        os.mkdir(folder+'/'+fndesc+'/plots')
+
+    outcsv = "%s/%s/plots/Croots_iter%d.csv"%(folder, fndesc, iter+1)
+    np.savetxt(outcsv,np.stack((X0,Y0,Z0,N),axis=1), delimiter=",")
+    print("CSV written to %s"%(outcsv))
+
 
 
 
