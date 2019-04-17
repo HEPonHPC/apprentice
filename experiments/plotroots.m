@@ -1,20 +1,126 @@
-filename_roots = 'f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Croots_iter1.csv';
-outfile = 'f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Prootsplot.pdf';
+for iterno = 1:2
+  filename_roots = strcat('f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Croots_iter',int2str(iterno),'.csv')
+  outfile = strcat('f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Prootsplot_iter',int2str(iterno),'.pdf')
 
-read_roots = csvread(filename_roots);
+  read_roots = csvread(filename_roots);
+  X = read_roots;
 
-X = read_roots(:, 1);
-Y = read_roots(:, 2);
-Z = read_roots(:, 3);
+  x = X(:, 1);
+  y = X(:, 2);
+  z = X(:, 3);
+  K=3
+  clr = lines(K);
+  G =[]
+  % G = [G; 1]
+  % G = [G; 2]
+  % display(G)
+  % display(C)
+  newx1 = [];
+  newx2 = [];
+  newx3 = [];
+  newy1 = [];
+  newy2 = [];
+  newy3 = [];
+  newz1 = [];
+  newz2 = [];
+  newz3 = [];
+  for i = 1:length(x)
+    if X(i,1)<8 &&  X(i,3)<2
+      G = [G; 2];
+      newx1 = [newx1,X(i,1)];
+      newy1 = [newy1,X(i,2)];
+      newz1 = [newz1,X(i,3)];
+    elseif X(i,1)<10 &&  X(i,3)>8
+      G = [G; 1];
+      newx2 = [newx2,X(i,1)];
+      newy2 = [newy2,X(i,2)];
+      newz2 = [newz2,X(i,3)];
+    else
+      G = [G; 3];
+      newx3 = [newx3,X(i,1)];
+      newy3 = [newy3,X(i,2)];
+      newz3 = [newz3,X(i,3)];
+    end
+  end
+  figure, hold on
+  % scatter3(X(:,1), X(:,2), X(:,3), 36, clr(G,:), 'Marker','.')
+    points = 50
+    method = 'linear'
+    xv = linspace(min(newx1), max(newx1), points);
+    yv = linspace(min(newy1), max(newy1), points);
+    [XX,YY] = meshgrid(xv, yv);
+    ZZ = griddata(newx1,newy1,newz1,XX,YY,method);
+    display('plotting')
+    surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
 
-scatter3(X,Y,Z,'MarkerFaceColor',[0 .75 .75]);
+    xv = linspace(min(newx2), max(newx2), points);
+    yv = linspace(min(newy2), max(newy2), points);
+    [XX,YY] = meshgrid(xv, yv);
+    ZZ = griddata(newx2,newy2,newz2,XX,YY,method);
+    display('plotting')
+    surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
 
-hold on
-xlabel('x_{1}','Interpreter','tex','FontSize',17)
-ylabel('x_{2}','Interpreter','tex','FontSize',17)
-zlabel('x_{3}','Interpreter','tex','FontSize',17)
-hold off
-print(outfile,'-dpdf','-fillpage');
+    % xv = linspace(min(newx3), max(newx3), points);
+    % yv = linspace(min(newy3), max(newy3), points);
+    % [XX,YY] = meshgrid(xv, yv);
+    % ZZ = griddata(newx3,newy3,newz3,XX,YY,method);
+    % display('plotting')
+    % surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
+    tri = delaunay(newx3,newy3);
+    display('plotting')
+    h = trisurf(tri, newx3, newy3, newz3,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
+
+  % scatter3(C(:,1), C(:,2), C(:,3), 100, clr, 'Marker','o', 'LineWidth',3)
+  view(3), axis vis3d, box on, rotate3d on
+%
+%
+% xv = linspace(min(x), max(x), 100);
+% yv = linspace(min(y), max(y), 100);
+% [X,Y] = meshgrid(xv, yv);
+% Z = griddata(x,y,z,X,Y,'v4');
+% surf(X, Y, Z,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
+% grid on
+% set(gca, 'ZLim',[0 100])
+% shading interp
+% scatter3(x,y,z,'Marker','.');
+% scatter3(x,y,z,'filled');
+
+%%
+% The problem is that the data is made up of individual (x,y,z)
+% measurements. It isn't laid out on a rectilinear grid, which is what the
+% SURF command expects. A simple plot command isn't very useful.
+
+% plot3(x,y,z,'.-')
+% hold on
+%% Little triangles
+% The solution is to use Delaunay triangulation. Let's look at some
+% info about the "tri" variable.
+% tri = delaunay(x,y,z);
+% % plot(x,y,'.')
+% %%
+% % How many triangles are there?
+% [r,c] = size(tri);
+% disp(r)
+% %% Plot it with TRISURF
+% h = trisurf(tri, x, y, z);
+% axis vis3d
+%% Clean it up
+% axis off
+% l = light('Position',[-50 -15 29])
+% set(gca,'CameraPosition',[208 -50 7687])
+% lighting phong
+% shading interp
+% colorbar EastOutside
+
+
+  xlabel('x_{1}','Interpreter','tex','FontSize',17)
+  ylabel('x_{2}','Interpreter','tex','FontSize',17)
+  zlabel('x_{3}','Interpreter','tex','FontSize',17)
+  title(strcat('Iteration No. = ',int2str(iterno)))
+  hold off
+  print(outfile,'-dpdf','-fillpage');
+  clf;
+end
 % [X11,X22] = meshgrid(X1,X2);
 % for iterno = 1:3
 %   Y_pq = read_Y_pq(:, iterno);
