@@ -205,12 +205,6 @@ def findsincroots():
     print("CSV written to %s"%(outcsv))
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
     x = solve(1, -3, 4, -4)
     y = solve(1, 0, -21, -20)
