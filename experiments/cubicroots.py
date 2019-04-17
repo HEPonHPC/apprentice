@@ -184,7 +184,7 @@ def findsincroots():
                         X0 = np.append(X0,xu)
                         Y0 = np.append(Y0,yu)
                         Z0 = np.append(Z0,ru)
-                        N = np.append(N,appevaldenom(xu,yu,ru,rappsip,1,0))
+                        N = np.append(N,appevalnumer(xu,yu,ru,rappsip,1,0))
             elif(res == 'threereal'):
                 for r in roots:
                     r = np.real(r)
@@ -195,7 +195,7 @@ def findsincroots():
                             X0 = np.append(X0,xu)
                             Y0 = np.append(Y0,yu)
                             Z0 = np.append(Z0,ru)
-                            N = np.append(N,appevaldenom(xu,yu,ru,rappsip,1,0))
+                            N = np.append(N,appevalnumer(xu,yu,ru,rappsip,1,0))
 
     if not os.path.exists(folder+'/'+fndesc+"/plots"):
         os.mkdir(folder+'/'+fndesc+'/plots')
@@ -216,5 +216,5 @@ if __name__ == "__main__":
     y = solve(1, 0, -21, -20)
     print(x)
     print(y)
-    print(x[0] *2 +2)
+
     findsincroots()
