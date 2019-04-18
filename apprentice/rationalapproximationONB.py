@@ -76,6 +76,16 @@ class RationalApproximationONB(object):
 
     @property
     def F(self): return self._F
+    @property
+    def pcoeff(self): return self._pcoeff
+    @property
+    def qcoeff(self): return self._qcoeff
+    @property
+    def dim(self): return self._dim
+    @property
+    def m(self): return self._m
+    @property
+    def n(self): return self._n
 
 
     def isViable(self, F, Q, m, n):
