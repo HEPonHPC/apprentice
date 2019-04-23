@@ -2,7 +2,7 @@ import apprentice
 import numpy as np
 
 
-def runRASIP(X, Y, fndesc, m, n, ts, outfolder):
+def runRASIP(X, Y, fndesc, m, n, ts, outfile):
     import json
     rasip = apprentice.RationalApproximationSIP(
     							X,
@@ -24,7 +24,7 @@ def runRASIP(X, Y, fndesc, m, n, ts, outfolder):
             #                 raNormInf(rrr, X[i_test], Y[i_test])))
             # print("Total Approximation time {}\n".format(rrr.fittime))
 
-    outfile = "%s/out/%s_p%d_q%d_ts%s.json"%(outfolder,fndesc,m,n,ts)
+    # outfile = "%s/out/%s_p%d_q%d_ts%s.json"%(outfolder,fndesc,m,n,ts)
     rasip.save(outfile)
 
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     import os, sys
     if len(sys.argv)!=7:
-        print("Usage: {} infile fndesc m n trainingscale outfolder".format(sys.argv[0]))
+        print("Usage: {} infile fndesc m n trainingscale outfile".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -52,5 +52,5 @@ if __name__ == "__main__":
         m=int(sys.argv[3]),
         n=int(sys.argv[4]),
         ts=sys.argv[5],
-        outfolder=sys.argv[6]
+        outfile=sys.argv[6]
     )

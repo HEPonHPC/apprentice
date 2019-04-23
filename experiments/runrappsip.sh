@@ -31,7 +31,7 @@ for pdeg in $(seq 1 $mmax); do
       if [ ! -f "$outfile" ]
       then
         echo $consolelog;
-        nohup python runrappsip.py $infile $fndesc $pdeg $qdeg $ts $fndesc >$colsolelog 2>&1 &
+        nohup python runrappsip.py $infile $fndesc $pdeg $qdeg $ts "$outfile" >$colsolelog 2>&1 &
       fi
       # python runrappsip.py $infile $fndesc $pdeg $qdeg $ts $fndesc >$colsolelog 2>&1
     done
