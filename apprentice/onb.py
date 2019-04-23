@@ -131,12 +131,16 @@ class ONB(object):
         Q, R, recInfoInd, recInfoVar = fast_calc(self._X, M, Mdof)
         del self._X
 
+        self._Q = Q
         self._R = R
         self._recInd = recInfoInd
         self._recVar = recInfoVar
 
     @property
     def R(self): return self._R
+
+    @property
+    def Q(self): return self._Q
 
     def _recurrence(self, X, dof):
         """
@@ -150,6 +154,7 @@ class ONB(object):
     def asDict(self):
         return {
                 "R" : self.R.tolist(),
+                "Q" : self.R.tolist(),
                 "recInd": self._recInd.tolist(),
                 "recVar": self._recVar.tolist(),
                 "dim" : self._dim
@@ -167,6 +172,7 @@ class ONB(object):
 
     def mkFromDict(self, ONBDict):
         self._R = np.array(ONBDict["R"])
+        self._Q = np.array(ONBDict["Q"])
         self._recInd = np.array(ONBDict["recInd"])
         self._recVar = np.array(ONBDict["recVar"])
         self._dim = int(ONBDict["dim"])
@@ -191,6 +197,9 @@ if __name__== "__main__":
     S = Scaler(D)
     O = ONB(S.scaledPoints)
     print(O._recurrence(S.scaledPoints[0],6))
+
+    from IPython import embed
+    embed()
 
 
     O.save("testSaveONB.json")
