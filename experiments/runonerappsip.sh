@@ -29,6 +29,6 @@ outfile=$fndesc"/out/"$fndesc"_p"$m"_q"$n"_ts"$ts".json";
 if [ ! -f "$outfile" ]
   then
     echo $consolelog;
-    nohup python runrappsip.py $infile $fndesc $m $n $ts "$outfile" >$colsolelog 2>&1 &
+    nohup python runrappsip.py $infile $fndesc $m $n $ts $fndesc "$outfile" >$colsolelog 2>&1 &
 fi
 # python runrappsip.py $infile $fndesc $m $n $ts $fndesc >$colsolelog 2>&1

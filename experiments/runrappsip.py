@@ -2,7 +2,7 @@ import apprentice
 import numpy as np
 
 
-def runRASIP(X, Y, fndesc, m, n, ts, outfile):
+def runRASIP(X, Y, fndesc, m, n, ts, outfolder,outfile):
     import json
     rasip = apprentice.RationalApproximationSIP(
     							X,
@@ -31,8 +31,8 @@ def runRASIP(X, Y, fndesc, m, n, ts, outfile):
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=7:
-        print("Usage: {} infile fndesc m n trainingscale outfile".format(sys.argv[0]))
+    if len(sys.argv)!=8:
+        print("Usage: {} infile fndesc m n trainingscale outfolder outfile".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -52,5 +52,7 @@ if __name__ == "__main__":
         m=int(sys.argv[3]),
         n=int(sys.argv[4]),
         ts=sys.argv[5],
-        outfile=sys.argv[6]
+        outfolder = sys.argv[6],
+        outfile=sys.argv[7]
+
     )

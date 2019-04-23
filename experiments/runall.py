@@ -216,7 +216,7 @@ def runall(type, sample, noise,m,n):
                 consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
                     # print(cmd)
                     os.system(cmd)
                     # exit(1)
