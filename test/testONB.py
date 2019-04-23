@@ -7,9 +7,10 @@ def mkApp(X,Y, M,N, tol):
 
 if __name__=="__main__":
     import sys
-    fin = sys.argv[1]
+    fin, size = sys.argv[1].split(":")
+    size=int(size)
     M=int(sys.argv[2])
     N=int(sys.argv[3])
     T = float(sys.argv[4])
     X, Y = apprentice.tools.readData(fin)
-    R = mkApp(X,Y,M,N, T)
+    R = mkApp(X[0:size],Y[0:size],M,N, T)
