@@ -205,7 +205,7 @@ def runall(type, sample, noise,m,n):
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
-                    print(cmd)
+                    # print(cmd)
                     os.system(cmd)
                     # exit(1)
             elif(type == "rasip"):
@@ -217,7 +217,7 @@ def runall(type, sample, noise,m,n):
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
-                    print(cmd)
+                    # print(cmd)
                     os.system(cmd)
                     # exit(1)
 
