@@ -1,5 +1,15 @@
 import numpy as np
 import os
+
+def my_i4_sobol_generate(dim, n, seed):
+    import sobol_seq
+    r = np.full((n, dim), np.nan)
+    currentseed = seed
+    for j in range(n):
+        r[j, 0:dim], newseed = sobol_seq.i4_sobol(dim, currentseed)
+        currentseed = newseed
+    return r
+
 def getData(X_train, fn, noisepct):
     """
     TODO use eval or something to make this less noisy
@@ -91,9 +101,11 @@ def getbox(f):
     return minbox,maxbox
 
 def getfarr():
+    farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+            "f17","f18","f19","f20","f21","f22"]
     # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
-    #         "f17","f18","f19","f20","f21","f22"]
-    farr = ["f20"]
+    #         "f17","f18","f19","f21","f22"]
+    # farr = ["f20"]
 
     return farr
 
@@ -102,7 +114,6 @@ def generatebenchmarkdata(m,n):
     folder= "results"
     from apprentice import tools
     from pyDOE import lhs
-    import sobol_seq
     import apprentice
     ts = 2
     farr = getfarr()
@@ -140,7 +151,7 @@ def generatebenchmarkdata(m,n):
                         l+=1
                     X = sg.grid
                 elif(sample == "sc"):
-                    X = sobol_seq.i4_sobol_generate(dim,npoints)
+                    X = my_i4_sobol_generate(dim,npoints,seed)
                     s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
                     X = s.scaledPoints
                 elif(sample == "lhs"):
@@ -164,7 +175,7 @@ def generatebenchmarkdata(m,n):
                     outfile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
                     print(outfile)
                     np.savetxt(outfile, np.hstack((X,Y.T)), delimiter=",")
-                if(sample == "sc" or sample == "sg"):
+                if(sample == "sg"):
                     break
 
 
@@ -223,7 +234,7 @@ def runall(type, sample, noise,m,n):
                     os.system(cmd)
                     # exit(1)
 
-            if(sample == "sc" or sample == "sg"):
+            if(sample == "sc"):
                 break
 
 
