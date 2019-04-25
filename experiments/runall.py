@@ -234,7 +234,7 @@ def runall(type, sample, noise,m,n):
                     os.system(cmd)
                     # exit(1)
 
-            if(sample == "sc"):
+            if(sample == "sg"):
                 break
 
 
