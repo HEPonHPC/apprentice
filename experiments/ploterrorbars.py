@@ -5,21 +5,22 @@ import matplotlib.ticker as mtick
 import os
 
 
-def ploterrorbars(baseline=0):
+def ploterrorbars(baseline=13.5,plottype='persample'):
     import matplotlib as mpl
     import json
 
 
-    # mpl.use('pgf')
-    # pgf_with_custom_preamble = {
-    #     "text.usetex": True,    # use inline math for ticks
-    #     "pgf.rcfonts": False,   # don't setup fonts from rc parameters
-    #     "pgf.preamble": [
-    #         "\\usepackage{amsmath}",         # load additional packages
-    #     ]
-    # }
-    # mpl.rcParams.update(pgf_with_custom_preamble)
+    mpl.use('pgf')
+    pgf_with_custom_preamble = {
+        "text.usetex": True,    # use inline math for ticks
+        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+        "pgf.preamble": [
+            "\\usepackage{amsmath}",         # load additional packages
+        ]
+    }
+    mpl.rcParams.update(pgf_with_custom_preamble)
 
+    color = ['#900C3F','#C70039','#FF5733','#FFC300']
 
     fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f20','f21','f22']
     # fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f21','f22']
@@ -33,23 +34,17 @@ def ploterrorbars(baseline=0):
     width = 0.15
         # import matplotlib.pyplot as plt
         # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
-    for snum,sample in enumerate(['mc','lhs','sc','sg']):
-    # for snum,sample in enumerate(['lhs']):
+    data = {}
+    noiselevels = ['0','10-1','10-3']
+    allsamples = ['mc','lhs','sc','sg']
+    # allsamples = ['mc','lhs']
+    # allsamples = ['lhs']
+    for snum,sample in enumerate(allsamples):
+        data[sample] = {}
+        # first = sample
+        for nnum,noise in enumerate(noiselevels):
+            data[sample][noise] = {}
 
-
-        import matplotlib.pyplot as plt
-        plt.rc('ytick',labelsize=14)
-        fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
-
-        ecolor = 'black'
-        minval = np.Infinity
-
-
-
-        first = sample
-        for nnum,noise in enumerate(['0','10-1','10-3']):
-
-            plotindex = nnum
             second = noise
 
 
@@ -57,14 +52,9 @@ def ploterrorbars(baseline=0):
             noisepct = 0
             if(noise!="0"):
                 noisestr = "_noisepct"+noise
-            pa = []
-            ra = []
-            rasip = []
-            paerror = []
-            raerror = []
-            rasiperror = []
 
             for fnum,fname in enumerate(fff):
+                data[sample][noise][fname] = {}
                 testfile = "../benchmarkdata/"+fname+"_test.txt"
                 # testfile = "../benchmarkdata/"+fname+".txt"
                 print(testfile)
@@ -122,99 +112,138 @@ def ploterrorbars(baseline=0):
                     datara.append(np.log10(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2))))
                     datarasip.append(np.log10(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2))))
 
-                    if(sample == "sc" or sample == "sg"):
+                    if(sample == "sg"):
                         break
 
-                pa.append(np.average(datapa))
-                paerror.append(np.std(datapa))
+                data[sample][noise][fname]['pamean'] = np.average(datapa)
+                data[sample][noise][fname]['pasd'] = np.std(datapa)
 
-                ra.append(np.average(datara))
-                raerror.append(np.std(datara))
+                data[sample][noise][fname]['ramean'] = np.average(datara)
+                data[sample][noise][fname]['rasd'] = np.std(datara)
 
-                rasip.append(np.average(datarasip))
-                rasiperror.append(np.std(datarasip))
-
-            minval = min(minval,min(pa))
-            minval = min(minval,min(ra))
-            minval = min(minval,min(rasip))
-            # print(pa)
-            # print(ra)
-            # print(rasip)
+                data[sample][noise][fname]['rasipmean'] = np.average(datarasip)
+                data[sample][noise][fname]['rasipsd'] = np.std(datarasip)
+                if(sample == "sg"):
+                    data[sample][noise][fname]['pasd'] = 0
+                    data[sample][noise][fname]['rasd'] = 0
+                    data[sample][noise][fname]['rasipsd'] = 0
 
 
-            # print(len(pa),len(ra),len(rasip))
 
-            # print(min(pa),min(ra),min(rasip))
-            # print(np.c_[pa,np.log10(pa)])
 
-            # baseline = 20
-            p1 = axarr[plotindex].bar(X111, np.array(pa)+baseline, width,color='#C70039', yerr=np.array(paerror),align='center',  ecolor=ecolor, capsize=3)
-            p2 = axarr[plotindex].bar(X111+width, np.array(ra)+baseline, width,color='#FF5733',yerr=np.array(raerror),align='center',ecolor=ecolor, capsize=3)
-            p3 = axarr[plotindex].bar(X111+2*width, np.array(rasip)+baseline, width,color='#FFC300',yerr=np.array(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
-            axarr[plotindex].legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-            # ax2.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-            # ax3.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
 
-            axarr[plotindex].set_xticks(X111 + 2*width / 2)
-            # ax2.set_xticks(X111 + 2*width / 2)
-            # ax3.set_xticks(X111 + 2*width / 2)
-            xlab = []
-            for f in fff:
-                print(f)
-                xlab.append("\\ref{fn:%s}"%(f))
+    outfile111 = "results/plots/Jerrors.json"
+    import json
+    with open(outfile111, "w") as f:
+        json.dump(data, f,indent=4, sort_keys=True)
+    if not os.path.exists("results/plots"):
+        os.makedirs("results/plots", exist_ok = True)
+    ecolor = 'black'
+    if(plottype == 'persample' or plottype == 'pernoiselevel'):
+    # if(plottype == 'persample'):
+        # minval = np.Infinity
+
+        for snum,sample in enumerate(allsamples):
+            import matplotlib.pyplot as plt
+            plt.rc('ytick',labelsize=14)
+            fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+            for nnum,noise in enumerate(noiselevels):
+                pa = []
+                ra = []
+                rasip = []
+                paerror = []
+                raerror = []
+                rasiperror = []
+                for fnum,fname in enumerate(fff):
+                    pa.append(data[sample][noise][fname]['pamean'])
+                    paerror.append(data[sample][noise][fname]['pasd'])
+
+                    ra.append(data[sample][noise][fname]['ramean'])
+                    raerror.append(data[sample][noise][fname]['rasd'])
+
+                    rasip.append(data[sample][noise][fname]['rasipmean'])
+                    rasiperror.append(data[sample][noise][fname]['rasipsd'])
+
+                p1 = axarr[nnum].bar(X111, np.array(pa)+baseline, width,color=color[1], yerr=np.array(paerror),align='center',  ecolor=ecolor, capsize=3)
+                p2 = axarr[nnum].bar(X111+width, np.array(ra)+baseline, width,color=color[2],yerr=np.array(raerror),align='center',ecolor=ecolor, capsize=3)
+                p3 = axarr[nnum].bar(X111+2*width, np.array(rasip)+baseline, width,color=color[3],yerr=np.array(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+                axarr[nnum].legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
+
+            for ax in axarr.flat:
+                ax.set_xticks(X111 + 2*width / 2)
+                xlab = []
+                for f in fff:
+                    print(f)
+                    xlab.append("\\ref{fn:%s}"%(f))
+                ax.set_xticklabels(xlab,fontsize = 14)
+                ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
+                ax.label_outer()
+
+            plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+            plt.tight_layout()
             print(xlab)
+            # plt.show()
+            # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+            # outfile111 = "results/plots/Perrorbars_for_%s.pdf"%(sample)
+            outfile111 = "results/plots/Perrorbars_for_%s.pgf"%(sample)
+            plt.savefig(outfile111, bbox_inches="tight")
+            plt.clf()
+            plt.close('all')
+    # elif(plottype == 'pernoiselevel'):
+        for nnum,noise in enumerate(noiselevels):
+            import matplotlib.pyplot as plt
+            plt.rc('ytick',labelsize=14)
+            fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+            for anum,approx in enumerate(["pa","ra","rasip"]):
+                for snum,sample in enumerate(allsamples):
+                    barobj = []
+                    mean = []
+                    sd = []
+                    for fnum,fname in enumerate(fff):
+                        mean.append(data[sample][noise][fname][approx+"mean"])
+                        sd.append(data[sample][noise][fname][approx+"sd"])
+                    barobj.append(axarr[anum].bar(X111+snum*width, np.array(mean)+baseline, width,color=color[snum], yerr=np.array(sd),align='center',  ecolor=ecolor, capsize=3))
+                # axarr[anum].legend(barobj,('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
+                axarr[anum].set_title(str(allsamples)+ " approx = "+approx)
+            for ax in axarr.flat:
+                ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+                xlab = []
+                for f in fff:
+                    print(f)
+                    xlab.append("\\ref{fn:%s}"%(f))
+                ax.set_xticklabels(xlab,fontsize = 14)
+                ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
+                ax.label_outer()
 
-            axarr[plotindex].set_xticklabels(xlab,fontsize = 14)
-            # ax2.set_xticklabels(xlab,fontsize = 14)
-            # ax3.set_xticklabels(xlab,fontsize = 14)
-
-            # ax3.set_xlabel('Function No.',fontsize = 17)
-            # ax2.set_xlabel('Function No.',fontsize = 17)
-            axarr[plotindex].set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-            # ax2.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-            # ax3.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-
-        # p1 = axarr[plotindex].bar(X111, np.log10(pa), width,color='#900C3F')
-        # p2 = axarr[plotindex].bar(X111+width, np.log10(ra), width,color='#FF5733')
-        # p3 = axarr[plotindex].bar(X111+2*width, np.log10(rasip), width,color='#FFC300')
-
-        # p1 = ax2.bar(X111, np.log10(pa1), width,color='#C70039', yerr=np.log10(paerror1),align='center',  ecolor=ecolor, capsize=3)
-        # p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733',yerr=np.log10(raerror1),align='center',ecolor=ecolor, capsize=3)
-        # p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300',yerr=np.log10(rasiperror1),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
-
-        # p1 = ax2.bar(X111, np.log10(pa1), width,color='#900C3F')
-        # p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
-        # p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
-
-        # p1= ax3.errorbar(X111, np.log10(pa1), np.log10(paerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
-        # p1= ax3.errorbar(X111+width, np.log10(ra1), np.log10(raerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
-        # p1= ax3.errorbar(X111+2*width, np.log10(rasip1), np.log10(rasiperror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
-
-        # p1 = ax3.bar(X111, np.log10(pa2), width,color='#C70039', yerr=np.log10(paerror2),align='center',  ecolor=ecolor, capsize=3)
-        # p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733',yerr=np.log10(raerror2),align='center',ecolor=ecolor, capsize=3)
-        # p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300',yerr=np.log10(rasiperror2),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
-
-        # p1 = ax3.bar(X111, np.log10(pa2), width,color='#900C3F')
-        # p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733')
-        # p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300')
+            plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+            plt.tight_layout()
+            print(xlab)
+            # plt.show()
+            # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+            # outfile111 = "results/plots/Perrorbars_for_%s.pdf"%(noise)
+            outfile111 = "results/plots/Perrorbars_for_%s.pgf"%(noise)
+            plt.savefig(outfile111, bbox_inches="tight")
+            plt.clf()
+            plt.close('all')
 
 
 
 
 
-        # axarr[plotindex].set_ylim((-10,10))
-        # ax2.set_ylabel('$\\Delta_r$',fontsize = 17)
 
-            # ax.set_ylim([-9,4])
-        print('minval = %f'%minval)
-        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
-        plt.tight_layout()
-        # plt.show()
-        # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
-        if not os.path.exists("results/plots"):
-            os.makedirs("results/plots", exist_ok = True)
-        outfile111 = "results/plots/Perrorbars_for_%s.pdf"%(first)
-        plt.savefig(outfile111, bbox_inches="tight")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # s = ""
     # for num,fname in enumerate(fff):
@@ -283,8 +312,10 @@ if __name__ == "__main__":
     #
     # # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
     import os, sys
-    if len(sys.argv)==1:
-        ploterrorbars()
-    else:
+    if len(sys.argv)==2:
         ploterrorbars(float(sys.argv[1]))
+    elif len(sys.argv)==3:
+        ploterrorbars(float(sys.argv[1]),sys.argv[2])
+    else:
+        print("baseline (13.5), plottype required: persample or pernoiselevel")
 ###########
