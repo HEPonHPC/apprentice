@@ -302,4 +302,4 @@ if __name__ == "__main__":
     if len(sys.argv)!=8:
         print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n pstart pend".format(sys.argv[0]))
         sys.exit(1)
-    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6],sys.argv[7])
+    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],int(sys.argv[6]),int(sys.argv[7]))
