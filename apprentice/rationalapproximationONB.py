@@ -3,7 +3,6 @@ import apprentice
 
 from apprentice import RationalApproximation
 class RationalApproximationONB(object):
-# class Raider(object):
     """
     Rational interpolation with degree reduction.
     """
@@ -16,6 +15,7 @@ class RationalApproximationONB(object):
 
             X     --- anchor points
             Y     --- function values
+            tol   --- singular value tolerance
             order --- tuple (m,n) m being the order of the numerator polynomial --- if omitted: auto
         """
         self.tol = tol
@@ -96,6 +96,15 @@ class RationalApproximationONB(object):
         if n <0: return False
         S = self._svd(F, Q, m, n)
         dec = S['s'][-1] < self.tol * S['s'][0]
+        # print(len(S['s']), S['s'][-1], S['s'][0], self.tol * S['s'][0], S['s'][-1]/S['s'][0] )
+        ratio = S['s']/S['s'][0]
+        drop = [ratio[i+1]/ratio[i] for i in range(len(S['s'])-1)]
+        print("m={} n={} max drop: {}".format(m,n, np.max(drop)))
+
+        import pylab
+        # pylab.clf()
+        pylab.yscale("log")
+        pylab.plot([i for i in range(len(S['s']))], S['s']/S['s'][0], label="m={} n={}".format(m,n))
         # print("Reductio: Testing orders",m,n, "decision: ", dec, "SVs",S['s'])
 
         return dec
@@ -105,7 +114,7 @@ class RationalApproximationONB(object):
         Denominator first reduction
         """
         m, n = M, N
-        while self.isViable(self.F,  Q, m, n-1):
+        while self.isViable(self.F,  Q, m, n-1) and n>0:
             n-=1
 
         # Numerator reduction
@@ -119,13 +128,22 @@ class RationalApproximationONB(object):
         else:
             iF=np.diag([1./y for y in Y]) # TODO move into reduction step and exclude 0s
 
-        while self.isViable(iF, Q[np.where(Y!=0)], n, m-1):
+        # while self.isViable(iF, Q[np.where(Y!=0)], n, m-1):
+        while self.isViable(iF, Q[np.where(Y!=0)], m-1, n) and m>0:
             m-=1
+
+        import pylab
+        pylab.legend()
+        pylab.axhline(self.tol)
+        pylab.title("Singular values ordered in decreasing value")
+        pylab.xlabel("i")
+        pylab.ylabel("$S_i / max(S)$")
+        pylab.savefig("final_{}_{}_tol_{}.pdf".format(m,n, self.tol))
         return m, n
 
     def _calc(self, M, N, Q):
         """
-        Perform the rational approxiation here.
+        Perform the rational approximation here.
         """
 
         # Degree reduction
