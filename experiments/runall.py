@@ -222,6 +222,25 @@ def runall(type, sample, noise,m,n):
                     # print(cmd)
                     os.system(cmd)
                     # exit(1)
+            elif(type == "rard"):
+                if not os.path.exists(folderplus + "/outrard"):
+                    os.makedirs(folderplus + "/outrard",exist_ok = True)
+                if not os.path.exists(folderplus + "/log/consolelogrard"):
+                    os.makedirs(folderplus + "/log/consolelogrard",exist_ok = True)
+                consolelog=folderplus + "/log/consolelogrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+                outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                if noise =="0":
+                    tol = 10**-12
+                elif noise == "10-1":
+                    tol = (10**-1)/10
+                elif noise == "10-3":
+                    tol = (10**-3)/10
+
+                if not os.path.exists(outfile):
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    # print(cmd)
+                    os.system(cmd)
+                    # exit(1)
             elif(type == "rasip"):
                 if not os.path.exists(folderplus + "/outrasip"):
                     os.makedirs(folderplus + "/outrasip",exist_ok = True)

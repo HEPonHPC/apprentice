@@ -49,6 +49,7 @@ class RationalApproximationONB(object):
                 "qcoeff": self._qcoeff.tolist(),
                 "m": self._m,
                 "n": self._n,
+                "tol":self.tol,
                 "ONB": self._ONB.asDict,
                 "scaler" : self._scaler.asDict
                 }

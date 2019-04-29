@@ -1,4 +1,4 @@
-for iterno = 1:2
+for iterno = 1:4
   filename_roots = strcat('f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Croots_iter',int2str(iterno),'.csv')
   outfile = strcat('f20_2x/sincrun/f20_2x_p2_q3_ts2x_d3_lb-6_ub4pi/plots/Prootsplot_iter',int2str(iterno),'.pdf')
 
@@ -60,15 +60,16 @@ for iterno = 1:2
     display('plotting')
     surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
 
-    % xv = linspace(min(newx3), max(newx3), points);
-    % yv = linspace(min(newy3), max(newy3), points);
-    % [XX,YY] = meshgrid(xv, yv);
-    % ZZ = griddata(newx3,newy3,newz3,XX,YY,method);
-    % display('plotting')
-    % surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
-    tri = delaunay(newx3,newy3);
+    zv = linspace(min(newz3), max(newz3), points);
+    yv = linspace(min(newy3), max(newy3), points);
+    [YY,ZZ] = meshgrid(yv, zv);
+    XX = griddata(newy3,newz3,newx3,YY,ZZ,method);
     display('plotting')
-    h = trisurf(tri, newx3, newy3, newz3,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
+    surf(XX, YY, ZZ,'FaceColor','green','EdgeColor', 'red','FaceAlpha',0.5);
+    % sc = scatter3(1.36538391e+00,1.00000000e-06,1.00000000e-06,400,'black','c','filled')
+    % tri = delaunay(newy3,newz3);
+    % display('plotting')
+    % h = trisurf(tri, newx3, newy3, newz3,'FaceColor','green','EdgeColor', 'none','FaceAlpha',0.5);
 
   % scatter3(C(:,1), C(:,2), C(:,3), 100, clr, 'Marker','o', 'LineWidth',3)
   view(3), axis vis3d, box on, rotate3d on
