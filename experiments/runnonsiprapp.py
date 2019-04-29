@@ -3,7 +3,7 @@ import numpy as np
 from timeit import default_timer as timer
 
 
-def runRA(X, Y, fndesc, m, n, ts, outfile):
+def runRA(X, Y, fndesc, m, n, ts, tol,outfile):
     dim = X[0].shape[0]
     M = apprentice.tools.numCoeffsPoly(dim,m)
     N = apprentice.tools.numCoeffsPoly(dim,n)
@@ -28,7 +28,7 @@ def runRA(X, Y, fndesc, m, n, ts, outfile):
     							X[train],
     							Y[train],
     							order=(m,n),
-                                tol=-1
+                                tol=tol
     )
     end = timer()
 
@@ -48,8 +48,8 @@ def runRA(X, Y, fndesc, m, n, ts, outfile):
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=7:
-        print("Usage: {} infile fndesc m n trainingscale outfile".format(sys.argv[0]))
+    if len(sys.argv)!=8:
+        print("Usage: {} infile fndesc m n trainingscale tolerance outfile".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -69,5 +69,6 @@ if __name__ == "__main__":
         m=int(sys.argv[3]),
         n=int(sys.argv[4]),
         ts=sys.argv[5],
-        outfile=sys.argv[6]
+        tol = float(sys.argv[6]),
+        outfile=sys.argv[7]
     )

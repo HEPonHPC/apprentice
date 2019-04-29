@@ -1,12 +1,15 @@
 import numpy as np
 from apprentice import RationalApproximationSIP, RationalApproximationONB, PolynomialApproximation
 from apprentice import tools, readData
+import matplotlib.ticker as mtick
 import os
 
 
-def ploterrorbars():
+def ploterrorbars(baseline=13.5,plottype='persample'):
     import matplotlib as mpl
     import json
+
+
     mpl.use('pgf')
     pgf_with_custom_preamble = {
         "text.usetex": True,    # use inline math for ticks
@@ -17,317 +20,249 @@ def ploterrorbars():
     }
     mpl.rcParams.update(pgf_with_custom_preamble)
 
-    width = 0.15
-        # import matplotlib.pyplot as plt
-        # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
-    pa = []
-    ra = []
-    rasip = []
-    paerror = []
-    raerror = []
-    rasiperror = []
-
-    pa1 = []
-    ra1 = []
-    rasip1 = []
-    paerror1 = []
-    raerror1 = []
-    rasiperror1 = []
-
-    pa2 = []
-    ra2 = []
-    rasip2 = []
-    paerror2 = []
-    raerror2 = []
-    rasiperror2 = []
+    color = ['#900C3F','#C70039','#FF5733','#FFC300']
 
     fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f20','f21','f22']
-    # fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10']
+    # fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f21','f22']
+    # fff = ['f12','f13','f14','f15','f16']
     # fff = ['f1','f2','f3','f4']
+    # fff = ['f1']
+    # fff = ['f20']
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
+    width = 0.15
+        # import matplotlib.pyplot as plt
+        # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
+    data = {}
+    noiselevels = ['0','10-1','10-3']
+    allsamples = ['mc','lhs','sc','sg']
+    # allsamples = ['mc','lhs']
+    # allsamples = ['lhs']
+    for snum,sample in enumerate(allsamples):
+        data[sample] = {}
+        # first = sample
+        for nnum,noise in enumerate(noiselevels):
+            data[sample][noise] = {}
 
-    for num,fname in enumerate(fff):
-        # pq = pqqq[num]
-        testfile = "../benchmarkdata/"+fname+"_test.txt"
-        # testfile = "../benchmarkdata/"+fname+".txt"
-        print(testfile)
-        bottom_or_all = all
-        try:
-            X, Y = readData(testfile)
-        except:
-            DATA = tools.readH5(testfile, [0])
-            X, Y= DATA[0]
-
-        if(bottom_or_all == "bottom"):
-            testset = [i for i in range(trainingsize,len(X_test))]
-            X_test = X[testset]
-            Y_test = Y[testset]
-        else:
-            X_test = X
-            Y_test = Y
-        ts = "2x"
-
-        noisestr = ""
-        datapa = []
-        datara = []
-        datarasip = []
-        for run in ["./","../experiments2/","../experiments3/","../experiments4/","../experiments5/"]:
-            folder = "%s%s%s_%s"%(run,fname,noisestr,ts)
-            if(run == "./"):
-                optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
-                if not os.path.exists(optjsonfile):
-                    print("optjsonfile: " + optjsonfile+ " not found")
-                    exit(1)
-                if optjsonfile:
-                    with open(optjsonfile, 'r') as fn:
-                        optjsondatastore = json.load(fn)
-
-                optm1 = optjsondatastore['optdeg']['m']
-                optn1 = optjsondatastore['optdeg']['n']
-            pq = "p%d_q%d"%(optm1,optn1)
-            print(run, fname,noisestr,optm1,optn1)
-            rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            if not os.path.exists(rappsipfile):
-                print("rappsipfile %s not found"%(rappsipfile))
-                exit(1)
-
-            if not os.path.exists(rappfile):
-                print("rappfile %s not found"%(rappfile))
-                exit(1)
-
-            if not os.path.exists(pappfile):
-                print("pappfile %s not found"%(pappfile))
-                exit(1)
-
-            rappsip = RationalApproximationSIP(rappsipfile)
-            Y_pred_rappsip = rappsip.predictOverArray(X_test)
-            rapp = RationalApproximationONB(fname=rappfile)
-            Y_pred_rapp = np.array([rapp(x) for x in X_test])
-            papp = PolynomialApproximation(fname=pappfile)
-            Y_pred_papp = np.array([papp(x) for x in X_test])
-
-            datapa.append(np.sqrt(np.sum((Y_pred_papp-Y_test)**2)))
-            datara.append(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2)))
-            datarasip.append(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2)))
-
-        pa.append(np.average(datapa))
-        paerror.append(np.std(datapa))
-
-        ra.append(np.average(datara))
-        raerror.append(np.std(datara))
-
-        rasip.append(np.average(datarasip))
-        rasiperror.append(np.std(datarasip))
+            second = noise
 
 
+            noisestr = ""
+            noisepct = 0
+            if(noise!="0"):
+                noisestr = "_noisepct"+noise
+
+            for fnum,fname in enumerate(fff):
+                data[sample][noise][fname] = {}
+                testfile = "../benchmarkdata/"+fname+"_test.txt"
+                # testfile = "../benchmarkdata/"+fname+".txt"
+                print(testfile)
+                bottom_or_all = all
+                try:
+                    X, Y = readData(testfile)
+                except:
+                    DATA = tools.readH5(testfile, [0])
+                    X, Y= DATA[0]
+
+                if(bottom_or_all == "bottom"):
+                    testset = [i for i in range(trainingsize,len(X_test))]
+                    X_test = X[testset]
+                    Y_test = Y[testset]
+                else:
+                    X_test = X
+                    Y_test = Y
+                ts = "2x"
+
+                datapa = []
+                datara = []
+                datarasip = []
+                for run in ["exp1","exp2","exp3","exp4","exp5"]:
+                # for run in ["./"]:
+                    fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
+                    folder = "results/%s/%s"%(run,fndesc)
+                    m = 4
+                    n = 3
+                    pq = "p%d_q%d"%(m,n)
+                    print(run, fname,noisestr,sample,m,n)
+
+                    rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    if not os.path.exists(rappsipfile):
+                        print("rappsipfile %s not found"%(rappsipfile))
+                        exit(1)
+
+                    if not os.path.exists(rappfile):
+                        print("rappfile %s not found"%(rappfile))
+                        exit(1)
+
+                    if not os.path.exists(pappfile):
+                        print("pappfile %s not found"%(pappfile))
+                        exit(1)
+
+                    rappsip = RationalApproximationSIP(rappsipfile)
+                    Y_pred_rappsip = rappsip.predictOverArray(X_test)
+                    rapp = RationalApproximationONB(fname=rappfile)
+                    Y_pred_rapp = np.array([rapp(x) for x in X_test])
+                    papp = PolynomialApproximation(fname=pappfile)
+                    Y_pred_papp = np.array([papp(x) for x in X_test])
+
+                    datapa.append(np.log10(np.sqrt(np.sum((Y_pred_papp-Y_test)**2))))
+                    datara.append(np.log10(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2))))
+                    datarasip.append(np.log10(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2))))
+
+                    if(sample == "sg"):
+                        break
+
+                data[sample][noise][fname]['pamean'] = np.average(datapa)
+                data[sample][noise][fname]['pasd'] = np.std(datapa)
+
+                data[sample][noise][fname]['ramean'] = np.average(datara)
+                data[sample][noise][fname]['rasd'] = np.std(datara)
+
+                data[sample][noise][fname]['rasipmean'] = np.average(datarasip)
+                data[sample][noise][fname]['rasipsd'] = np.std(datarasip)
+                if(sample == "sg"):
+                    data[sample][noise][fname]['pasd'] = 0
+                    data[sample][noise][fname]['rasd'] = 0
+                    data[sample][noise][fname]['rasipsd'] = 0
 
 
-        noisestr = "_noisepct10-1"
-        datapa = []
-        datara = []
-        datarasip = []
-        for run in ["./","../experiments2/","../experiments3/","../experiments4/","../experiments5/"]:
-            folder = "%s%s%s_%s"%(run,fname,noisestr,ts)
-            if(run == "./"):
-                optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
-                if not os.path.exists(optjsonfile):
-                    print("optjsonfile: " + optjsonfile+ " not found")
-                    exit(1)
-                if optjsonfile:
-                    with open(optjsonfile, 'r') as fn:
-                        optjsondatastore = json.load(fn)
-                optm2 = optjsondatastore['optdeg']['m']
-                optn2 = optjsondatastore['optdeg']['n']
 
-            if(optn2==0):
-                optm2=optn1
-                optn2=optn1
-            pq = "p%d_q%d"%(optm2,optn2)
-            rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
 
-            print(run, fname,noisestr,optm2,optn2)
-            if not os.path.exists(rappsipfile):
-                print("rappsipfile %s not found"%(rappsipfile))
-                exit(1)
 
-            if not os.path.exists(rappfile):
-                print("rappfile %s not found"%(rappfile))
-                exit(1)
-
-            if not os.path.exists(pappfile):
-                print("pappfile %s not found"%(pappfile))
-                exit(1)
-
-            rappsip = RationalApproximationSIP(rappsipfile)
-            Y_pred_rappsip = rappsip.predictOverArray(X_test)
-            rapp = RationalApproximationONB(fname=rappfile)
-            Y_pred_rapp = np.array([rapp(x) for x in X_test])
-            papp = PolynomialApproximation(fname=pappfile)
-            Y_pred_papp = np.array([papp(x) for x in X_test])
-
-            datapa.append(np.sqrt(np.sum((Y_pred_papp-Y_test)**2)))
-            datara.append(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2)))
-            datarasip.append(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2)))
-
-        pa1.append(np.average(datapa))
-        paerror1.append(np.std(datapa))
-
-        ra1.append(np.average(datara))
-        raerror1.append(np.std(datara))
-
-        rasip1.append(np.average(datarasip))
-        rasiperror1.append(np.std(datarasip))
-
-        noisestr = "_noisepct10-3"
-        datapa = []
-        datara = []
-        datarasip = []
-        for run in ["./","../experiments2/","../experiments3/","../experiments4/","../experiments5/"]:
-            folder = "%s%s%s_%s"%(run,fname,noisestr,ts)
-            if(run == "./"):
-                optjsonfile = folder+"/plots/Joptdeg_"+fname+noisestr+"_jsdump_opt6.json"
-                if not os.path.exists(optjsonfile):
-                    print("optjsonfile: " + optjsonfile+ " not found")
-                    exit(1)
-                if optjsonfile:
-                    with open(optjsonfile, 'r') as fn:
-                        optjsondatastore = json.load(fn)
-                optm2 = optjsondatastore['optdeg']['m']
-                optn2 = optjsondatastore['optdeg']['n']
-
-            if(optn2==0):
-                optm2=optn1
-                optn2=optn1
-            pq = "p%d_q%d"%(optm2,optn2)
-            rappsipfile = "%s/out/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            rappfile = "%s/outra/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-            pappfile = "%s/outpa/%s%s_%s_%s_ts%s.json"%(folder,fname,noisestr,ts,pq,ts)
-
-            print(run, fname,noisestr,optm2,optn2)
-            if not os.path.exists(rappsipfile):
-                print("rappsipfile %s not found"%(rappsipfile))
-                exit(1)
-
-            if not os.path.exists(rappfile):
-                print("rappfile %s not found"%(rappfile))
-                exit(1)
-
-            if not os.path.exists(pappfile):
-                print("pappfile %s not found"%(pappfile))
-                exit(1)
-
-            rappsip = RationalApproximationSIP(rappsipfile)
-            Y_pred_rappsip = rappsip.predictOverArray(X_test)
-            rapp = RationalApproximationONB(fname=rappfile)
-            Y_pred_rapp = np.array([rapp(x) for x in X_test])
-            papp = PolynomialApproximation(fname=pappfile)
-            Y_pred_papp = np.array([papp(x) for x in X_test])
-
-            datapa.append(np.sqrt(np.sum((Y_pred_papp-Y_test)**2)))
-            datara.append(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2)))
-            datarasip.append(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2)))
-        pa2.append(np.average(datapa))
-        paerror2.append(np.std(datapa))
-
-        ra2.append(np.average(datara))
-        raerror2.append(np.std(datara))
-
-        rasip2.append(np.average(datarasip))
-        rasiperror2.append(np.std(datarasip))
-
-    print(len(pa),len(ra),len(rasip))
-
-    print(min(pa),min(ra),min(rasip))
-    print(np.c_[pa,np.log10(pa)])
-    import matplotlib.pyplot as plt
-    plt.rc('ytick',labelsize=14)
-    fig, (ax1, ax2,ax3) = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+    outfile111 = "results/plots/Jerrors.json"
+    import json
+    with open(outfile111, "w") as f:
+        json.dump(data, f,indent=4, sort_keys=True)
+    if not os.path.exists("results/plots"):
+        os.makedirs("results/plots", exist_ok = True)
     ecolor = 'black'
+    if(plottype == 'persample' or plottype == 'pernoiselevel'):
+    # if(plottype == 'persample'):
+        # minval = np.Infinity
 
-    p1 = ax1.bar(X111, np.log10(pa), width,color='#C70039', yerr=np.log10(paerror),align='center',  ecolor=ecolor, capsize=3)
-    p2 = ax1.bar(X111+width, np.log10(ra), width,color='#FF5733',yerr=np.log10(raerror),align='center',ecolor=ecolor, capsize=3)
-    p3 = ax1.bar(X111+2*width, np.log10(rasip), width,color='#FFC300',yerr=np.log10(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+        for snum,sample in enumerate(allsamples):
+            import matplotlib.pyplot as plt
+            plt.rc('ytick',labelsize=14)
+            fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+            for nnum,noise in enumerate(noiselevels):
+                pa = []
+                ra = []
+                rasip = []
+                paerror = []
+                raerror = []
+                rasiperror = []
+                for fnum,fname in enumerate(fff):
+                    pa.append(data[sample][noise][fname]['pamean'])
+                    paerror.append(data[sample][noise][fname]['pasd'])
 
-    # p1 = ax1.bar(X111, np.log10(pa), width,color='#900C3F')
-    # p2 = ax1.bar(X111+width, np.log10(ra), width,color='#FF5733')
-    # p3 = ax1.bar(X111+2*width, np.log10(rasip), width,color='#FFC300')
+                    ra.append(data[sample][noise][fname]['ramean'])
+                    raerror.append(data[sample][noise][fname]['rasd'])
 
-    p1 = ax2.bar(X111, np.log10(pa1), width,color='#C70039', yerr=np.log10(paerror1),align='center',  ecolor=ecolor, capsize=3)
-    p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733',yerr=np.log10(raerror1),align='center',ecolor=ecolor, capsize=3)
-    p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300',yerr=np.log10(rasiperror1),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+                    rasip.append(data[sample][noise][fname]['rasipmean'])
+                    rasiperror.append(data[sample][noise][fname]['rasipsd'])
 
-    # p1 = ax2.bar(X111, np.log10(pa1), width,color='#900C3F')
-    # p2 = ax2.bar(X111+width, np.log10(ra1), width,color='#FF5733')
-    # p3 = ax2.bar(X111+2*width, np.log10(rasip1), width,color='#FFC300')
+                p1 = axarr[nnum].bar(X111, np.array(pa)+baseline, width,color=color[1], yerr=np.array(paerror),align='center',  ecolor=ecolor, capsize=3)
+                p2 = axarr[nnum].bar(X111+width, np.array(ra)+baseline, width,color=color[2],yerr=np.array(raerror),align='center',ecolor=ecolor, capsize=3)
+                p3 = axarr[nnum].bar(X111+2*width, np.array(rasip)+baseline, width,color=color[3],yerr=np.array(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+                axarr[nnum].legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
 
-    # p1= ax3.errorbar(X111, np.log10(pa1), np.log10(paerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
-    # p1= ax3.errorbar(X111+width, np.log10(ra1), np.log10(raerror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
-    # p1= ax3.errorbar(X111+2*width, np.log10(rasip1), np.log10(rasiperror2), linestyle='None', marker='o',ecolor=ecolor,color='#900C3F',capsize=3)
+            for ax in axarr.flat:
+                ax.set_xticks(X111 + 2*width / 2)
+                xlab = []
+                for f in fff:
+                    print(f)
+                    xlab.append("\\ref{fn:%s}"%(f))
+                ax.set_xticklabels(xlab,fontsize = 14)
+                ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
+                ax.label_outer()
 
-    p1 = ax3.bar(X111, np.log10(pa2), width,color='#C70039', yerr=np.log10(paerror2),align='center',  ecolor=ecolor, capsize=3)
-    p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733',yerr=np.log10(raerror2),align='center',ecolor=ecolor, capsize=3)
-    p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300',yerr=np.log10(rasiperror2),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+            plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+            plt.tight_layout()
+            print(xlab)
+            # plt.show()
+            # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+            # outfile111 = "results/plots/Perrorbars_for_%s.pdf"%(sample)
+            outfile111 = "results/plots/Perrorbars_for_%s.pgf"%(sample)
+            plt.savefig(outfile111, bbox_inches="tight")
+            plt.clf()
+            plt.close('all')
+    # elif(plottype == 'pernoiselevel'):
+        for nnum,noise in enumerate(noiselevels):
+            import matplotlib.pyplot as plt
+            plt.rc('ytick',labelsize=14)
+            fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
+            for anum,approx in enumerate(["pa","ra","rasip"]):
+                for snum,sample in enumerate(allsamples):
+                    barobj = []
+                    mean = []
+                    sd = []
+                    for fnum,fname in enumerate(fff):
+                        mean.append(data[sample][noise][fname][approx+"mean"])
+                        sd.append(data[sample][noise][fname][approx+"sd"])
+                    barobj.append(axarr[anum].bar(X111+snum*width, np.array(mean)+baseline, width,color=color[snum], yerr=np.array(sd),align='center',  ecolor=ecolor, capsize=3))
+                # axarr[anum].legend(barobj,('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
+                axarr[anum].set_title(str(allsamples)+ " approx = "+approx)
+            for ax in axarr.flat:
+                ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+                xlab = []
+                for f in fff:
+                    print(f)
+                    xlab.append("\\ref{fn:%s}"%(f))
+                ax.set_xticklabels(xlab,fontsize = 14)
+                ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
+                ax.label_outer()
 
-    # p1 = ax3.bar(X111, np.log10(pa2), width,color='#900C3F')
-    # p2 = ax3.bar(X111+width, np.log10(ra2), width,color='#FF5733')
-    # p3 = ax3.bar(X111+2*width, np.log10(rasip2), width,color='#FFC300')
+            plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+            plt.tight_layout()
+            print(xlab)
+            # plt.show()
+            # plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
+            # outfile111 = "results/plots/Perrorbars_for_%s.pdf"%(noise)
+            outfile111 = "results/plots/Perrorbars_for_%s.pgf"%(noise)
+            plt.savefig(outfile111, bbox_inches="tight")
+            plt.clf()
+            plt.close('all')
 
 
 
-    ax1.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-    ax2.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
-    ax3.legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'lower left',fontsize = 15)
 
-    ax1.set_xticks(X111 + 2*width / 2)
-    ax2.set_xticks(X111 + 2*width / 2)
-    ax3.set_xticks(X111 + 2*width / 2)
-    xlab = []
-    for f in fff:
-        print(f)
-        xlab.append("\\ref{fn:%s}"%(f))
-    print(xlab)
 
-    ax1.set_xticklabels(xlab,fontsize = 14)
-    ax2.set_xticklabels(xlab,fontsize = 14)
-    ax3.set_xticklabels(xlab,fontsize = 14)
 
-    ax3.set_xlabel('Function No.',fontsize = 17)
-    # ax2.set_xlabel('Function No.',fontsize = 17)
-    ax1.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-    ax2.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-    ax3.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
-    # ax1.set_ylim((-10,10))
-    # ax2.set_ylabel('$\\Delta_r$',fontsize = 17)
 
-    # ax.set_ylim([-9,4])
-    plt.tight_layout()
-    # plt.show()
-    plt.savefig("plots/Perrorbars.pgf", bbox_inches="tight")
 
-    s = ""
-    for num,fname in enumerate(fff):
-        s += "\\ref{fn:%s}"%(fname)
-        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa[num],paerror[num],ra[num],raerror[num],rasip[num],rasiperror[num])
-        s+="\\\\\hline\n"
 
-    s += "\n"
-    for num,fname in enumerate(fff):
-        s += "\\ref{fn:%s}"%(fname)
-        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa1[num],paerror1[num],ra1[num],raerror1[num],rasip1[num],rasiperror1[num])
-        s+="\\\\\hline\n"
 
-    s += "\n"
-    for num,fname in enumerate(fff):
-        s += "\\ref{fn:%s}"%(fname)
-        s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa2[num],paerror2[num],ra2[num],raerror2[num],rasip2[num],rasiperror2[num])
-        s+="\\\\\hline\n"
-    print(s)
+
+
+
+
+
+
+
+
+
+
+    # s = ""
+    # for num,fname in enumerate(fff):
+    #     s += "\\ref{fn:%s}"%(fname)
+    #     s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa[num],paerror[num],ra[num],raerror[num],rasip[num],rasiperror[num])
+    #     s+="\\\\\hline\n"
+    #
+    # s += "\n"
+    # for num,fname in enumerate(fff):
+    #     s += "\\ref{fn:%s}"%(fname)
+    #     s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa1[num],paerror1[num],ra1[num],raerror1[num],rasip1[num],rasiperror1[num])
+    #     s+="\\\\\hline\n"
+    #
+    # s += "\n"
+    # for num,fname in enumerate(fff):
+    #     s += "\\ref{fn:%s}"%(fname)
+    #     s += "&%.3E&%.3E&%.3E&%.3E&%.3E&%.3E"%(pa2[num],paerror2[num],ra2[num],raerror2[num],rasip2[num],rasiperror2[num])
+    #     s+="\\\\\hline\n"
+    # print(s)
 
 
 # for each \ep =0,10-1,10-3
@@ -376,5 +311,11 @@ if __name__ == "__main__":
     #
     #
     # # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
-    ploterrorbars()
+    import os, sys
+    if len(sys.argv)==2:
+        ploterrorbars(float(sys.argv[1]))
+    elif len(sys.argv)==3:
+        ploterrorbars(float(sys.argv[1]),sys.argv[2])
+    else:
+        print("baseline (13.5), plottype required: persample or pernoiselevel")
 ###########

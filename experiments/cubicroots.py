@@ -162,7 +162,8 @@ def findsincroots():
         with open(jsonfile, 'r') as fn:
             datastore = json.load(fn)
     for iter in range(len(datastore['iterationinfo'])):
-        print("Doing iter = %d"%(iter+1))
+        # print("Doing iter = %d"%(iter+1))
+
         if jsonfile:
             with open(jsonfile, 'r') as fn:
                 datastore = json.load(fn)
@@ -170,6 +171,10 @@ def findsincroots():
         datastore['qcoeff'] = datastore['iterationinfo'][iter]['qcoeff']
         from apprentice import RationalApproximationSIP
         rappsip = RationalApproximationSIP(datastore)
+        robarg = datastore['iterationinfo'][iter]['robOptInfo']['robustArg']
+        # print(rappsip._scaler.unscale(np.array(robarg)))
+        print(robarg)
+        continue
 
         X = np.linspace(-1, 1, num=1000)
         Y = np.linspace(-1, 1, num=1000)

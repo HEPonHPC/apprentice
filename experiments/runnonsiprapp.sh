@@ -33,7 +33,7 @@ for pdeg in $(seq 1 $mmax); do
       if [ ! -f "$outfile" ]
       then
         echo $consolelog;
-        nohup python runnonsiprapp.py $infile $fndesc $pdeg $qdeg $ts "$outfile" >$colsolelog 2>&1 &
+        nohup python runnonsiprapp.py $infile $fndesc $pdeg $qdeg $ts -1 "$outfile" >$colsolelog 2>&1 &
       fi
     done
 done

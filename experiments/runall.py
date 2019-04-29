@@ -1,5 +1,15 @@
 import numpy as np
 import os
+
+def my_i4_sobol_generate(dim, n, seed):
+    import sobol_seq
+    r = np.full((n, dim), np.nan)
+    currentseed = seed
+    for j in range(n):
+        r[j, 0:dim], newseed = sobol_seq.i4_sobol(dim, currentseed)
+        currentseed = newseed
+    return r
+
 def getData(X_train, fn, noisepct):
     """
     TODO use eval or something to make this less noisy
@@ -61,7 +71,7 @@ def getData(X_train, fn, noisepct):
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 def getdim(fname):
     dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
-            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":3,"f21":2,"f22":2}
+            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":7,"f21":2,"f22":2}
     return dim[fname]
 
 def getbox(f):
@@ -80,8 +90,8 @@ def getbox(f):
         minbox  = [-0.95,-0.95,-0.95,-0.95]
         maxbox  = [0.95,0.95,0.95,0.95]
     elif(f=="f20"):
-        minbox  = [10**-6,10**-6,10**-6]
-        maxbox  = [4*np.pi,4*np.pi,4*np.pi]
+        minbox  = [10**-6,10**-6,10**-6,10**-6,10**-6,10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi]
     elif(f=="f21"):
         minbox  = [10**-6,10**-6]
         maxbox  = [4*np.pi,4*np.pi]
@@ -93,6 +103,10 @@ def getbox(f):
 def getfarr():
     farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
             "f17","f18","f19","f20","f21","f22"]
+    # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+    #         "f17","f18","f19","f21","f22"]
+    # farr = ["f20"]
+
     return farr
 
 def generatebenchmarkdata(m,n):
@@ -100,7 +114,6 @@ def generatebenchmarkdata(m,n):
     folder= "results"
     from apprentice import tools
     from pyDOE import lhs
-    import sobol_seq
     import apprentice
     ts = 2
     farr = getfarr()
@@ -138,7 +151,7 @@ def generatebenchmarkdata(m,n):
                         l+=1
                     X = sg.grid
                 elif(sample == "sc"):
-                    X = sobol_seq.i4_sobol_generate(dim,npoints)
+                    X = my_i4_sobol_generate(dim,npoints,seed)
                     s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
                     X = s.scaledPoints
                 elif(sample == "lhs"):
@@ -162,7 +175,7 @@ def generatebenchmarkdata(m,n):
                     outfile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
                     print(outfile)
                     np.savetxt(outfile, np.hstack((X,Y.T)), delimiter=",")
-                if(sample == "sc" or sample == "sg"):
+                if(sample == "sg"):
                     break
 
 
@@ -182,7 +195,7 @@ def runall(type, sample, noise,m,n):
             folderplus = folder+"/"+ex+"/"+fndesc
             infile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
             if not os.path.exists(infile):
-                printf("Infile %s not found"%infile)
+                print("Infile %s not found"%infile)
                 exit(1)
             if(type == "pa"):
                 if not os.path.exists(folderplus + "/outpa"):
@@ -203,8 +216,28 @@ def runall(type, sample, noise,m,n):
                     os.makedirs(folderplus + "/log/consolelogra",exist_ok = True)
                 consolelog=folderplus + "/log/consolelogra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                tol = -1
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    # print(cmd)
+                    os.system(cmd)
+                    # exit(1)
+            elif(type == "rard"):
+                if not os.path.exists(folderplus + "/outrard"):
+                    os.makedirs(folderplus + "/outrard",exist_ok = True)
+                if not os.path.exists(folderplus + "/log/consolelogrard"):
+                    os.makedirs(folderplus + "/log/consolelogrard",exist_ok = True)
+                consolelog=folderplus + "/log/consolelogrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+                outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                if noise =="0":
+                    tol = 10**-12
+                elif noise == "10-1":
+                    tol = (10**-1)/10
+                elif noise == "10-3":
+                    tol = (10**-3)/10
+
+                if not os.path.exists(outfile):
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     # print(cmd)
                     os.system(cmd)
                     # exit(1)
@@ -221,7 +254,7 @@ def runall(type, sample, noise,m,n):
                     os.system(cmd)
                     # exit(1)
 
-            if(sample == "sc" or sample == "sg"):
+            if(sample == "sg"):
                 break
 
 
