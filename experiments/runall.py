@@ -183,6 +183,7 @@ def runall(type, sample, noise,m,n):
     if(type == "gen"):
         generatebenchmarkdata(m,n)
         exit(0)
+    commands = []
     farr = getfarr()
     folder= "results"
     noisestr = ""
@@ -206,8 +207,9 @@ def runall(type, sample, noise,m,n):
                 outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    commands.append(cmd)
                     # print(cmd)
-                    os.system(cmd)
+                    # os.system(cmd)
                     # exit(1)
             elif(type == "ra"):
                 if not os.path.exists(folderplus + "/outra"):
@@ -219,8 +221,9 @@ def runall(type, sample, noise,m,n):
                 tol = -1
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    commands.append(cmd)
                     # print(cmd)
-                    os.system(cmd)
+                    # os.system(cmd)
                     # exit(1)
             elif(type == "rard"):
                 if not os.path.exists(folderplus + "/outrard"):
@@ -238,8 +241,9 @@ def runall(type, sample, noise,m,n):
 
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    commands.append(cmd)
                     # print(cmd)
-                    os.system(cmd)
+                    # os.system(cmd)
                     # exit(1)
             elif(type == "rasip"):
                 if not os.path.exists(folderplus + "/outrasip"):
@@ -250,12 +254,26 @@ def runall(type, sample, noise,m,n):
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    commands.append(cmd)
                     # print(cmd)
-                    os.system(cmd)
+                    # os.system(cmd)
                     # exit(1)
 
             if(sample == "sg"):
                 break
+    cmdstr = ""
+    for cmd in commands:
+        cmdstr+= cmd +"\n"
+    filename = folder+"/"+'commands.txt'
+
+    if os.path.exists(filename):
+        append_write = 'a'
+    else:
+        append_write = 'w'
+
+    f = open(filename,append_write)
+    f.write(cmdstr)
+    f.close()
 
 
 
