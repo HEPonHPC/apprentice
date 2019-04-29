@@ -9,7 +9,7 @@ else
 	timelimit=$2
 fi
 
-nodelist="0"
+# nodelist="0"
 
 declare -i nProcessor
 declare -i nRunning
@@ -19,7 +19,7 @@ declare -a processor
 declare -a procid
 
 nProcessor=0
-for i in $nodelist; do
+for i in {1..192}; do
 	processor[$nProcessor]=$i
 	procid[$nProcessor]=0
 	let ++nProcessor
@@ -56,8 +56,8 @@ function findFreeProc ()
 
 nextprob=1
 
-while (( $nextprob <= `grep -v '^#' $problist | wc -l` )); do
-    prob=`grep -v '^#' $problist | sed -e "$nextprob q" | tail -1`
+while (( $nextprob <= `grep -v '^#' $cmdlist | wc -l` )); do
+    prob=`grep -v '^#' $cmdlist | sed -e "$nextprob q" | tail -1`
     checkRunningProcesses
     findFreeProc
     if [[ $started == "no" ]]; then
