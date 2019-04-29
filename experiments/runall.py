@@ -216,8 +216,9 @@ def runall(type, sample, noise,m,n):
                     os.makedirs(folderplus + "/log/consolelogra",exist_ok = True)
                 consolelog=folderplus + "/log/consolelogra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                tol = -1
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     # print(cmd)
                     os.system(cmd)
                     # exit(1)
