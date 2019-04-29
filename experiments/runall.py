@@ -209,7 +209,7 @@ def runall(type, sample, noise,m,n):
                     cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
                     commands.append(cmd)
                     # print(cmd)
-                    # os.system(cmd)
+                    os.system(cmd)
                     # exit(1)
             elif(type == "ra"):
                 if not os.path.exists(folderplus + "/outra"):
@@ -223,7 +223,7 @@ def runall(type, sample, noise,m,n):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     commands.append(cmd)
                     # print(cmd)
-                    # os.system(cmd)
+                    os.system(cmd)
                     # exit(1)
             elif(type == "rard"):
                 if not os.path.exists(folderplus + "/outrard"):
@@ -243,7 +243,7 @@ def runall(type, sample, noise,m,n):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     commands.append(cmd)
                     # print(cmd)
-                    # os.system(cmd)
+                    os.system(cmd)
                     # exit(1)
             elif(type == "rasip"):
                 if not os.path.exists(folderplus + "/outrasip"):
@@ -256,24 +256,24 @@ def runall(type, sample, noise,m,n):
                     cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
                     commands.append(cmd)
                     # print(cmd)
-                    # os.system(cmd)
+                    os.system(cmd)
                     # exit(1)
 
             if(sample == "sg"):
                 break
-    cmdstr = ""
-    for cmd in commands:
-        cmdstr+= cmd +"\n"
-    filename = folder+"/"+'commands.txt'
-
-    if os.path.exists(filename):
-        append_write = 'a'
-    else:
-        append_write = 'w'
-
-    f = open(filename,append_write)
-    f.write(cmdstr)
-    f.close()
+    # cmdstr = ""
+    # for cmd in commands:
+    #     cmdstr+= cmd +"\n"
+    # filename = folder+"/"+'commands.txt'
+    #
+    # if os.path.exists(filename):
+    #     append_write = 'a'
+    # else:
+    #     append_write = 'w'
+    #
+    # f = open(filename,append_write)
+    # f.write(cmdstr)
+    # f.close()
 
 
 

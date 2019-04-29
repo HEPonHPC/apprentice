@@ -11,7 +11,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 
 
-    allsamples = ['mc','lhs','sc','sg']
+    # allsamples = ['mc','lhs','sc','sg']
+    allsamples = ['sg']
     # import glob
     import json
     # import re
@@ -39,8 +40,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             #     optm = optjsondatastore['optdeg']['m']
             #     optn = optjsondatastore['optdeg']['n']
             #     break
-            m = 4
-            n = 3
+            m = 5
+            n = 5
 
             for noise in noisearr:
                 results[fname][noise] = {}
@@ -50,6 +51,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
                 timepa = []
                 timera = []
+                timerard = []
                 timerasip = []
                 iterrasip = []
                 for run in ["exp1","exp2","exp3","exp4","exp5"]:
@@ -61,13 +63,19 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
                     rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+
                     if not os.path.exists(rappsipfile):
                         print("rappsipfile %s not found"%(rappsipfile))
                         exit(1)
 
                     if not os.path.exists(rappfile):
                         print("rappfile %s not found"%(rappfile))
+                        exit(1)
+
+                    if not os.path.exists(rapprdfile):
+                        print("rapprdfile %s not found"%(rapprdfile))
                         exit(1)
 
                     if not os.path.exists(pappfile):
@@ -93,6 +101,12 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                     rapptime = datastore['log']['fittime']
                     timera.append(rapptime)
 
+                    if rapprdfile:
+                        with open(rapprdfile, 'r') as fn:
+                            datastore = json.load(fn)
+                    rapprdtime = datastore['log']['fittime']
+                    timerard.append(rapprdtime)
+
 
                     if pappfile:
                         with open(pappfile, 'r') as fn:
@@ -104,6 +118,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                         break
 
                 results[fname][noise] = {
+                    "rapprd":np.average(timerard),
+                    "rapprdsd":np.std(timerard),
                     "rapp":np.average(timera),
                     "rappsip":np.average(timerasip),
                     'rnoiters':np.average(iterrasip),
@@ -160,10 +176,17 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 for num,noise in enumerate(noisearr):
                     if(num==0):
                         s+="&%d&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"],results[fname][noise]["rqnnl"])
-                    s += "&%.1f&%.1f"%(results[fname][noise]["papp"],results[fname][noise]["pappsd"])
-                    s += "&%.1f&%.1f"%(results[fname][noise]["rapp"],results[fname][noise]["rappsd"])
-                    s += "&%.1f&%.1f"%(results[fname][noise]["rappsip"],results[fname][noise]["rappsipsd"])
-                    s += "&%.1f&%.1f"%(results[fname][noise]["rnoiters"],results[fname][noise]["rnoiterssd"])
+                    # s += "&%.1f&%.1f"%(results[fname][noise]["papp"],results[fname][noise]["pappsd"])
+                    # s += "&%.1f&%.1f"%(results[fname][noise]["rapp"],results[fname][noise]["rappsd"])
+                    # s += "&%.1f&%.1f"%(results[fname][noise]["rapprd"],results[fname][noise]["rapprdsd"])
+                    # s += "&%.1f&%.1f"%(results[fname][noise]["rappsip"],results[fname][noise]["rappsipsd"])
+                    # s += "&%.1f&%.1f"%(results[fname][noise]["rnoiters"],results[fname][noise]["rnoiterssd"])
+                    s += "&%.1f"%(results[fname][noise]["papp"])
+                    s += "&%.1f"%(results[fname][noise]["rapp"])
+                    s += "&%.1f"%(results[fname][noise]["rapprd"])
+                    s += "&%.1f"%(results[fname][noise]["rappsip"])
+                    s += "&%.1f"%(results[fname][noise]["rnoiters"])
+
                 s+="\\\\\hline\n"
 
         print(s)

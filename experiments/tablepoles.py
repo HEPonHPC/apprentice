@@ -1,7 +1,7 @@
 import numpy as np
 from apprentice import RationalApproximationSIP, RationalApproximationONB, PolynomialApproximation
 from apprentice import tools, readData
-import os
+import os,sys
 def sinc(X,dim):
     ret = 10
     for d in range(dim):
@@ -38,40 +38,135 @@ def getdim(fname):
             "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":7,"f21":2,"f22":2}
     return dim[fname]
 
-def getX(X,dim,Xr,corner,dindex,cindex,xrindicies):
-    x = np.zeros(dim,dtype = np.float64)
+def getX(dim,Xr,cornerpoints):
+    X = np.array([])
     for ddd in range(dim):
-        if(ddd == cindex):
-            x[ddd] = corner[cindex]
-        else:
-            x[ddd] = Xr[xrindicies[ddd]]
-    print(xrindicies)
-    # print(x)
-    end = 1
-    for num,i in enumerate(xrindicies):
-        if(i<len(Xr)-1):
-            xrindicies[num]+=1
-            getX(X,dim,Xr,corner,dindex,cindex,xrindicies)
-        
+        X = np.append(X,10**-12)
+    if dim==2:
+        for ddd in range(dim):
+            for corner in cornerpoints:
+                for a in Xr:
+                    if(ddd==0):
+                        xt = [corner,a]
+                    elif(ddd==1):
+                        xt = [a,corner]
+                    X = np.vstack([X, xt])
 
-    # for i in xrindicies:
-    #     if(i<len(Xr)-1):
-    #         end = 0
+    elif dim ==3:
+        for ddd in range(dim):
+            for corner in cornerpoints:
+                for a in Xr:
+                    for b in Xr:
+                        if(ddd==0):
+                            xt = [corner,a,b]
+                        elif(ddd==1):
+                            xt = [a,corner,b]
+                        elif(ddd==2):
+                            xt = [a,b,corner]
+                        X = np.vstack([X, xt])
+    elif dim ==4:
+        for ddd in range(dim):
+            for corner in cornerpoints:
+                for a in Xr:
+                    for b in Xr:
+                        for c in Xr:
+                            if(ddd==0):
+                                xt = [corner,a,b,c]
+                            elif(ddd==1):
+                                xt = [a,corner,b,c]
+                            elif(ddd==2):
+                                xt = [a,b,corner,c]
+                            elif(ddd==3):
+                                xt = [a,b,c,corner]
+                            X = np.vstack([X, xt])
+    elif dim ==7:
+        for ddd in range(dim):
+            for corner in cornerpoints:
+                for a in Xr:
+                    for b in Xr:
+                        for c in Xr:
+                            for d in Xr:
+                                for e in Xr:
+                                    for f in Xr:
+                                        if(ddd==0):
+                                            xt = [corner,a,b,c,d,e,f]
+                                        elif(ddd==1):
+                                            xt = [a,corner,b,c,d,e,f]
+                                        elif(ddd==2):
+                                            xt = [a,b,corner,c,d,e,f]
+                                        elif(ddd==3):
+                                            xt = [a,b,c,corner,d,e,f]
+                                        elif(ddd==4):
+                                            xt = [a,b,c,d,corner,e,f]
+                                        elif(ddd==5):
+                                            xt = [a,b,c,d,e,corner,f]
+                                        elif(ddd==6):
+                                            xt = [a,b,c,d,e,f,corner]
+                                        X = np.vstack([X, xt])
+    else:
+        print("%s is not capable of handling dim = %d"%(sys.argv[0],dim))
+        sys.exit(1)
+    return X
 
-    # if(cindex == len(corner-1)):
-    #     for num,i in enumerate(xrindicies):
-    #         if(i<len(Xr)-1):
-    #             xrindicies[num]+=1
-    #             getX(X,dim,Xr,corner,dindex,cindex,xrindicies)
+def getData(X_train, fn, noisepct):
+    """
+    TODO use eval or something to make this less noisy
+    """
+    from apprentice import testData
+    if fn=="f1":
+        Y_train = [testData.f1(x) for x in X_train]
+    elif fn=="f2":
+        Y_train = [testData.f2(x) for x in X_train]
+    elif fn=="f3":
+        Y_train = [testData.f3(x) for x in X_train]
+    elif fn=="f4":
+        Y_train = [testData.f4(x) for x in X_train]
+    elif fn=="f5":
+        Y_train = [testData.f5(x) for x in X_train]
+    elif fn=="f6":
+        Y_train = [testData.f6(x) for x in X_train]
+    elif fn=="f7":
+        Y_train = [testData.f7(x) for x in X_train]
+    elif fn=="f8":
+        Y_train = [testData.f8(x) for x in X_train]
+    elif fn=="f9":
+        Y_train = [testData.f9(x) for x in X_train]
+    elif fn=="f10":
+        Y_train = [testData.f10(x) for x in X_train]
+    elif fn=="f12":
+        Y_train = [testData.f12(x) for x in X_train]
+    elif fn=="f13":
+        Y_train = [testData.f13(x) for x in X_train]
+    elif fn=="f14":
+        Y_train = [testData.f14(x) for x in X_train]
+    elif fn=="f15":
+        Y_train = [testData.f15(x) for x in X_train]
+    elif fn=="f16":
+        Y_train = [testData.f16(x) for x in X_train]
+    elif fn=="f17":
+        Y_train = [testData.f17(x) for x in X_train]
+    elif fn=="f18":
+        Y_train = [testData.f18(x) for x in X_train]
+    elif fn=="f19":
+        Y_train = [testData.f19(x) for x in X_train]
+    elif fn=="f20":
+        Y_train = [testData.f20(x) for x in X_train]
+    elif fn=="f21":
+        Y_train = [testData.f21(x) for x in X_train]
+    elif fn=="f22":
+        Y_train = [testData.f22(x) for x in X_train]
+    elif fn=="f23":
+        Y_train = [testData.f23(x) for x in X_train]
+    elif fn=="f24":
+        Y_train = [testData.f24(x) for x in X_train]
+    else:
+        raise Exception("function {} not implemented, exiting".format(fn))
 
-    # if(dindex == dim-1 and cindex == len(corner-1) and end == 1):
-    #     return
-    # if(cindex == len(corner-1) and end == 1):
-    #     dindex+=1
-    # if(end == 1):
-    #     cindex+=1
+    stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
+    for i in range(len(Y_train)):
+        stdnormalnoise[i] = np.random.normal(0,1)
 
-
+    return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     print (farr)
@@ -81,7 +176,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     if not os.path.exists("results/plots"):
         os.makedirs("results/plots", exist_ok = True)
 
-    allsamples = ['mc','lhs','sc','sg']
+    # allsamples = ['mc','lhs','sc','sg']
+    allsamples = ['sg']
 
     thresholdvalarr = np.array([float(t) for t in tarr])
     thresholdvalarr = np.sort(thresholdvalarr)
@@ -91,26 +187,20 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     import json
     import math
     # import re
+    m=5
+    n=5
     for num,fname in enumerate(farr):
         results[fname] = {}
         dim = getdim(fname)
-        X_test = []
-        Y_test = []
-        # Xr = np.linspace(-1, 1, num=math.ceil(10**(6/dim)))
-        Xr = np.linspace(-1, 1, num=10)
+        Xr = np.linspace(-1, 1, num=math.ceil(10**(6/dim)))
+        # Xr = np.linspace(-1, 1, num=10)
         xrindicies = np.zeros(dim,dtype=np.int64)
-        getX(X_test,dim,Xr,[-1,1],0,0,xrindicies)
-
-
-
-
-        exit(1)
-
+        X_test = getX(dim,Xr,[-1,1])
+        Y_test = getData(X_test,fname,0)
+        maxY_test = max(1,abs(np.max(Y_test)))
+        print(fname,maxY_test)
         for snum, sample in enumerate(allsamples):
             results[fname][sample] = {}
-
-            m=4
-            n=3
             for noise in noisearr:
                 results[fname][noise] = {}
                 noisestr = ""

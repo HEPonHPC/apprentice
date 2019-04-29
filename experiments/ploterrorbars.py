@@ -36,9 +36,9 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
         # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
     data = {}
     noiselevels = ['0','10-1','10-3']
-    allsamples = ['mc','lhs','sc','sg']
+    # allsamples = ['mc','lhs','sc','sg']
     # allsamples = ['mc','lhs']
-    # allsamples = ['lhs']
+    allsamples = ['sg']
     for snum,sample in enumerate(allsamples):
         data[sample] = {}
         # first = sample
@@ -76,18 +76,20 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
 
                 datapa = []
                 datara = []
+                datarard = []
                 datarasip = []
                 for run in ["exp1","exp2","exp3","exp4","exp5"]:
                 # for run in ["./"]:
                     fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
                     folder = "results/%s/%s"%(run,fndesc)
-                    m = 4
-                    n = 3
+                    m = 5
+                    n = 5
                     pq = "p%d_q%d"%(m,n)
                     print(run, fname,noisestr,sample,m,n)
 
                     rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     if not os.path.exists(rappsipfile):
                         print("rappsipfile %s not found"%(rappsipfile))
@@ -97,19 +99,29 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
                         print("rappfile %s not found"%(rappfile))
                         exit(1)
 
+                    if not os.path.exists(rapprdfile):
+                        print("rappfile %s not found"%(rapprdfile))
+                        exit(1)
+
                     if not os.path.exists(pappfile):
                         print("pappfile %s not found"%(pappfile))
                         exit(1)
 
                     rappsip = RationalApproximationSIP(rappsipfile)
                     Y_pred_rappsip = rappsip.predictOverArray(X_test)
+
                     rapp = RationalApproximationONB(fname=rappfile)
                     Y_pred_rapp = np.array([rapp(x) for x in X_test])
+
+                    rapprd = RationalApproximationONB(fname=rapprdfile)
+                    Y_pred_rapprd = np.array([rapprd(x) for x in X_test])
+
                     papp = PolynomialApproximation(fname=pappfile)
                     Y_pred_papp = np.array([papp(x) for x in X_test])
 
                     datapa.append(np.log10(np.sqrt(np.sum((Y_pred_papp-Y_test)**2))))
                     datara.append(np.log10(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2))))
+                    datarard.append(np.log10(np.sqrt(np.sum((Y_pred_rapprd-Y_test)**2))))
                     datarasip.append(np.log10(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2))))
 
                     if(sample == "sg"):
@@ -121,11 +133,15 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
                 data[sample][noise][fname]['ramean'] = np.average(datara)
                 data[sample][noise][fname]['rasd'] = np.std(datara)
 
+                data[sample][noise][fname]['rardmean'] = np.average(datarard)
+                data[sample][noise][fname]['rardsd'] = np.std(datarard)
+
                 data[sample][noise][fname]['rasipmean'] = np.average(datarasip)
                 data[sample][noise][fname]['rasipsd'] = np.std(datarasip)
                 if(sample == "sg"):
                     data[sample][noise][fname]['pasd'] = 0
                     data[sample][noise][fname]['rasd'] = 0
+                    data[sample][noise][fname]['rardsd'] = 0
                     data[sample][noise][fname]['rasipsd'] = 0
 
 
@@ -150,9 +166,11 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
             for nnum,noise in enumerate(noiselevels):
                 pa = []
                 ra = []
+                rard = []
                 rasip = []
                 paerror = []
                 raerror = []
+                rarderror = []
                 rasiperror = []
                 for fnum,fname in enumerate(fff):
                     pa.append(data[sample][noise][fname]['pamean'])
@@ -161,16 +179,20 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
                     ra.append(data[sample][noise][fname]['ramean'])
                     raerror.append(data[sample][noise][fname]['rasd'])
 
+                    rard.append(data[sample][noise][fname]['rardmean'])
+                    rarderror.append(data[sample][noise][fname]['rardsd'])
+
                     rasip.append(data[sample][noise][fname]['rasipmean'])
                     rasiperror.append(data[sample][noise][fname]['rasipsd'])
 
-                p1 = axarr[nnum].bar(X111, np.array(pa)+baseline, width,color=color[1], yerr=np.array(paerror),align='center',  ecolor=ecolor, capsize=3)
-                p2 = axarr[nnum].bar(X111+width, np.array(ra)+baseline, width,color=color[2],yerr=np.array(raerror),align='center',ecolor=ecolor, capsize=3)
-                p3 = axarr[nnum].bar(X111+2*width, np.array(rasip)+baseline, width,color=color[3],yerr=np.array(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
-                axarr[nnum].legend((p1[0], p2[0],p3[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
+                p1 = axarr[nnum].bar(X111, np.array(pa)+baseline, width,color=color[0], yerr=np.array(paerror),align='center',  ecolor=ecolor, capsize=3)
+                p2 = axarr[nnum].bar(X111+width, np.array(ra)+baseline, width,color=color[1],yerr=np.array(raerror),align='center',ecolor=ecolor, capsize=3)
+                p3 = axarr[nnum].bar(X111+2*width, np.array(rard)+baseline, width,color=color[2],yerr=np.array(rarderror),align='center',ecolor=ecolor, capsize=3)
+                p4 = axarr[nnum].bar(X111+3*width, np.array(rasip)+baseline, width,color=color[3],yerr=np.array(rasiperror),align='center', alpha=0.5, ecolor=ecolor, capsize=3)
+                axarr[nnum].legend((p1[0], p2[0],p3[0],p4[0]), ('Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{ALG:MVVandQR} w/ DR' ,'Algorithm \\ref{A:Polyak}'),loc = 'upper right',fontsize = 15)
 
             for ax in axarr.flat:
-                ax.set_xticks(X111 + 2*width / 2)
+                ax.set_xticks(X111 + 3*width / 2)
                 xlab = []
                 for f in fff:
                     print(f)
@@ -193,8 +215,8 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
         for nnum,noise in enumerate(noiselevels):
             import matplotlib.pyplot as plt
             plt.rc('ytick',labelsize=14)
-            fig, axarr = plt.subplots(3, 1, sharey=True,figsize=(21,20))
-            for anum,approx in enumerate(["pa","ra","rasip"]):
+            fig, axarr = plt.subplots(4, 1, sharey=True,figsize=(21,20))
+            for anum,approx in enumerate(["pa","ra","rard","rasip"]):
                 for snum,sample in enumerate(allsamples):
                     barobj = []
                     mean = []
@@ -225,24 +247,6 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
             plt.savefig(outfile111, bbox_inches="tight")
             plt.clf()
             plt.close('all')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     # s = ""
