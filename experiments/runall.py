@@ -179,7 +179,7 @@ def generatebenchmarkdata(m,n):
                     break
 
 
-def runall(type, sample, noise,m,n):
+def runall(type, sample, noise,m,n,pstart,pend):
     if(type == "gen"):
         generatebenchmarkdata(m,n)
         exit(0)
@@ -188,10 +188,20 @@ def runall(type, sample, noise,m,n):
     folder= "results"
     noisestr = ""
     noisepct = 0
+    runs = ["exp1","exp2","exp3","exp4","exp5"]
+    if(sample == "sg"):
+        if(pend-pstart < len(farr)):
+            print("not enough processes. %d required and only have %d. Try again"%(len(farr),pend-pstart))
+            exit(1)
+    else:
+        if(pend-pstart < len(farr)*len(runs)):
+            print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),pend-pstart))
+            exit(1)
+    pcurr = pstart
     if(noise!="0"):
         noisestr = "_noisepct"+noise
     for fname in farr:
-        for numex,ex in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
+        for numex,ex in enumerate(runs):
             fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
             folderplus = folder+"/"+ex+"/"+fndesc
             infile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
@@ -206,7 +216,8 @@ def runall(type, sample, noise,m,n):
                 consolelog=folderplus + "/log/consolelogpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    cmd = 'taskset %d nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,outfile,consolelog)
+                    pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -220,7 +231,8 @@ def runall(type, sample, noise,m,n):
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 tol = -1
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'taskset %d nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,tol,outfile,consolelog)
+                    pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -240,7 +252,8 @@ def runall(type, sample, noise,m,n):
                     tol = (10**-3)/10
 
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'taskset %d nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,tol,outfile,consolelog)
+                    pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -253,7 +266,8 @@ def runall(type, sample, noise,m,n):
                 consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    cmd = 'taskset %d nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -285,7 +299,7 @@ def runall(type, sample, noise,m,n):
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=6:
-        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n".format(sys.argv[0]))
+    if len(sys.argv)!=8:
+        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n pstart pend".format(sys.argv[0]))
         sys.exit(1)
-    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5])
+    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6],sys.argv[7])
