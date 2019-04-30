@@ -67,7 +67,7 @@ def getData(X_train, fn, noisepct):
     stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
     for i in range(len(Y_train)):
         stdnormalnoise[i] = np.random.normal(0,1)
-
+    # return Y_train
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 def getdim(fname):
     dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
@@ -108,6 +108,55 @@ def getfarr():
     # farr = ["f20"]
 
     return farr
+
+def generatespecialdata():
+    from apprentice import tools
+    m=5
+    n=5
+    dim =2
+    farr  =["f8","f9","f12"]
+    noisearr = ["0","10-12","10-10","10-8","10-6","10-4"]
+    ts = 2
+    npoints = ts * tools.numCoeffsRapp(dim,[int(m),int(n)])
+    from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    s = 0
+    l = 2
+    while(s < npoints):
+        sg = SmolyakGrid(a=[-1,-1],b=[1,1], l=l)
+        s = sg.grid.shape[0]
+        l+=1
+    X = sg.grid
+
+
+    stdnormalnoise = np.zeros(shape = (sg.grid.shape[0]), dtype =np.float64)
+    for i in range(sg.grid.shape[0]):
+        stdnormalnoise[i] = np.random.normal(0,1)
+    for fname in farr:
+        minarr,maxarr = getbox(fname)
+
+        for noise in noisearr:
+            noisestr = ""
+            noisepct = 0
+            if(noise!="0"):
+                noisestr = "_noisepct"+noise
+            if(noise=="10-4"):
+                noisepct=10**-4
+            elif(noise=="10-6"):
+                noisepct=10**-6
+            elif(noise=="10-8"):
+                noisepct=10**-8
+            elif(noise=="10-10"):
+                noisepct=10**-10
+            elif(noise=="10-12"):
+                noisepct=10**-12
+            print(noisepct)
+            Y = getData(X, fn=fname, noisepct=0)
+            Y_train = np.atleast_2d(np.array(Y)*(1+ noisepct*stdnormalnoise))
+            outfolder = "/Users/mkrishnamoorthy/Desktop/Data"
+            outfile = "%s/%s%s_sg.txt"%(outfolder,fname,noisestr)
+            print(outfile)
+            np.savetxt(outfile, np.hstack((X,Y_train.T)), delimiter=",")
+
 
 def generatebenchmarkdata(m,n):
     seedarr = [54321,456789,9876512,7919820,10397531]
@@ -297,9 +346,11 @@ def runall(type, sample, noise,m,n,pstart,pend):
 # Approx 3 sampling 4 fn 20 noise 3 ex 5
 
 if __name__ == "__main__":
+    # generatespecialdata()
+    # exit(1)
 
     import os, sys
-    if len(sys.argv)!=8:
+    if len(sys.argv)!=6:
         print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n pstart pend".format(sys.argv[0]))
         sys.exit(1)
     runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],int(sys.argv[6]),int(sys.argv[7]))
