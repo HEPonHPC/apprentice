@@ -238,14 +238,17 @@ def runall(type, sample, noise,m,n,pstart,pend):
     noisestr = ""
     noisepct = 0
     runs = ["exp1","exp2","exp3","exp4","exp5"]
-    if(sample == "sg"):
-        if(pend-pstart < len(farr)):
-            print("not enough processes. %d required and only have %d. Try again"%(len(farr),pend-pstart))
-            exit(1)
-    else:
-        if(pend-pstart < len(farr)*len(runs)):
-            print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),pend-pstart))
-            exit(1)
+    usetaskset = 0
+    if pstart >= 0 and pend >= 0:
+        usetaskset = 1
+        if(sample == "sg"):
+            if(pend-pstart < len(farr)):
+                print("not enough processes. %d required and only have %d. Try again"%(len(farr),pend-pstart))
+                exit(1)
+        else:
+            if(pend-pstart < len(farr)*len(runs)):
+                print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),pend-pstart))
+                exit(1)
     pcurr = pstart
     if(noise!="0"):
         noisestr = "_noisepct"+noise
@@ -265,7 +268,9 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 consolelog=folderplus + "/log/consolelogpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
-                    cmd = 'taskset %d nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,outfile,consolelog)
+                    cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    if usetaskset ==1:
+                        cmd = "taskset %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -280,7 +285,9 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 tol = -1
                 if not os.path.exists(outfile):
-                    cmd = 'taskset %d nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    if usetaskset ==1:
+                        cmd = "taskset %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -301,7 +308,9 @@ def runall(type, sample, noise,m,n,pstart,pend):
                     tol = (10**-3)/10
 
                 if not os.path.exists(outfile):
-                    cmd = 'taskset %d nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    if usetaskset ==1:
+                        cmd = "taskset %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -315,7 +324,9 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
-                    cmd = 'taskset %d nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(pcurr,infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    if usetaskset ==1:
+                        cmd = "taskset %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -350,7 +361,7 @@ if __name__ == "__main__":
     # exit(1)
 
     import os, sys
-    if len(sys.argv)!=6:
+    if len(sys.argv)!=8:
         print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n pstart pend".format(sys.argv[0]))
         sys.exit(1)
     runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],int(sys.argv[6]),int(sys.argv[7]))
