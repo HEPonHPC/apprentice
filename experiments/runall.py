@@ -100,6 +100,16 @@ def getbox(f):
         maxbox = [1,1]
     return minbox,maxbox
 
+def getnoiseinfo(noise):
+    noisearr = ["0","10-2","10-4","10-6"]
+    noisestr = ["","_noisepct10-2","_noisepct10-4","_noisepct10-6"]
+    noisepct = [0,10**-2,10**-4,10**-6]
+
+    for i,n in enumerate(noisearr):
+        if(n == noise):
+            return noisestr[i],noisepct[i]
+
+
 def getfarr():
     farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
             "f17","f18","f19","f20","f21","f22"]
@@ -228,17 +238,8 @@ def generatebenchmarkdata(m,n):
                 if not os.path.exists(folder+"/"+ex+'/benchmarkdata'):
                     os.makedirs(folder+"/"+ex+'/benchmarkdata',exist_ok = True)
                 for noise in ["0","10-2","10-4","10-6"]:
-                    noisestr = ""
-                    noisepct = 0
-                    if(noise!="0"):
-                        noisestr = "_noisepct"+noise
+                    noisestr,noisepct = getnoiseinfo(noise)
 
-                    if(noise=="10-2"):
-                        noisepct=10**-2
-                    elif(noise=="10-4"):
-                        noisepct=10**-4
-                    elif(noise=="10-6"):
-                        noisepct=10**-6
                     Y = getData(X, fn=fname, noisepct=noisepct)
 
                     outfile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
@@ -255,8 +256,6 @@ def runall(type, sample, noise,m,n,pstart,pend):
     commands = []
     farr = getfarr()
     folder= "results"
-    noisestr = ""
-    noisepct = 0
     runs = ["exp1","exp2","exp3","exp4","exp5"]
     usetaskset = 0
     if pstart >= 0 and pend >= 0:
@@ -270,8 +269,7 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),pend-pstart))
                 exit(1)
     pcurr = pstart
-    if(noise!="0"):
-        noisestr = "_noisepct"+noise
+    noisestr,noisepct = getnoiseinfo(noise)
     for fname in farr:
         for numex,ex in enumerate(runs):
             fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
@@ -322,10 +320,9 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if noise =="0":
                     tol = 10**-12
-                elif noise == "10-1":
-                    tol = (10**-1)/10
-                elif noise == "10-3":
-                    tol = (10**-3)/10
+                else:
+                    noisestr,noisepct = getnoiseinfo(noise)
+                    tol = noisepct * 10
 
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
@@ -377,8 +374,8 @@ def runall(type, sample, noise,m,n,pstart,pend):
 # Approx 3 sampling 4 fn 20 noise 3 ex 5
 
 if __name__ == "__main__":
-    generatespecialdata()
-    exit(1)
+    # generatespecialdata()
+    # exit(1)
 
     import os, sys
     if len(sys.argv)!=8:
