@@ -5,6 +5,7 @@ from apprentice import tools, readData
 import os
 
 
+
 def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     print (farr)
     print (noisearr)

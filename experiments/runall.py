@@ -71,7 +71,7 @@ def getData(X_train, fn, noisepct):
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 def getdim(fname):
     dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
-            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":7,"f21":2,"f22":2}
+            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":5,"f21":2,"f22":2}
     return dim[fname]
 
 def getbox(f):
@@ -90,8 +90,8 @@ def getbox(f):
         minbox  = [-0.95,-0.95,-0.95,-0.95]
         maxbox  = [0.95,0.95,0.95,0.95]
     elif(f=="f20"):
-        minbox  = [10**-6,10**-6,10**-6,10**-6,10**-6,10**-6,10**-6]
-        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi]
+        minbox  = [10**-6,10**-6,10**-6,10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi]
     elif(f=="f21"):
         minbox  = [10**-6,10**-6]
         maxbox  = [4*np.pi,4*np.pi]
@@ -111,6 +111,7 @@ def getfarr():
 
 def generatespecialdata():
     from apprentice import tools
+    from pyDOE import lhs
     m=5
     n=5
     dim =2
@@ -118,18 +119,35 @@ def generatespecialdata():
     noisearr = ["0","10-12","10-10","10-8","10-6","10-4"]
     ts = 2
     npoints = ts * tools.numCoeffsRapp(dim,[int(m),int(n)])
-    from dolo.numeric.interpolation.smolyak import SmolyakGrid
-    s = 0
-    l = 2
-    while(s < npoints):
-        sg = SmolyakGrid(a=[-1,-1],b=[1,1], l=l)
-        s = sg.grid.shape[0]
-        l+=1
-    X = sg.grid
+    # sample = "sg"
+    # from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    # s = 0
+    # l = 2
+    # while(s < npoints):
+    #     sg = SmolyakGrid(a=[-1,-1],b=[1,1], l=l)
+    #     s = sg.grid.shape[0]
+    #     l+=1
+    # X = sg.grid
+    # lennn = sg.grid.shape[0]
+
+    # import apprentice
+    # sample = "lhs"
+    # X = lhs(dim, samples=npoints, criterion='maximin')
+    # s = apprentice.Scaler(np.array(X, dtype=np.float64), a=[-1,-1], b=[1,1])
+    # X = s.scaledPoints
+    # lennn = npoints
+
+    import apprentice
+    seed = 54321
+    sample = "so"
+    X = my_i4_sobol_generate(dim,npoints,seed)
+    s = apprentice.Scaler(np.array(X, dtype=np.float64), a=[-1,-1], b=[1,1])
+    X = s.scaledPoints
+    lennn = npoints
 
 
-    stdnormalnoise = np.zeros(shape = (sg.grid.shape[0]), dtype =np.float64)
-    for i in range(sg.grid.shape[0]):
+    stdnormalnoise = np.zeros(shape = (lennn), dtype =np.float64)
+    for i in range(lennn):
         stdnormalnoise[i] = np.random.normal(0,1)
     for fname in farr:
         minarr,maxarr = getbox(fname)
@@ -153,7 +171,7 @@ def generatespecialdata():
             Y = getData(X, fn=fname, noisepct=0)
             Y_train = np.atleast_2d(np.array(Y)*(1+ noisepct*stdnormalnoise))
             outfolder = "/Users/mkrishnamoorthy/Desktop/Data"
-            outfile = "%s/%s%s_sg.txt"%(outfolder,fname,noisestr)
+            outfile = "%s/%s%s_%s.txt"%(outfolder,fname,noisestr,sample)
             print(outfile)
             np.savetxt(outfile, np.hstack((X,Y_train.T)), delimiter=",")
 
@@ -171,7 +189,7 @@ def generatebenchmarkdata(m,n):
         minarr,maxarr = getbox(fname)
         npoints = ts * tools.numCoeffsRapp(dim,[int(m),int(n)])
         print (npoints)
-        for sample in ["mc","lhs","sc","sg"]:
+        for sample in ["mc","lhs","so","sg"]:
             for numex,ex in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
                 seed = seedarr[numex]
                 np.random.seed(seed)
@@ -193,13 +211,13 @@ def generatebenchmarkdata(m,n):
                 elif(sample == "sg"):
                     from dolo.numeric.interpolation.smolyak import SmolyakGrid
                     s = 0
-                    l=2
+                    l=1
                     while(s<npoints):
                         sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
                         s = sg.grid.shape[0]
                         l+=1
                     X = sg.grid
-                elif(sample == "sc"):
+                elif(sample == "so"):
                     X = my_i4_sobol_generate(dim,npoints,seed)
                     s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
                     X = s.scaledPoints
@@ -209,16 +227,18 @@ def generatebenchmarkdata(m,n):
                     X = s.scaledPoints
                 if not os.path.exists(folder+"/"+ex+'/benchmarkdata'):
                     os.makedirs(folder+"/"+ex+'/benchmarkdata',exist_ok = True)
-                for noise in ["0","10-1","10-3"]:
+                for noise in ["0","10-2","10-4","10-6"]:
                     noisestr = ""
                     noisepct = 0
                     if(noise!="0"):
                         noisestr = "_noisepct"+noise
 
-                    if(noise=="10-1"):
-                        noisepct=10**-1
-                    elif(noise=="10-3"):
-                        noisepct=10**-3
+                    if(noise=="10-2"):
+                        noisepct=10**-2
+                    elif(noise=="10-4"):
+                        noisepct=10**-4
+                    elif(noise=="10-6"):
+                        noisepct=10**-6
                     Y = getData(X, fn=fname, noisepct=noisepct)
 
                     outfile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
@@ -357,11 +377,11 @@ def runall(type, sample, noise,m,n,pstart,pend):
 # Approx 3 sampling 4 fn 20 noise 3 ex 5
 
 if __name__ == "__main__":
-    # generatespecialdata()
-    # exit(1)
+    generatespecialdata()
+    exit(1)
 
     import os, sys
     if len(sys.argv)!=8:
-        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_sc_or_sg noise m n pstart pend".format(sys.argv[0]))
+        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg noise m n pstart pend".format(sys.argv[0]))
         sys.exit(1)
     runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],int(sys.argv[6]),int(sys.argv[7]))

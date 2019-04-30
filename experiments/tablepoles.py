@@ -38,6 +38,7 @@ def getdim(fname):
             "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":7,"f21":2,"f22":2}
     return dim[fname]
 
+
 def getX(dim,Xr,cornerpoints):
     X = np.array([])
     for ddd in range(dim):
