@@ -288,7 +288,7 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
                     if usetaskset ==1:
-                        cmd = "taskset %d %s"%(pcurr,cmd)
+                        cmd = "taskset -c %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -305,7 +305,7 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     if usetaskset ==1:
-                        cmd = "taskset %d %s"%(pcurr,cmd)
+                        cmd = "taskset -c %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -327,7 +327,7 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     if usetaskset ==1:
-                        cmd = "taskset %d %s"%(pcurr,cmd)
+                        cmd = "taskset -c %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
@@ -343,7 +343,7 @@ def runall(type, sample, noise,m,n,pstart,pend):
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
                     if usetaskset ==1:
-                        cmd = "taskset %d %s"%(pcurr,cmd)
+                        cmd = "taskset -c %d %s"%(pcurr,cmd)
                     pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
