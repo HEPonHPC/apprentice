@@ -6,7 +6,7 @@ class RationalApproximationONB(object):
     """
     Rational interpolation with degree reduction.
     """
-    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, tol=1e-14, debug=False):
+    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, tol=1e-14, debug=False, validateSVD=True):
         """
         Multivariate rational approximation f(x)_mn =  g(x)_m/h(x)_n
 
@@ -22,7 +22,7 @@ class RationalApproximationONB(object):
         self._debug=debug
         self._strategy = strategy
         self.tol = tol
-        self.validateSVD=True
+        self.validateSVD=validateSVD
         if initDict is not None:
             self.mkFromDict(initDict)
         elif fname is not None:
