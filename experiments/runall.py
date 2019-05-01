@@ -71,7 +71,7 @@ def getData(X_train, fn, noisepct):
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 def getdim(fname):
     dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
-            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":5,"f21":2,"f22":2}
+            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":4,"f21":2,"f22":2}
     return dim[fname]
 
 def getbox(f):
@@ -90,8 +90,8 @@ def getbox(f):
         minbox  = [-0.95,-0.95,-0.95,-0.95]
         maxbox  = [0.95,0.95,0.95,0.95]
     elif(f=="f20"):
-        minbox  = [10**-6,10**-6,10**-6,10**-6,10**-6]
-        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi,4*np.pi]
+        minbox  = [10**-6,10**-6,10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi]
     elif(f=="f21"):
         minbox  = [10**-6,10**-6]
         maxbox  = [4*np.pi,4*np.pi]
@@ -111,11 +111,11 @@ def getnoiseinfo(noise):
 
 
 def getfarr():
-    farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
-            "f17","f18","f19","f20","f21","f22"]
+    # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+    #         "f17","f18","f19","f20","f21","f22"]
     # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
     #         "f17","f18","f19","f21","f22"]
-    # farr = ["f20"]
+    farr = ["f20"]
 
     return farr
 

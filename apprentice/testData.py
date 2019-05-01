@@ -110,11 +110,11 @@ def f19(P):
 
 
 """
-Tom's sinc function - 5D
+Tom's sinc function - 4D
 """
 def f20(P):
-    x1, x2, x3, x4,x5 = P
-    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4 * np.sin(x5)/x5
+    x1, x2, x3, x4 = P
+    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4
     # x1, x2, x3 = P
     # return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3
 
