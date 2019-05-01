@@ -249,7 +249,7 @@ def generatebenchmarkdata(m,n):
                     break
 
 
-def runall(type, sample, noise,m,n,pstart,pend):
+def runall(type, sample, noise,m,n,pstarendarr):
     if(type == "gen"):
         generatebenchmarkdata(m,n)
         exit(0)
@@ -258,17 +258,24 @@ def runall(type, sample, noise,m,n,pstart,pend):
     folder= "results"
     runs = ["exp1","exp2","exp3","exp4","exp5"]
     usetaskset = 0
-    if pstart >= 0 and pend >= 0:
+    if int(pstarendarr[0]) >= 0 and int(pstarendarr[1]) >= 0:
         usetaskset = 1
+        sum = 0
+        i=0
+        while i < len(pstarendarr):
+            sum += int(pstarendarr[i+1]) - int(pstarendarr[i])
+            print(i)
+            i+=2
         if(sample == "sg"):
-            if(pend-pstart < len(farr)):
-                print("not enough processes. %d required and only have %d. Try again"%(len(farr),pend-pstart))
+            if(sum < len(farr)):
+                print("not enough processes. %d required and only have %d. Try again"%(len(farr),sum))
                 exit(1)
         else:
-            if(pend-pstart < len(farr)*len(runs)):
-                print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),pend-pstart))
+            if(sum < len(farr)*len(runs)):
+                print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),sum))
                 exit(1)
-    pcurr = pstart
+    pcurr = int(pstarendarr[0])
+    pindex = 0
     noisestr,noisepct = getnoiseinfo(noise)
     for fname in farr:
         for numex,ex in enumerate(runs):
@@ -289,7 +296,12 @@ def runall(type, sample, noise,m,n,pstart,pend):
                     cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
-                    pcurr += 1
+                        if(pcurr == int(pstarendarr[pindex+1])):
+                            pcurr = int(pstarendarr[pindex+2])
+                            pindex += 2
+                        else:
+                            pcurr += 1
+
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -306,7 +318,11 @@ def runall(type, sample, noise,m,n,pstart,pend):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
-                    pcurr += 1
+                        if(pcurr == int(pstarendarr[pindex+1])):
+                            pcurr = int(pstarendarr[pindex+2])
+                            pindex += 2
+                        else:
+                            pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -328,7 +344,11 @@ def runall(type, sample, noise,m,n,pstart,pend):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
-                    pcurr += 1
+                        if(pcurr == int(pstarendarr[pindex+1])):
+                            pcurr = int(pstarendarr[pindex+2])
+                            pindex += 2
+                        else:
+                            pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -344,7 +364,11 @@ def runall(type, sample, noise,m,n,pstart,pend):
                     cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
-                    pcurr += 1
+                        if(pcurr == int(pstarendarr[pindex+1])):
+                            pcurr = int(pstarendarr[pindex+2])
+                            pindex += 2
+                        else:
+                            pcurr += 1
                     commands.append(cmd)
                     # print(cmd)
                     os.system(cmd)
@@ -378,7 +402,13 @@ if __name__ == "__main__":
     # exit(1)
 
     import os, sys
-    if len(sys.argv)!=8:
-        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg noise m n pstart pend".format(sys.argv[0]))
+    if len(sys.argv)!=7:
+        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg noise m n pstart,pend".format(sys.argv[0]))
         sys.exit(1)
-    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],int(sys.argv[6]),int(sys.argv[7]))
+
+    pstarendarr = sys.argv[6].split(',')
+    if len(pstarendarr) == 0 or len(pstarendarr) % 2 !=0:
+        print("please specify comma saperated start and end processes")
+        sys.exit(1)
+
+    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],pstarendarr)
