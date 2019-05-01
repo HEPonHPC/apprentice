@@ -6,7 +6,7 @@ class RationalApproximationONB(object):
     """
     Rational interpolation with degree reduction.
     """
-    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, tol=1e-14):
+    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, tol=1e-14, debug=False):
         """
         Multivariate rational approximation f(x)_mn =  g(x)_m/h(x)_n
 
@@ -17,7 +17,10 @@ class RationalApproximationONB(object):
             Y     --- function values
             tol   --- singular value tolerance
             order --- tuple (m,n) m being the order of the numerator polynomial --- if omitted: auto
+            strategy --- 1 is denominator first, 2 is enumerator first reduction
         """
+        self._debug=debug
+        self._strategy = strategy
         self.tol = tol
         self.validateSVD=True
         if initDict is not None:
@@ -30,12 +33,8 @@ class RationalApproximationONB(object):
             self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
             self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
-            # self._Y   = np.array(Y, dtype=np.float64)
             self._F = np.diag(Y)
             self._trainingsize=len(X)
-            # if self._dim ==1:
-                # self._ONB = apprentice.ONB([ [x] for x in self._X] )
-            # else:
             self._ONB = apprentice.ONB(self._X)
 
             self.fit()
@@ -94,28 +93,19 @@ class RationalApproximationONB(object):
         Solve the SVD and test the ratio of the first and last sv against tol
         """
         if n <0: return False
+        if m <0: return False
         S = self._svd(F, Q, m, n)
         dec = S['s'][-1] < self.tol * S['s'][0]
-        # print(len(S['s']), S['s'][-1], S['s'][0], self.tol * S['s'][0], S['s'][-1]/S['s'][0] )
-        ratio = S['s']/S['s'][0]
-        drop = [ratio[i+1]/ratio[i] for i in range(len(S['s'])-1)]
-        print("m={} n={} max drop: {}".format(m,n, np.max(drop)))
-
-        import pylab
-        # pylab.clf()
-        pylab.yscale("log")
-        pylab.plot([i for i in range(len(S['s']))], S['s']/S['s'][0], label="m={} n={}".format(m,n))
-        # print("Reductio: Testing orders",m,n, "decision: ", dec, "SVs",S['s'])
+        if self._debug:
+            print("Test ({},{}): {}".format(m,n, dec))
 
         return dec
 
-    def _reduce(self, Q, M, N):
+    def _reduceEnumFirst(self, Q, M, N):
         """
-        Denominator first reduction
+        Numerator first reduction
         """
         m, n = M, N
-        while self.isViable(self.F,  Q, m, n-1) and n>0:
-            n-=1
 
         # Numerator reduction
         Y = np.diagonal(self.F)
@@ -128,18 +118,48 @@ class RationalApproximationONB(object):
         else:
             iF=np.diag([1./y for y in Y]) # TODO move into reduction step and exclude 0s
 
-        # while self.isViable(iF, Q[np.where(Y!=0)], n, m-1):
-        while self.isViable(iF, Q[np.where(Y!=0)], m-1, n) and m>0:
+        while self.isViable(iF, Q[np.where(Y!=0)], m-1, n):
             m-=1
 
-        import pylab
-        pylab.legend()
-        pylab.axhline(self.tol)
-        pylab.title("Singular values ordered in decreasing value")
-        pylab.xlabel("i")
-        pylab.ylabel("$S_i / max(S)$")
-        pylab.savefig("final_{}_{}_tol_{}.pdf".format(m,n, self.tol))
+        while self.isViable(self.F,  Q, m, n-1):
+            n-=1
+
         return m, n
+
+    def _reduceDenomFirst(self, Q, M, N):
+        """
+        Denominator first reduction
+        """
+        m, n = M, N
+        while self.isViable(self.F,  Q, m, n-1):# and n>0:
+            n-=1
+
+        # Numerator reduction
+        Y = np.diagonal(self.F)
+
+        if all([y==0 for y in Y]): return 0, 0
+
+        if any([y == 0 for y in Y]):
+            iF=np.diag([1./y for y in Y if not y==0]) # TODO move into reduction step and exclude 0s
+        else:
+            iF=np.diag([1./y for y in Y]) # TODO move into reduction step and exclude 0s
+
+        while self.isViable(iF, Q[np.where(Y!=0)], m-1, n):# and m>0:
+            m-=1
+
+        return m, n
+
+    def _reduce(self, Q, M, N):
+        """
+        Degree reduction
+        """
+        if self._strategy == 1:
+            return self._reduceDenomFirst(Q,M,N)
+        elif self._strategy == 2:
+            return self._reduceEnumFirst(Q,M,N)
+        else:
+            raise Exception("Provided strategy {} unknown, should be 1 or 2".format(self._strategy))
+
 
     def _calc(self, M, N, Q):
         """
@@ -149,13 +169,10 @@ class RationalApproximationONB(object):
         # Degree reduction
         if self.tol>0:
             m, n = self._reduce(Q, M, N)
-            print("Final degrees: m={} n={}".format(m,n))
+            if self._debug:
+                print("Final degrees: m={} n={}".format(m,n))
         else: m, n = M, N
 
-        # if m<M or n<N:
-            # print("calculating reduced QR for max order %i"%max(m,n))
-            # # a, b = self._ONB(max(m,n))
-            # self._ONB._reduce(max(m,n))
         self._m = m
         self._n = n
         S = self._svd(self.F, Q, m, n)
@@ -187,15 +204,12 @@ class RationalApproximationONB(object):
         indN=range(Ndof)
         Z = np.dot(Q[:,indM].transpose(),  np.dot(F, Q[:,indN]))
         from scipy import linalg
-        # print "Shape of matrix for SVD:", (np.dot(Q[:,indM],Z) - np.dot(F,Q[:,indN])).shape
         U, s, W = linalg.svd(np.dot(Q[:,indM],Z) - np.dot(F,Q[:,indN]), lapack_driver="gesvd") # Use the same driver as MATLAB here
-        # from IPython import embed
-        # embed()
         if self.validateSVD:
             S=np.zeros((U.shape[0], W.shape[0]))
             S[:s.shape[0], :s.shape[0]] = np.diag(s)
             if not np.allclose(np.dot(Q[:,indM],Z) - np.dot(F,Q[:,indN]), np.dot(U, np.dot(S, W))):
-                raise Exception("SVD reco did not work")
+                raise Exception("SVD reco did not work (allclose statement, m={} n={})".format(m,n))
         try:
             b[indN] = W[-1].reshape(b[indN].shape) # In python, the right singular values are in rows
         except Exception as e:
