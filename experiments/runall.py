@@ -264,7 +264,6 @@ def runall(type, sample, noise,m,n,pstarendarr):
         i=0
         while i < len(pstarendarr):
             sum += int(pstarendarr[i+1]) - int(pstarendarr[i])
-            print(i)
             i+=2
         if(sample == "sg"):
             if(sum < len(farr)):
