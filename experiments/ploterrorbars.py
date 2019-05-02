@@ -4,11 +4,44 @@ from apprentice import tools, readData
 import matplotlib.ticker as mtick
 import os
 
+def getfarr():
+    farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+            "f17","f18","f19","f20","f21","f22"]
+    # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+    #         "f17","f18","f19","f21","f22"]
+    # farr = ["f20"]
 
+    return farr
 
-def ploterrorbars(baseline=13.5,plottype='persample'):
+def getnoiseinfo(noise):
+    noisearr = ["0","10-2","10-4","10-6"]
+    noisestr = ["","_noisepct10-2","_noisepct10-4","_noisepct10-6"]
+    noisepct = [0,10**-2,10**-4,10**-6]
+
+    for i,n in enumerate(noisearr):
+        if(n == noise):
+            return noisestr[i],noisepct[i]
+
+def knowmissing(filename):
+    arr = [
+        "results/exp1/f20_sg_2x/outrasip/f20_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-2_sg_2x/outrard/f18_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-2_sg_2x/outrard1/f18_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f20_noisepct10-2_sg_2x/outrasip/f20_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-6_sg_2x/outrard/f18_noisepct10-6_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-6_sg_2x/outrard1/f18_noisepct10-6_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f20_noisepct10-6_sg_2x/outrasip/f20_noisepct10-6_sg_2x_p5_q5_ts2x.json"
+    ]
+    for a in arr:
+        if(filename == a):
+            return 1
+    return 0
+
+def ploterrorbars(baseline=13.5,plottype='persample',usejson=0):
     import matplotlib as mpl
     import json
+    if not os.path.exists('results/plots/'):
+        os.makedirs('results/plots/',exist_ok = True)
 
 
     mpl.use('pgf')
@@ -23,12 +56,7 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
 
     color = ['#900C3F','#C70039','#FF5733','#FFC300']
 
-    fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f20','f21','f22']
-    # fff = ['f1','f2','f3','f4','f5','f7','f8','f9','f10','f12','f13','f14','f15','f16','f17','f18','f19','f21','f22']
-    # fff = ['f12','f13','f14','f15','f16']
-    # fff = ['f1','f2','f3','f4']
-    # fff = ['f1']
-    # fff = ['f20']
+    fff = getfarr()
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
@@ -36,125 +64,157 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
         # import matplotlib.pyplot as plt
         # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
     data = {}
-    noiselevels = ['0','10-1','10-3']
-    # allsamples = ['mc','lhs','sc','sg']
+    noiselevels = ['0','10-2','10-6']
+    allsamples = ['mc','lhs','so','sg']
     # allsamples = ['mc','lhs']
-    allsamples = ['sg']
-    for snum,sample in enumerate(allsamples):
-        data[sample] = {}
-        # first = sample
-        for nnum,noise in enumerate(noiselevels):
-            data[sample][noise] = {}
+    # allsamples = ['sg']
+    if(usejson == 0):
+        for snum,sample in enumerate(allsamples):
+            data[sample] = {}
+            # first = sample
+            for nnum,noise in enumerate(noiselevels):
+                data[sample][noise] = {}
 
-            second = noise
+                second = noise
+
+                noisestr,noisepct = getnoiseinfo(noise)
+
+                for fnum,fname in enumerate(fff):
+
+                    data[sample][noise][fname] = {}
+                    testfile = "../benchmarkdata/"+fname+"_test.txt"
+                    # testfile = "../benchmarkdata/"+fname+".txt"
+                    print(testfile)
+                    bottom_or_all = all
+                    try:
+                        X, Y = readData(testfile)
+                    except:
+                        DATA = tools.readH5(testfile, [0])
+                        X, Y= DATA[0]
+
+                    if(bottom_or_all == "bottom"):
+                        testset = [i for i in range(trainingsize,len(X_test))]
+                        X_test = X[testset]
+                        Y_test = Y[testset]
+                    else:
+                        X_test = X
+                        Y_test = Y
+                    ts = "2x"
+
+                    datapa = []
+                    datara = []
+                    datarard = []
+                    datarasip = []
+                    for run in ["exp1","exp2","exp3","exp4","exp5"]:
+                    # for run in ["./"]:
+                        fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
+                        folder = "results/%s/%s"%(run,fndesc)
+                        m = 5
+                        n = 5
+                        pq = "p%d_q%d"%(m,n)
+                        print(run, fname,noisestr,sample,m,n)
+
+                        rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                        rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                        rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                        pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                        if not os.path.exists(rappsipfile):
+                            print("rappsipfile %s not found"%(rappsipfile))
+                            if(knowmissing(rappsipfile)):
+                                if(sample == "sg"):
+                                    break
+                                continue
+                            exit(1)
+
+                        if not os.path.exists(rappfile):
+                            print("rappfile %s not found"%(rappfile))
+                            if(knowmissing(rappfile)):
+                                if(sample == "sg"):
+                                    break
+                                continue
+                            exit(1)
+
+                        if not os.path.exists(rapprdfile):
+                            print("rappfile %s not found"%(rapprdfile))
+                            if(knowmissing(rapprdfile)):
+                                if(sample == "sg"):
+                                    break
+                                continue
+                            exit(1)
+
+                        if not os.path.exists(pappfile):
+                            print("pappfile %s not found"%(pappfile))
+                            if(knowmissing(pappfile)):
+                                if(sample == "sg"):
+                                    break
+                                continue
+                            exit(1)
+
+                        rappsip = RationalApproximationSIP(rappsipfile)
+                        Y_pred_rappsip = rappsip.predictOverArray(X_test)
+
+                        rapp = RationalApproximationONB(fname=rappfile)
+                        Y_pred_rapp = np.array([rapp(x) for x in X_test])
+
+                        rapprd = RationalApproximationONB(fname=rapprdfile)
+                        Y_pred_rapprd = np.array([rapprd(x) for x in X_test])
+
+                        papp = PolynomialApproximation(fname=pappfile)
+                        Y_pred_papp = np.array([papp(x) for x in X_test])
+
+                        datapa.append(np.log10(np.sqrt(np.sum((Y_pred_papp-Y_test)**2))))
+                        datara.append(np.log10(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2))))
+                        datarard.append(np.log10(np.sqrt(np.sum((Y_pred_rapprd-Y_test)**2))))
+                        datarasip.append(np.log10(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2))))
+
+                        if(sample == "sg"):
+                            break
+
+                    missingmean = -15
+                    if(len(datapa) == 0):
+                        data[sample][noise][fname]['pamean'] = missingmean
+                        data[sample][noise][fname]['pasd'] = 0
+                    else:
+                        data[sample][noise][fname]['pamean'] = np.average(datapa)
+                        data[sample][noise][fname]['pasd'] = np.std(datapa)
 
 
-            noisestr = ""
-            noisepct = 0
-            if(noise!="0"):
-                noisestr = "_noisepct"+noise
-
-            for fnum,fname in enumerate(fff):
-                data[sample][noise][fname] = {}
-                testfile = "../benchmarkdata/"+fname+"_test.txt"
-                # testfile = "../benchmarkdata/"+fname+".txt"
-                print(testfile)
-                bottom_or_all = all
-                try:
-                    X, Y = readData(testfile)
-                except:
-                    DATA = tools.readH5(testfile, [0])
-                    X, Y= DATA[0]
-
-                if(bottom_or_all == "bottom"):
-                    testset = [i for i in range(trainingsize,len(X_test))]
-                    X_test = X[testset]
-                    Y_test = Y[testset]
-                else:
-                    X_test = X
-                    Y_test = Y
-                ts = "2x"
-
-                datapa = []
-                datara = []
-                datarard = []
-                datarasip = []
-                for run in ["exp1","exp2","exp3","exp4","exp5"]:
-                # for run in ["./"]:
-                    fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
-                    folder = "results/%s/%s"%(run,fndesc)
-                    m = 5
-                    n = 5
-                    pq = "p%d_q%d"%(m,n)
-                    print(run, fname,noisestr,sample,m,n)
-
-                    rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-                    rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-                    rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-                    pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-                    if not os.path.exists(rappsipfile):
-                        print("rappsipfile %s not found"%(rappsipfile))
-                        exit(1)
-
-                    if not os.path.exists(rappfile):
-                        print("rappfile %s not found"%(rappfile))
-                        exit(1)
-
-                    if not os.path.exists(rapprdfile):
-                        print("rappfile %s not found"%(rapprdfile))
-                        exit(1)
-
-                    if not os.path.exists(pappfile):
-                        print("pappfile %s not found"%(pappfile))
-                        exit(1)
-
-                    rappsip = RationalApproximationSIP(rappsipfile)
-                    Y_pred_rappsip = rappsip.predictOverArray(X_test)
-
-                    rapp = RationalApproximationONB(fname=rappfile)
-                    Y_pred_rapp = np.array([rapp(x) for x in X_test])
-
-                    rapprd = RationalApproximationONB(fname=rapprdfile)
-                    Y_pred_rapprd = np.array([rapprd(x) for x in X_test])
-
-                    papp = PolynomialApproximation(fname=pappfile)
-                    Y_pred_papp = np.array([papp(x) for x in X_test])
-
-                    datapa.append(np.log10(np.sqrt(np.sum((Y_pred_papp-Y_test)**2))))
-                    datara.append(np.log10(np.sqrt(np.sum((Y_pred_rapp-Y_test)**2))))
-                    datarard.append(np.log10(np.sqrt(np.sum((Y_pred_rapprd-Y_test)**2))))
-                    datarasip.append(np.log10(np.sqrt(np.sum((Y_pred_rappsip-Y_test)**2))))
+                    if(len(datara) == 0):
+                        data[sample][noise][fname]['ramean'] = missingmean
+                        data[sample][noise][fname]['rasd'] = 0
+                    else:
+                        data[sample][noise][fname]['ramean'] = np.average(datara)
+                        data[sample][noise][fname]['rasd'] = np.std(datara)
+                    if(len(datarard) == 0):
+                        data[sample][noise][fname]['rardmean'] = missingmean
+                        data[sample][noise][fname]['rardsd'] = 0
+                    else:
+                        data[sample][noise][fname]['rardmean'] = np.average(datarard)
+                        data[sample][noise][fname]['rardsd'] = np.std(datarard)
+                    if(len(datarasip) == 0):
+                        data[sample][noise][fname]['rasipmean'] = missingmean
+                        data[sample][noise][fname]['rasipsd'] = 0
+                    else:
+                        data[sample][noise][fname]['rasipmean'] = np.average(datarasip)
+                        data[sample][noise][fname]['rasipsd'] = np.std(datarasip)
 
                     if(sample == "sg"):
-                        break
+                        data[sample][noise][fname]['pasd'] = 0
+                        data[sample][noise][fname]['rasd'] = 0
+                        data[sample][noise][fname]['rardsd'] = 0
+                        data[sample][noise][fname]['rasipsd'] = 0
 
-                data[sample][noise][fname]['pamean'] = np.average(datapa)
-                data[sample][noise][fname]['pasd'] = np.std(datapa)
+        outfile111 = "results/plots/Jerrors.json"
+        import json
+        with open(outfile111, "w") as f:
+            json.dump(data, f,indent=4, sort_keys=True)
+    else:
+        import json
+        outfile111 = "results/plots/Jerrors.json"
+        if outfile111:
+            with open(outfile111, 'r') as fn:
+                data = json.load(fn)
 
-                data[sample][noise][fname]['ramean'] = np.average(datara)
-                data[sample][noise][fname]['rasd'] = np.std(datara)
-
-                data[sample][noise][fname]['rardmean'] = np.average(datarard)
-                data[sample][noise][fname]['rardsd'] = np.std(datarard)
-
-                data[sample][noise][fname]['rasipmean'] = np.average(datarasip)
-                data[sample][noise][fname]['rasipsd'] = np.std(datarasip)
-                if(sample == "sg"):
-                    data[sample][noise][fname]['pasd'] = 0
-                    data[sample][noise][fname]['rasd'] = 0
-                    data[sample][noise][fname]['rardsd'] = 0
-                    data[sample][noise][fname]['rasipsd'] = 0
-
-
-
-
-
-    outfile111 = "results/plots/Jerrors.json"
-    import json
-    with open(outfile111, "w") as f:
-        json.dump(data, f,indent=4, sort_keys=True)
-    if not os.path.exists("results/plots"):
-        os.makedirs("results/plots", exist_ok = True)
     ecolor = 'black'
     if(plottype == 'persample' or plottype == 'pernoiselevel'):
     # if(plottype == 'persample'):
@@ -197,7 +257,8 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
                 xlab = []
                 for f in fff:
                     print(f)
-                    xlab.append("\\ref{fn:%s}"%(f))
+                    # xlab.append("\\ref{fn:%s}"%(f))
+                    xlab.append("%s"%(f))
                 ax.set_xticklabels(xlab,fontsize = 14)
                 ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
                 ax.label_outer()
@@ -233,7 +294,8 @@ def ploterrorbars(baseline=13.5,plottype='persample'):
                 xlab = []
                 for f in fff:
                     print(f)
-                    xlab.append("\\ref{fn:%s}"%(f))
+                    # xlab.append("\\ref{fn:%s}"%(f))
+                    xlab.append("%s"%(f))
                 ax.set_xticklabels(xlab,fontsize = 14)
                 ax.set_ylabel('$log_{10}(\\Delta_r)$',fontsize = 17)
                 ax.label_outer()
@@ -321,6 +383,8 @@ if __name__ == "__main__":
         ploterrorbars(float(sys.argv[1]))
     elif len(sys.argv)==3:
         ploterrorbars(float(sys.argv[1]),sys.argv[2])
+    elif len(sys.argv)==4:
+        ploterrorbars(float(sys.argv[1]),sys.argv[2],int(sys.argv[3]))
     else:
-        print("baseline (13.5), plottype required: persample or pernoiselevel")
+        print("baseline (13.5), plottype (persample or pernoiselevel), usejson(0 or 1) ")
 ###########

@@ -113,7 +113,7 @@ if __name__ == "__main__":
     elif(opts.FUNCTION ==20):
         a = 10**-6
         b = 4*np.pi
-        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,[a,a,a,a,a,a,a],[b,b,b,b,b,b,b],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
+        mkData(opts.FUNCTION,opts.SEED,opts.NPOINTS,opts.DIM,[a,a,a,a],[b,b,b,b],opts.CORNERS,opts.NOISEPCT,opts.OUTFILE)
     elif(opts.FUNCTION ==21):
         a = 10**-6
         b = 4*np.pi
