@@ -395,7 +395,7 @@ def generatedata():
      m = 5
      n = 5
      bounday = 10**-3
-     numarr = [0,0,1000,1000,100,100]
+     numarr = [0,0,1000,1000,1000,100]
      import math
      if not os.path.exists("results/plots"):
          os.makedirs("results/plots", exist_ok = True)
@@ -449,7 +449,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
 
 
-    exit(1)
+    exit(0)
 
 
 
@@ -912,6 +912,7 @@ if __name__ == "__main__":
 
     if(sys.argv[1] == 'gen'):
         generatedata()
+        exit(0)
 
 
  # python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f22  0,10-1 10,100,1000 2x  table
