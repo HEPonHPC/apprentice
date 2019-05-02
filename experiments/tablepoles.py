@@ -223,13 +223,13 @@ def getData(X_train, fn, noisepct):
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 
 def getresults(farr,noisearr, tarr, ts, usecornerpoints):
-    # allsamples = ['mc','lhs','sc','sg']
     m=5
     n=5
     thresholdvalarr = np.array([float(t) for t in tarr])
     thresholdvalarr = np.sort(thresholdvalarr)
     # allsamples = ['sg']
-    allsamples = ['lhs']
+    # allsamples = ['lhs']
+    allsamples = ['mc','lhs','so','sg']
     results = {}
     for fnum,fname in enumerate(farr):
         results[fname] = {}
@@ -363,7 +363,6 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
 
                     if(sample == "sg"):
                         break
-                print(resdata)
                 missingmean = -1
                 for method in ['rapp','rapprd','rappsip']:
                     l2allarr = resdata[method]['l2all']
@@ -388,6 +387,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
                                 results[fname][sample][noise][method][str(tval)][key] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
 
+        print("done with fn: %s for usecornerpoints = %d"%(fn,usecornerpoints))
 
     return results
 
@@ -398,7 +398,9 @@ def generatedata():
      import math
      if not os.path.exists("results/plots"):
          os.makedirs("results/plots", exist_ok = True)
-     for dim in range(2,5):
+         numarr = [1000,1000,100]
+     for dnum,dim in range(2,5):
+         num = numarr[dnum]
          num=math.ceil(10**(6/dim))
          cnum = int(0.1*num)
          innum = 10**6
@@ -429,8 +431,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
     outfilejson = "results/plots/Jpoleinfo.json"
     if(usejson ==0):
-        resultscorner = getresults(farr,noisearr, tarr, ts,0)
-        resultsnotcorner = getresults(farr,noisearr, tarr, ts,1)
+        resultsnotcorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=0)
+        resultscorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=1)
         results = {
             'resultscorner' : resultscorner,
             'resultsnotcorner' : resultsnotcorner,
