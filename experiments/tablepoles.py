@@ -398,9 +398,9 @@ def generatedata():
      import math
      if not os.path.exists("results/plots"):
          os.makedirs("results/plots", exist_ok = True)
-         numarr = [1000,1000,100]
-     for dnum,dim in range(2,5):
-         num = numarr[dnum]
+         numarr = [0,0,1000,1000,100,100]
+     for dim in range(2,5):
+         num = numarr[dim]
          num=math.ceil(10**(6/dim))
          cnum = int(0.1*num)
          innum = 10**6
