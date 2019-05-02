@@ -93,10 +93,14 @@ def diffrarddegrees():
 
                     if not os.path.exists(rapprdfile):
                         print("rappfile %s not found\n"%(rapprdfile))
+                        if(sample == "sg"):
+                            break
                         continue
 
                     if not os.path.exists(rapprd1file):
                         print("rappfile %s not found\n"%(rapprd1file))
+                        if(sample == "sg"):
+                            break
                         continue
 
                     import json
@@ -111,7 +115,7 @@ def diffrarddegrees():
                             datastore = json.load(fn)
                     mrd1 = datastore['m']
                     nrd1 = datastore['n']
-                    
+
                     if(mrd !=mrd1 or nrd != nrd1):
                         print("%s %d %d"%(fndesc, mrd,nrd))
                         print("%s %d %d\n"%(fndesc,mrd1,nrd1))
@@ -122,7 +126,7 @@ def diffrarddegrees():
 
 if __name__ == "__main__":
 
-    #checkiffileexits()
-    diffrarddegrees()
+    checkiffileexits()
+    # diffrarddegrees()
 
  ###########
