@@ -45,6 +45,7 @@ def check():
                     rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rapprd1file = "%s/outrard1/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     pappfile = "%s/outpa/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
                     if not os.path.exists(rappsipfile):
                         print("rappsipfile %s not found\n"%(rappsipfile))
@@ -53,10 +54,11 @@ def check():
                     if not os.path.exists(rappfile):
                         print("rappfile %s not found\n"%(rappfile))
 
-
                     if not os.path.exists(rapprdfile):
                         print("rappfile %s not found\n"%(rapprdfile))
 
+                    if not os.path.exists(rapprd1file):
+                        print("rappfile %s not found\n"%(rapprd1file))
 
                     if not os.path.exists(pappfile):
                         print("pappfile %s not found\n"%(pappfile))
@@ -66,7 +68,7 @@ def check():
                     if(sample == "sg"):
                         break
 
-                 
+
 if __name__ == "__main__":
 
     check()
