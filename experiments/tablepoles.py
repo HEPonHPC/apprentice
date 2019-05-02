@@ -9,105 +9,158 @@ def sinc(X,dim):
         ret *= np.sin(x)/x
     return ret
 
-def getpqstr(fname):
-    pq = ""
-    if (fname=='f1'): pq = "p2_q4"
-    if (fname=='f2'): pq = "p5_q2"
-    if (fname=='f3'): pq = "p4_q3"
-    if (fname=='f4'): pq = 'p3_q2'
-    if (fname=='f5') : pq = "p2_q3"
-    if (fname=='f7') : pq = 'p2_q7'
-    if fname=='f8' : pq = "p3_q3"
-    if fname=='f9' : pq = "p3_q7"
-    if fname=='f10' : pq = 'p2_q4'
-    if fname=='f12' : pq = 'p3_q3'
-    if fname=='f13' : pq = "p2_q7"
-    if fname=='f14' : pq = "p3_q6"
-    if fname=='f15' : pq = "p2_q5"
-    if fname=='f16' : pq = "p3_q7"
-    if fname=='f17' : pq = 'p4_q6'
-    if fname=='f18' : pq = "p2_q3"
-    if fname=='f19' : pq = "p3_q3"
-    if fname=='f20' : pq = "p2_q3"
-    if fname=='f21' : pq = "p5_q2"
-    if fname=='f22' : pq = "p2_q4"
-    return pq
+def knowmissing(filename):
+    arr = [
+        "results/exp1/f20_sg_2x/outrasip/f20_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-2_sg_2x/outrard/f18_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-2_sg_2x/outrard1/f18_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f20_noisepct10-2_sg_2x/outrasip/f20_noisepct10-2_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-6_sg_2x/outrard/f18_noisepct10-6_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f18_noisepct10-6_sg_2x/outrard1/f18_noisepct10-6_sg_2x_p5_q5_ts2x.json",
+        "results/exp1/f20_noisepct10-6_sg_2x/outrasip/f20_noisepct10-6_sg_2x_p5_q5_ts2x.json"
+    ]
+    for a in arr:
+        if(filename == a):
+            return 1
+    return 0
+
+# def getpqstr(fname):
+#     pq = ""
+#     if (fname=='f1'): pq = "p2_q4"
+#     if (fname=='f2'): pq = "p5_q2"
+#     if (fname=='f3'): pq = "p4_q3"
+#     if (fname=='f4'): pq = 'p3_q2'
+#     if (fname=='f5') : pq = "p2_q3"
+#     if (fname=='f7') : pq = 'p2_q7'
+#     if fname=='f8' : pq = "p3_q3"
+#     if fname=='f9' : pq = "p3_q7"
+#     if fname=='f10' : pq = 'p2_q4'
+#     if fname=='f12' : pq = 'p3_q3'
+#     if fname=='f13' : pq = "p2_q7"
+#     if fname=='f14' : pq = "p3_q6"
+#     if fname=='f15' : pq = "p2_q5"
+#     if fname=='f16' : pq = "p3_q7"
+#     if fname=='f17' : pq = 'p4_q6'
+#     if fname=='f18' : pq = "p2_q3"
+#     if fname=='f19' : pq = "p3_q3"
+#     if fname=='f20' : pq = "p2_q3"
+#     if fname=='f21' : pq = "p5_q2"
+#     if fname=='f22' : pq = "p2_q4"
+#     return pq
 
 def getdim(fname):
     dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
-            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":7,"f21":2,"f22":2}
+            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":4,"f21":2,"f22":2}
     return dim[fname]
 
 
-def getX(dim,Xr,cornerpoints):
+def getXin(dim,num=10**6,bounday=10**-3):
+    X = np.array([])
+    Xperdim = ()
+    np.random.seed(9999)
+
+    max = 1-bounday
+    min = -1+bounday
+    for d in range(dim):
+        Xperdim = Xperdim + (np.random.rand(num,)*(max-min)+min,)
+
+    X = np.column_stack(Xperdim)
+    return X
+
+def getXcorner(dim,Xr,cornerL,cornerU,num):
+
     X = np.array([])
     for ddd in range(dim):
         X = np.append(X,10**-12)
     if dim==2:
         for ddd in range(dim):
-            for corner in cornerpoints:
-                for a in Xr:
-                    if(ddd==0):
-                        xt = [corner,a]
-                    elif(ddd==1):
-                        xt = [a,corner]
-                    X = np.vstack([X, xt])
+            for c in range(2):
+                if(c==0): ccc = cornerL
+                elif(c==1): ccc = cornerU
+                for i in range(num):
+                    corner = ccc[i]
+                    for a in Xr:
+                        if(ddd==0):
+                            xt = [corner,a]
+                        elif(ddd==1):
+                            xt = [a,corner]
+                        X = np.vstack([X, xt])
 
     elif dim ==3:
         for ddd in range(dim):
-            for corner in cornerpoints:
-                for a in Xr:
-                    for b in Xr:
-                        if(ddd==0):
-                            xt = [corner,a,b]
-                        elif(ddd==1):
-                            xt = [a,corner,b]
-                        elif(ddd==2):
-                            xt = [a,b,corner]
-                        X = np.vstack([X, xt])
+            for c in range(2):
+                if(c==0): ccc = cornerL
+                elif(c==1): ccc = cornerU
+                for i in range(num):
+                    corner = ccc[i]
+                    for a in Xr:
+                        for b in Xr:
+                            if(ddd==0):
+                                xt = [corner,a,b]
+                            elif(ddd==1):
+                                xt = [a,corner,b]
+                            elif(ddd==2):
+                                xt = [a,b,corner]
+                            X = np.vstack([X, xt])
     elif dim ==4:
         for ddd in range(dim):
-            for corner in cornerpoints:
-                for a in Xr:
-                    for b in Xr:
-                        for c in Xr:
-                            if(ddd==0):
-                                xt = [corner,a,b,c]
-                            elif(ddd==1):
-                                xt = [a,corner,b,c]
-                            elif(ddd==2):
-                                xt = [a,b,corner,c]
-                            elif(ddd==3):
-                                xt = [a,b,c,corner]
-                            X = np.vstack([X, xt])
+            for c in range(2):
+                if(c==0): ccc = cornerL
+                elif(c==1): ccc = cornerU
+                for i in range(num):
+                    corner = ccc[i]
+                    for a in Xr:
+                        for b in Xr:
+                            for c in Xr:
+                                if(ddd==0):
+                                    xt = [corner,a,b,c]
+                                elif(ddd==1):
+                                    xt = [a,corner,b,c]
+                                elif(ddd==2):
+                                    xt = [a,b,corner,c]
+                                elif(ddd==3):
+                                    xt = [a,b,c,corner]
+                                X = np.vstack([X, xt])
     elif dim ==7:
         for ddd in range(dim):
-            for corner in cornerpoints:
-                for a in Xr:
-                    for b in Xr:
-                        for c in Xr:
-                            for d in Xr:
-                                for e in Xr:
-                                    for f in Xr:
-                                        if(ddd==0):
-                                            xt = [corner,a,b,c,d,e,f]
-                                        elif(ddd==1):
-                                            xt = [a,corner,b,c,d,e,f]
-                                        elif(ddd==2):
-                                            xt = [a,b,corner,c,d,e,f]
-                                        elif(ddd==3):
-                                            xt = [a,b,c,corner,d,e,f]
-                                        elif(ddd==4):
-                                            xt = [a,b,c,d,corner,e,f]
-                                        elif(ddd==5):
-                                            xt = [a,b,c,d,e,corner,f]
-                                        elif(ddd==6):
-                                            xt = [a,b,c,d,e,f,corner]
-                                        X = np.vstack([X, xt])
+            for c in range(2):
+                if(c==0): ccc = cornerL
+                elif(c==1): ccc = cornerU
+                for i in range(num):
+                    corner = ccc[i]
+                    for a in Xr:
+                        for b in Xr:
+                            for c in Xr:
+                                for d in Xr:
+                                    for e in Xr:
+                                        for f in Xr:
+                                            if(ddd==0):
+                                                xt = [corner,a,b,c,d,e,f]
+                                            elif(ddd==1):
+                                                xt = [a,corner,b,c,d,e,f]
+                                            elif(ddd==2):
+                                                xt = [a,b,corner,c,d,e,f]
+                                            elif(ddd==3):
+                                                xt = [a,b,c,corner,d,e,f]
+                                            elif(ddd==4):
+                                                xt = [a,b,c,d,corner,e,f]
+                                            elif(ddd==5):
+                                                xt = [a,b,c,d,e,corner,f]
+                                            elif(ddd==6):
+                                                xt = [a,b,c,d,e,f,corner]
+                                            X = np.vstack([X, xt])
     else:
         print("%s is not capable of handling dim = %d"%(sys.argv[0],dim))
         sys.exit(1)
     return X
+def getnoiseinfo(noise):
+    noisearr = ["0","10-2","10-4","10-6"]
+    noisestr = ["","_noisepct10-2","_noisepct10-4","_noisepct10-6"]
+    noisepct = [0,10**-2,10**-4,10**-6]
+
+    for i,n in enumerate(noisearr):
+        if(n == noise):
+            return noisestr[i],noisepct[i]
 
 def getData(X_train, fn, noisepct):
     """
@@ -169,16 +222,237 @@ def getData(X_train, fn, noisepct):
 
     return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
 
-def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
+def getresults(farr,noisearr, tarr, ts, usecornerpoints):
+    # allsamples = ['mc','lhs','sc','sg']
+    m=5
+    n=5
+    thresholdvalarr = np.array([float(t) for t in tarr])
+    thresholdvalarr = np.sort(thresholdvalarr)
+    # allsamples = ['sg']
+    allsamples = ['lhs']
+    results = {}
+    for fnum,fname in enumerate(farr):
+        results[fname] = {}
+        dim = getdim(fname)
+        if(usecornerpoints == 1):
+            infile = "results/plots/poledata_corner"+str(dim)+"D.csv"
+        else:
+            infile = "results/plots/poledata_inside"+str(dim)+"D.csv"
+
+
+        X_test = np.loadtxt(infile, delimiter=',')
+
+        print(len(X_test))
+
+        Y_test = getData(X_test,fname,0)
+        maxY_test = max(1,abs(np.max(Y_test)))
+        print(fname,maxY_test)
+
+        for snum, sample in enumerate(allsamples):
+            results[fname][sample] = {}
+            for noise in noisearr:
+                results[fname][sample][noise] = {}
+                noisestr,noisepct = getnoiseinfo(noise)
+
+                resdata = {}
+                resdata['rapp'] = {}
+                resdata['rapprd'] = {}
+                resdata['rappsip'] = {}
+
+
+                resdata['rapp']['l2all'] = []
+                resdata['rapprd']['l2all'] = []
+                resdata['rappsip']['l2all'] = []
+
+                for tval in thresholdvalarr:
+                    resdata['rapp'][str(tval)] = {}
+                    resdata['rapprd'][str(tval)] = {}
+                    resdata['rappsip'][str(tval)] = {}
+
+                    resdata['rapp'][str(tval)]['no'] = []
+                    resdata['rapprd'][str(tval)]['no'] = []
+                    resdata['rappsip'][str(tval)]['no'] = []
+
+                    resdata['rapp'][str(tval)]['l2count'] = []
+                    resdata['rapprd'][str(tval)]['l2count'] = []
+                    resdata['rappsip'][str(tval)]['l2count'] = []
+
+                    resdata['rapp'][str(tval)]['l2notcount'] = []
+                    resdata['rapprd'][str(tval)]['l2notcount'] = []
+                    resdata['rappsip'][str(tval)]['l2notcount'] = []
+
+
+
+                for rnum,run in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
+                    fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
+                    folder = "results/%s/%s"%(run,fndesc)
+                    # print(folder)
+                    pq = "p%d_q%d"%(m,n)
+                    # print(run, fname,noisestr,sample,m,n)
+
+                    rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+                    rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+
+                    if not os.path.exists(rappsipfile):
+                        print("rappsipfile %s not found"%(rappsipfile))
+                        if(knowmissing(rappsipfile)):
+                            if(sample == "sg"):
+                                break
+                            continue
+                        exit(1)
+
+                    if not os.path.exists(rappfile):
+                        print("rappfile %s not found"%(rappfile))
+                        if(knowmissing(rappfile)):
+                            if(sample == "sg"):
+                                break
+                            continue
+                        exit(1)
+
+                    if not os.path.exists(rapprdfile):
+                        print("rappfile %s not found"%(rapprdfile))
+                        if(knowmissing(rapprdfile)):
+                            if(sample == "sg"):
+                                break
+                            continue
+                        exit(1)
+
+                    rappsip = RationalApproximationSIP(rappsipfile)
+                    Y_pred_rappsip = np.array([rappsip.numer(x)/rappsip.denom(x) for x in X_test])
+                    rapp = RationalApproximationONB(fname=rappfile)
+                    Y_pred_rapp = np.array([rapp.numer(x)/rapp.denom(x) for x in X_test])
+                    rapprd = RationalApproximationONB(fname=rapprdfile)
+                    Y_pred_rapprd = np.array([rapprd.numer(x)/rapprd.denom(x) for x in X_test])
+
+                    l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
+                    l2allrapprd = np.sum((Y_pred_rapprd-Y_test)**2)
+                    l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
+
+                    resdata['rapp']['l2all'].append(np.sqrt(l2allrapp))
+                    resdata['rapprd']['l2all'].append(np.sqrt(l2allrapprd))
+                    resdata['rappsip']['l2all'].append(np.sqrt(l2allrappsip))
+
+                    for tnum,tval in enumerate(thresholdvalarr):
+                        resdata['rapp'][str(tval)]['no'].append(0)
+                        resdata['rapprd'][str(tval)]['no'].append(0)
+                        resdata['rappsip'][str(tval)]['no'].append(0)
+
+                        resdata['rapp'][str(tval)]['l2count'].append(0.)
+                        resdata['rapprd'][str(tval)]['l2count'].append(0.)
+                        resdata['rappsip'][str(tval)]['l2count'].append(0.)
+
+                        resdata['rapp'][str(tval)]['l2notcount'].append(0.)
+                        resdata['rapprd'][str(tval)]['l2notcount'].append(0.)
+                        resdata['rappsip'][str(tval)]['l2notcount'].append(0.)
+
+
+                    for num,yt in enumerate(Y_test):
+                        for method, pred in zip(['rapp','rapprd','rappsip'],[Y_pred_rapp,Y_pred_rapprd,Y_pred_rappsip]):
+                            yp = pred[num]
+                            for tnum,tval in enumerate(thresholdvalarr):
+                                if(abs(yp)/maxY_test > tval):
+                                    resdata[method][str(tval)]['no'][rnum] +=1
+                                    resdata[method][str(tval)]['l2count'][rnum] += (yp-yt)**2
+
+                    for tnum,tval in enumerate(thresholdvalarr):
+                        for method, l2all in zip(['rapp','rapprd','rappsip'],[l2allrapp,l2allrapprd,l2allrappsip]):
+                            l2count = resdata[method][str(tval)]['l2count'][rnum]
+                            resdata[method][str(tval)]['l2notcount'][rnum] = np.sqrt(l2all - l2count)
+                            resdata[method][str(tval)]['l2count'][rnum] = np.sqrt(l2count)
+
+                    if(sample == "sg"):
+                        break
+                print(resdata)
+                missingmean = -1
+                for method in ['rapp','rapprd','rappsip']:
+                    l2allarr = resdata[method]['l2all']
+                    results[fname][sample][noise][method] = {}
+                    if(len(l2allarr)!=0):
+                        results[fname][sample][noise][method]['l2all'] = np.average(l2allarr)
+                        results[fname][sample][noise][method]['l2allsd'] = np.std(l2allarr)
+                    else:
+                        results[fname][sample][noise][method]['l2all'] = missingmean
+                        results[fname][sample][noise][method]['l2allsd'] = 0
+
+                for tval in thresholdvalarr:
+                    for method in ['rapp','rapprd','rappsip']:
+                        results[fname][sample][noise][method][str(tval)] = {}
+                        for key in ['l2notcount','l2count','no']:
+
+                            arr = resdata[method][str(tval)][key]
+                            if(len(arr)!=0):
+                                results[fname][sample][noise][method][str(tval)][key] = np.average(arr)
+                                results[fname][sample][noise][method][str(tval)][key+'sd'] = np.std(arr)
+                            else:
+                                results[fname][sample][noise][method][str(tval)][key] = missingmean
+                                results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
+
+
+    return results
+
+def generatedata():
+     m = 5
+     n = 5
+     bounday = 10**-3
+     import math
+     if not os.path.exists("results/plots"):
+         os.makedirs("results/plots", exist_ok = True)
+     for dim in range(2,5):
+         num=math.ceil(10**(6/dim))
+         cnum = int(0.1*num)
+         innum = 10**6
+         # num=5
+         # cnum = 5
+         # innum = 5**dim
+         Xr = np.linspace(-1, 1, num=num)
+         cornerL = np.linspace(-1, -1+bounday, num=cnum)
+         cornerU = np.linspace(1-bounday, 1, num=cnum)
+         X_test = getXcorner(dim,Xr,cornerL,cornerU,cnum)
+         outfile = "results/plots/poledata_corner"+str(dim)+"D.csv"
+         np.savetxt(outfile, X_test, delimiter=",")
+
+
+         X_test = getXin(dim,num=innum,bounday=bounday)
+
+         outfile = "results/plots/poledata_inside"+str(dim)+"D.csv"
+         np.savetxt(outfile, X_test, delimiter=",")
+
+
+
+def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
     print (noisearr)
     print (thresholdarr)
-
     if not os.path.exists("results/plots"):
         os.makedirs("results/plots", exist_ok = True)
 
-    # allsamples = ['mc','lhs','sc','sg']
-    allsamples = ['sg']
+    outfilejson = "results/plots/Jpoleinfo.json"
+    if(usejson ==0):
+        resultscorner = getresults(farr,noisearr, tarr, ts,0)
+        resultsnotcorner = getresults(farr,noisearr, tarr, ts,1)
+        results = {
+            'resultscorner' : resultscorner,
+            'resultsnotcorner' : resultsnotcorner,
+        }
+        import json
+        with open(outfilejson, "w") as f:
+            json.dump(results, f,indent=4, sort_keys=True)
+    elif(usejson ==1):
+        if outfilejson:
+            with open(outfilejson, 'r') as fn:
+                results = json.load(fn)
+
+
+
+
+    exit(1)
+
+
+
+
+
+
 
     thresholdvalarr = np.array([float(t) for t in tarr])
     thresholdvalarr = np.sort(thresholdvalarr)
@@ -190,216 +464,127 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
     # import re
     m=5
     n=5
-    for num,fname in enumerate(farr):
-        results[fname] = {}
-        dim = getdim(fname)
-        Xr = np.linspace(-1, 1, num=math.ceil(10**(6/dim)))
-        # Xr = np.linspace(-1, 1, num=10)
-        xrindicies = np.zeros(dim,dtype=np.int64)
-        X_test = getX(dim,Xr,[-1,1])
-        Y_test = getData(X_test,fname,0)
-        maxY_test = max(1,abs(np.max(Y_test)))
-        print(fname,maxY_test)
-        for snum, sample in enumerate(allsamples):
-            results[fname][sample] = {}
-            for noise in noisearr:
-                results[fname][noise] = {}
-                noisestr = ""
-                if(noise!="0"):
-                    noisestr = "_noisepct"+noise
-                for run in ["exp1","exp2","exp3","exp4","exp5"]:
-                    fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
-                    folder = "results/%s/%s"%(run,fndesc)
-                    # print(folder)
-                    pq = "p%d_q%d"%(m,n)
-                    # print(run, fname,noisestr,sample,m,n)
-
-                    rappsipfile = "%s/outrasip/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-                    rappfile = "%s/outra/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
-
-                    if not os.path.exists(rappsipfile):
-                        print("rappsipfile %s not found"%(rappsipfile))
-                        exit(1)
-
-                    if not os.path.exists(rappfile):
-                        print("rappfile %s not found"%(rappfile))
-                        exit(1)
 
 
-                    rappsip = RationalApproximationSIP(rappsipfile)
-                    Y_pred_rappsip = rappsip.predictOverArray(X_test)
-                    rapp = RationalApproximationONB(fname=rappfile)
-                    Y_pred_rapp = np.array([rapp(x) for x in X_test])
-                    # papp = PolynomialApproximation(fname=pappfile)
-                    # Y_pred_papp = np.array([papp(x) for x in X_test])
-                    # # results[fname][noise] = {"rapp":{},"rappsip":{}}
-                    # print(maxY_test)
-                    maxY_test = max(1,abs(maxY_test))
-                    # for tval in thresholdvalarr:
-                    #     # print(fname, maxY_test)
-                    #     # print(Y_pred_rappsip)
-                    #
-                    #     # rappsipcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rappsip))/float(len(Y_test))) *100
-                    #     # rappcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rapp))/float(len(Y_test))) *100
-                    #
-                    #     l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
-                    #     l2countrappsip = 0.
-                    #     rappsipcount = 0
-                    #     for num,yp in enumerate(Y_pred_rappsip):
-                    #         if abs(yp)/abs(maxY_test) >= tval:
-                    #             rappsipcount+=1
-                    #             l2countrappsip += np.sum((yp-Y_test[num])**2)
-                    #     l2notcountrappsip = l2allrappsip - l2countrappsip
-                    #
-                    #     l2countrappsip = np.sqrt(l2countrappsip)
-                    #     l2notcountrappsip = np.sqrt(l2notcountrappsip)
-                    #     l2allrappsip = np.sqrt(l2allrappsip)
-                    #
+
+
+
+
+
+
+
                     #     l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
                     #     l2countrapp = 0.
-                    #     rappcount = 0
-                    #     for num,yp in enumerate(Y_pred_rapp):
-                    #         if abs(yp)/abs(maxY_test) >= tval:
-                    #             rappcount+=1
-                    #             l2countrapp += np.sum((yp-Y_test[num])**2)
-                    #     l2notcountrapp = l2allrapp - l2countrapp
+                    #     rappcount100 = 0
+                    #     rappcount1000 = 0
+                    #     rappsipcount100 = 0
+                    #     rappsipcount1000 = 0
+                    #     # for num,yp in enumerate(Y_pred_rapp):
+                    #     import math
+                    #     dim = rappsip.dim
+                    #     Xd = np.linspace(-1, 1, num=1000)
+                    #     # Xd = np.linspace(-1, 1, num=int(1000000/dim))
+                    #     # for a in Xd:
+                    #     #     for b in Xd:
+                    #     #         for c in Xd:
+                    #     #             for  d in Xd:
+                    #     #                 xt = [a,b,c,d]
+                    #     #                 xtscaled = np.array(xt)
+                    #     #                 yt = sinc(xtscaled,dim)
+                    #     #                 if math.isnan(yt) == False:
+                    #     #
+                    #     #                     numer = rappsip.numer(xtscaled)
+                    #     #                     denom = rappsip.denom(xtscaled)
+                    #     #
+                    #     #                     yp =numer/denom
+                    #     #                     if math.isnan(yp)==False:
+                    #     #                         if abs(yp)/abs(maxY_test) >= 100:
+                    #     #                             print ("rappsip",xtscaled,abs(yp)/abs(maxY_test))
+                    #     #                             rappsipcount100 +=1
+                    #     #                         if abs(yp)/abs(maxY_test) >= 1000:
+                    #     #                             rappsipcount1000 +=1
+                    #     #                     numer = rapp.numer(xtscaled)
+                    #     #                     denom = rapp.denom(xtscaled)
+                    #     #
+                    #     #                     yp =numer/denom
+                    #     #                     if math.isnan(yp)==False:
+                    #     #
+                    #     #                         if abs(yp)/abs(maxY_test) >= 100:
+                    #     #                             print ("rapp",xtscaled,abs(yp)/abs(maxY_test),yt)
+                    #     #                             rappcount100+=1
+                    #     #                         if abs(yp)/abs(maxY_test) >= 1000:
+                    #     #                             rappcount1000+=1
+                    #     #
+                    #     # print(rappsipcount100,rappsipcount1000,rappcount100,rappcount1000)
+                    #     # exit(1)
+                    #     #                     # l2countrapp += np.sum((yp-Y_test[num])**2)
+                    #     # l2notcountrapp = l2allrapp - l2countrapp
+                    #     #
+                    #     # l2countrapp = np.sqrt(l2countrapp)
+                    #     # l2notcountrapp = np.sqrt(l2notcountrapp)
+                    #     # l2allrapp = np.sqrt(l2allrapp)
+                    # import math
                     #
-                    #     l2countrapp = np.sqrt(l2countrapp)
-                    #     l2notcountrapp = np.sqrt(l2notcountrapp)
-                    #     l2allrapp = np.sqrt(l2allrapp)
-
-                    for tval in thresholdvalarr:
-                        # print(fname, maxY_test)
-                        # print(Y_pred_rappsip)
-
-                        # rappsipcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rappsip))/float(len(Y_test))) *100
-                        # rappcount = ((sum(abs(i)/abs(maxY_test) >= tval for i in Y_pred_rapp))/float(len(Y_test))) *100
-
-                        # l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
-                        # l2countrappsip = 0.
-                        # rappsipcount = 0
-                        # for num,yp in enumerate(Y_pred_rappsip):
-                        #     if abs(yp)/abs(maxY_test) >= tval:
-                        #         rappsipcount+=1
-                        #         l2countrappsip += np.sum((yp-Y_test[num])**2)
-                        # l2notcountrappsip = l2allrappsip - l2countrappsip
-                        #
-                        # l2countrappsip = np.sqrt(l2countrappsip)
-                        # l2notcountrappsip = np.sqrt(l2notcountrappsip)
-                        # l2allrappsip = np.sqrt(l2allrappsip)
-
-                        l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
-                        l2countrapp = 0.
-                        rappcount100 = 0
-                        rappcount1000 = 0
-                        rappsipcount100 = 0
-                        rappsipcount1000 = 0
-                        # for num,yp in enumerate(Y_pred_rapp):
-                        import math
-                        dim = rappsip.dim
-                        Xd = np.linspace(-1, 1, num=1000)
-                        # Xd = np.linspace(-1, 1, num=int(1000000/dim))
-                        # for a in Xd:
-                        #     for b in Xd:
-                        #         for c in Xd:
-                        #             for  d in Xd:
-                        #                 xt = [a,b,c,d]
-                        #                 xtscaled = np.array(xt)
-                        #                 yt = sinc(xtscaled,dim)
-                        #                 if math.isnan(yt) == False:
-                        #
-                        #                     numer = rappsip.numer(xtscaled)
-                        #                     denom = rappsip.denom(xtscaled)
-                        #
-                        #                     yp =numer/denom
-                        #                     if math.isnan(yp)==False:
-                        #                         if abs(yp)/abs(maxY_test) >= 100:
-                        #                             print ("rappsip",xtscaled,abs(yp)/abs(maxY_test))
-                        #                             rappsipcount100 +=1
-                        #                         if abs(yp)/abs(maxY_test) >= 1000:
-                        #                             rappsipcount1000 +=1
-                        #                     numer = rapp.numer(xtscaled)
-                        #                     denom = rapp.denom(xtscaled)
-                        #
-                        #                     yp =numer/denom
-                        #                     if math.isnan(yp)==False:
-                        #
-                        #                         if abs(yp)/abs(maxY_test) >= 100:
-                        #                             print ("rapp",xtscaled,abs(yp)/abs(maxY_test),yt)
-                        #                             rappcount100+=1
-                        #                         if abs(yp)/abs(maxY_test) >= 1000:
-                        #                             rappcount1000+=1
-                        #
-                        # print(rappsipcount100,rappsipcount1000,rappcount100,rappcount1000)
-                        # exit(1)
-                        #                     # l2countrapp += np.sum((yp-Y_test[num])**2)
-                        # l2notcountrapp = l2allrapp - l2countrapp
-                        #
-                        # l2countrapp = np.sqrt(l2countrapp)
-                        # l2notcountrapp = np.sqrt(l2notcountrapp)
-                        # l2allrapp = np.sqrt(l2allrapp)
-                    import math
-
-                    dim = rappsip.dim
-
-                    ddd = 0
-                    # Xd = np.linspace(-1, 1, num=math.ceil(10**(6/dim)))
-                    Xd = np.linspace(-1, 1, num=math.ceil(1000))
-                    no=0
-
-                    for ddd in range(dim):
-                        for corner in [-1.,1.]:
-                            for a in Xd:
-                                for b in Xd:
-                                    # for c in Xd:
-                                    if(ddd==0):
-                                        xt = [corner,a,b]
-                                    elif(ddd==1):
-                                        xt = [a,corner,b]
-                                    elif(ddd==2):
-                                        xt = [a,b,corner]
-                                    # elif(ddd==3):
-                                    #     xt = [a,b,c,corner]
-                                    # if(corner == -1 and b==-1):
-                                    #     print (xt)
-                                    no+=1
-                                        # xtscaled = rappsip._scaler.scale(xt)
-                                    xtscaled = np.array(xt)
-                                    numer = rappsip.numer(xtscaled)
-                                    denom = rappsip.denom(xtscaled)
-                                    nl10 = np.log10(abs(numer))
-                                    dl10 = np.log10(abs(denom))
-                                    ymaxl10 = round(np.log10(abs(maxY_test)))
-                                    yp=numer/denom
-                                    if(abs(yp)/maxY_test > 100):
-                                        print ("rappsip",xtscaled,round(nl10),round(dl10),numer/denom)
-                                        exit(1)
-
-                                        # print(dl10)
-                                        # if dl10 <= -6:
-                                        #     if(nl10<0 and ((abs(round(nl10)-ymaxl10))-abs(round(dl10))) <= -2):
-                                        #         print ("rappsip",round(nl10),round(dl10),numer/denom)
-                                        #         exit(1)
-                                        #     # elif(nl10>0):
-                                        #     #     print ("rappsip",round(nl10),round(dl10),numer/denom)
-                                        #     # print ("rappsip",round(nl10),round(dl10))
-                                        #     # xtscaled = rapp._scaler.scale(xt)
-                                        #
-                                    numer = rapp.numer(xtscaled)
-                                    denom = rapp.denom(xtscaled)
-                                    nl10 = np.log10(abs(numer))
-                                    dl10 = np.log10(abs(denom))
-                                    yp=numer/denom
-                                    if(abs(yp)/maxY_test > 100):
-                                        print ("rapp",xtscaled,round(nl10),round(dl10),numer/denom)
-                                    # print(dl10)
-                                    # if dl10 <= -6:
-                                    #
-                                    #     if(nl10<0 and ((abs(round(nl10)-ymaxl10))-abs(round(dl10))) <= -2):
-                                    #         print ("rapp",round(nl10),round(dl10),numer/denom)
-                                    #     # elif(nl10>0):
-                                    #     #     print ("rapp",round(nl10),round(dl10),numer/denom)
-                    print(no)
+                    # dim = rappsip.dim
+                    #
+                    # ddd = 0
+                    # # Xd = np.linspace(-1, 1, num=math.ceil(10**(6/dim)))
+                    # Xd = np.linspace(-1, 1, num=math.ceil(1000))
+                    # no=0
+                    #
+                    # for ddd in range(dim):
+                    #     for corner in [-1.,1.]:
+                    #         for a in Xd:
+                    #             for b in Xd:
+                    #                 # for c in Xd:
+                    #                 if(ddd==0):
+                    #                     xt = [corner,a,b]
+                    #                 elif(ddd==1):
+                    #                     xt = [a,corner,b]
+                    #                 elif(ddd==2):
+                    #                     xt = [a,b,corner]
+                    #                 # elif(ddd==3):
+                    #                 #     xt = [a,b,c,corner]
+                    #                 # if(corner == -1 and b==-1):
+                    #                 #     print (xt)
+                    #                 no+=1
+                    #                     # xtscaled = rappsip._scaler.scale(xt)
+                    #                 xtscaled = np.array(xt)
+                    #                 numer = rappsip.numer(xtscaled)
+                    #                 denom = rappsip.denom(xtscaled)
+                    #                 nl10 = np.log10(abs(numer))
+                    #                 dl10 = np.log10(abs(denom))
+                    #                 ymaxl10 = round(np.log10(abs(maxY_test)))
+                    #                 yp=numer/denom
+                    #                 if(abs(yp)/maxY_test > 100):
+                    #                     print ("rappsip",xtscaled,round(nl10),round(dl10),numer/denom)
+                    #                     exit(1)
+                    #
+                    #                     # print(dl10)
+                    #                     # if dl10 <= -6:
+                    #                     #     if(nl10<0 and ((abs(round(nl10)-ymaxl10))-abs(round(dl10))) <= -2):
+                    #                     #         print ("rappsip",round(nl10),round(dl10),numer/denom)
+                    #                     #         exit(1)
+                    #                     #     # elif(nl10>0):
+                    #                     #     #     print ("rappsip",round(nl10),round(dl10),numer/denom)
+                    #                     #     # print ("rappsip",round(nl10),round(dl10))
+                    #                     #     # xtscaled = rapp._scaler.scale(xt)
+                    #                     #
+                    #                 numer = rapp.numer(xtscaled)
+                    #                 denom = rapp.denom(xtscaled)
+                    #                 nl10 = np.log10(abs(numer))
+                    #                 dl10 = np.log10(abs(denom))
+                    #                 yp=numer/denom
+                    #                 if(abs(yp)/maxY_test > 100):
+                    #                     print ("rapp",xtscaled,round(nl10),round(dl10),numer/denom)
+                    #                 # print(dl10)
+                    #                 # if dl10 <= -6:
+                    #                 #
+                    #                 #     if(nl10<0 and ((abs(round(nl10)-ymaxl10))-abs(round(dl10))) <= -2):
+                    #                 #         print ("rapp",round(nl10),round(dl10),numer/denom)
+                    #                 #     # elif(nl10>0):
+                    #                 #     #     print ("rapp",round(nl10),round(dl10),numer/denom)
+                    # print(no)
 
 
 
@@ -720,14 +905,18 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex):
 
 
 if __name__ == "__main__":
+    import os, sys
+
+    if(sys.argv[1] == 'gen'):
+        generatedata()
 
 
  # python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f22  0,10-1 10,100,1000 2x  table
  # for fno in {1..5} {7..10} {12..20} 22; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  table> ../../debug/"tablepoles_"$name".log" 2>&1 & done
  # for fno in 3 5 9 13 14 18 19; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  latex> ../../debug/"tablepoles_latex_"$name".log" 2>&1 & done
-    import os, sys
-    if len(sys.argv) != 6:
-        print("Usage: {} function noise thresholds ts table_or_latex_or_latexall".format(sys.argv[0]))
+
+    if len(sys.argv) != 7:
+        print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)
 
     farr = sys.argv[1].split(',')
@@ -758,7 +947,7 @@ if __name__ == "__main__":
 
 
     # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
-    tablepoles(farr,noisearr, thresholdarr, sys.argv[4],sys.argv[5])
+    tablepoles(farr,noisearr, thresholdarr, sys.argv[4],sys.argv[5],int(sys.argv[6]))
 
     # import matplotlib.pyplot as plt
     #
