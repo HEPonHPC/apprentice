@@ -402,7 +402,7 @@ def generatedata():
 
      for dim in range(2,5):
          num = numarr[dim]
-         num=math.ceil(10**(6/dim))
+         # num=math.ceil(10**(6/dim))
          cnum = int(0.1*num)
          innum = 10**6
          # num=5
