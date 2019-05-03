@@ -216,11 +216,12 @@ def getData(X_train, fn, noisepct):
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
 
-    stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
-    for i in range(len(Y_train)):
-        stdnormalnoise[i] = np.random.normal(0,1)
+    # stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
+    # for i in range(len(Y_train)):
+    #     stdnormalnoise[i] = np.random.normal(0,1)
 
-    return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
+    # return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
+    return Y_train
 
 def getresults(farr,noisearr, tarr, ts, usecornerpoints):
     m=5
@@ -247,6 +248,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
         Y_test = getData(X_test,fname,0)
         maxY_test = max(1,abs(np.max(Y_test)))
         print(fname,maxY_test)
+
         results[fname]['npoints'] = len(Y_test)
 
         for snum, sample in enumerate(allsamples):
@@ -380,7 +382,7 @@ def generatedata():
      m = 5
      n = 5
      bounday = 10**-3
-     numarr = [0,0,1000,500,100,100]
+     numarr = [0,0,1000,100,100,100]
      import math
      if not os.path.exists("results/plots"):
          os.makedirs("results/plots", exist_ok = True)
