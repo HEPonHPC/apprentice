@@ -415,7 +415,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     if not os.path.exists("results/plots"):
         os.makedirs("results/plots", exist_ok = True)
 
-    outfilejson = "results/plots/Jpoleinf"+farr[0]+".json"
+    outfilejson = "results/plots/Jpoleinfo"+farr[0]+".json"
     if(usejson ==0):
         resultsnotcorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=0)
         resultscorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=1)
