@@ -247,6 +247,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
         Y_test = getData(X_test,fname,0)
         maxY_test = max(1,abs(np.max(Y_test)))
         print(fname,maxY_test)
+        results[fname]['npoints'] = len(Y_test)
 
         for snum, sample in enumerate(allsamples):
             results[fname][sample] = {}
@@ -265,21 +266,12 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
                 resdata['rappsip']['l2all'] = []
 
                 for tval in thresholdvalarr:
-                    resdata['rapp'][str(tval)] = {}
-                    resdata['rapprd'][str(tval)] = {}
-                    resdata['rappsip'][str(tval)] = {}
+                    for method in ['rapp','rapprd','rappsip']:
+                        resdata[method][str(tval)] = {}
+                        resdata[method][str(tval)]['no'] = []
+                        resdata[method][str(tval)]['l2count'] = []
+                        resdata[method][str(tval)]['l2notcount'] = []
 
-                    resdata['rapp'][str(tval)]['no'] = []
-                    resdata['rapprd'][str(tval)]['no'] = []
-                    resdata['rappsip'][str(tval)]['no'] = []
-
-                    resdata['rapp'][str(tval)]['l2count'] = []
-                    resdata['rapprd'][str(tval)]['l2count'] = []
-                    resdata['rappsip'][str(tval)]['l2count'] = []
-
-                    resdata['rapp'][str(tval)]['l2notcount'] = []
-                    resdata['rapprd'][str(tval)]['l2notcount'] = []
-                    resdata['rappsip'][str(tval)]['l2notcount'] = []
 
 
 
@@ -296,7 +288,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
 
                     if not os.path.exists(rappsipfile):
                         print("rappsipfile %s not found"%(rappsipfile))
-                        if(knowmissing(rappsipfile)):
+                        if(knowmissing(rappsipfile)==1):
                             if(sample == "sg"):
                                 break
                             continue
@@ -304,7 +296,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
 
                     if not os.path.exists(rappfile):
                         print("rappfile %s not found"%(rappfile))
-                        if(knowmissing(rappfile)):
+                        if(knowmissing(rappfile)==1):
                             if(sample == "sg"):
                                 break
                             continue
@@ -312,7 +304,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
 
                     if not os.path.exists(rapprdfile):
                         print("rappfile %s not found"%(rapprdfile))
-                        if(knowmissing(rapprdfile)):
+                        if(knowmissing(rapprdfile)==1):
                             if(sample == "sg"):
                                 break
                             continue
@@ -334,17 +326,10 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
                     resdata['rappsip']['l2all'].append(np.sqrt(l2allrappsip))
 
                     for tnum,tval in enumerate(thresholdvalarr):
-                        resdata['rapp'][str(tval)]['no'].append(0)
-                        resdata['rapprd'][str(tval)]['no'].append(0)
-                        resdata['rappsip'][str(tval)]['no'].append(0)
-
-                        resdata['rapp'][str(tval)]['l2count'].append(0.)
-                        resdata['rapprd'][str(tval)]['l2count'].append(0.)
-                        resdata['rappsip'][str(tval)]['l2count'].append(0.)
-
-                        resdata['rapp'][str(tval)]['l2notcount'].append(0.)
-                        resdata['rapprd'][str(tval)]['l2notcount'].append(0.)
-                        resdata['rappsip'][str(tval)]['l2notcount'].append(0.)
+                        for method in ['rapp','rapprd','rappsip']:
+                            resdata[method][str(tval)]['no'].append(0)
+                            resdata[ method][str(tval)]['l2count'].append(0.)
+                            resdata[method][str(tval)]['l2notcount'].append(0.)
 
 
                     for num,yt in enumerate(Y_test):
@@ -387,7 +372,7 @@ def getresults(farr,noisearr, tarr, ts, usecornerpoints):
                                 results[fname][sample][noise][method][str(tval)][key] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
 
-        print("done with fn: %s for usecornerpoints = %d"%(fn,usecornerpoints))
+        print("done with fn: %s for usecornerpoints = %d"%(fname,usecornerpoints))
 
     return results
 
@@ -395,7 +380,7 @@ def generatedata():
      m = 5
      n = 5
      bounday = 10**-3
-     numarr = [0,0,1000,1000,1000,100]
+     numarr = [0,0,1000,500,100,100]
      import math
      if not os.path.exists("results/plots"):
          os.makedirs("results/plots", exist_ok = True)
@@ -430,7 +415,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     if not os.path.exists("results/plots"):
         os.makedirs("results/plots", exist_ok = True)
 
-    outfilejson = "results/plots/Jpoleinfo.json"
+    outfilejson = "results/plots/Jpoleinf"+farr[0]+".json"
     if(usejson ==0):
         resultsnotcorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=0)
         resultscorner = getresults(farr,noisearr, tarr, ts,usecornerpoints=1)
