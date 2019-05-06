@@ -12,6 +12,7 @@ def runRASIP(X, Y, fndesc, m, n, ts, outfolder,outfile):
     							trainingscale=ts,
     							strategy=0,
     							roboptstrategy = 'msbarontime',
+                                dumpaftereachiter = 1,
     							filterpyomodebug = 2,
     							debugfolder=outfolder+"/log",
     							fnname=fndesc,

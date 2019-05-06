@@ -327,26 +327,26 @@ def runall(type, sample, noise,m,n,pstarendarr):
                     os.system(cmd)
                     # exit(1)
             elif(type == "rard"):
-                if not os.path.exists(folderplus + "/outrard1"):
-                    os.makedirs(folderplus + "/outrard1",exist_ok = True)
-                if not os.path.exists(folderplus + "/log/consolelogrard1"):
-                    os.makedirs(folderplus + "/log/consolelogrard1",exist_ok = True)
-                consolelog=folderplus + "/log/consolelogrard1/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
-                outfile = folderplus + "/outrard1/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                if not os.path.exists(folderplus + "/outrard"):
+                    os.makedirs(folderplus + "/outrard",exist_ok = True)
+                if not os.path.exists(folderplus + "/log/consolelogrard"):
+                    os.makedirs(folderplus + "/log/consolelogrard",exist_ok = True)
+                consolelog=folderplus + "/log/consolelogrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+                outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if noise =="0":
                     tol = 10**-12
                 else:
                     noisestr,noisepct = getnoiseinfo(noise)
                     # rard
-                    # tol = noisepct * 10
+                    tol = noisepct * 10
 
                     # rard1 (k/2)
-                    if noise =="10-2":
-                        tol = 10**-1
-                    elif noise =="10-4":
-                        tol = 10**-2
-                    elif noise =="10-6":
-                        tol = 10**-3
+                    # if noise =="10-2":
+                    #     tol = 10**-1
+                    # elif noise =="10-4":
+                    #     tol = 10**-2
+                    # elif noise =="10-6":
+                    #     tol = 10**-3
 
 
                 if not os.path.exists(outfile):
