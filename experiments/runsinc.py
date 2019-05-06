@@ -374,7 +374,7 @@ def runsincall():
             XatL = sg.grid
             sgm1 = SmolyakGrid(a=minarr,b=maxarr, l=(l-2))
             XatLm1 = sgm1.grid
-            for noise in ["0","10-2","10-4","10-6"]:
+            for noise in noisearr:
                 noisestr,noisepct = getnoiseinfo(noise)
                 YatL = getData(XatL, fn=fname, noisepct=noisepct)
                 YatLm1 = getData(XatLm1, fn=fname, noisepct=noisepct)
@@ -383,7 +383,7 @@ def runsincall():
                     # print(outfile)
                     np.savetxt(outfile, np.hstack((X,Y.T)), delimiter=",")
 
-            for noise in ["0","10-2","10-4","10-6"]:
+            for noise in noisearr:
                 noisestr,noisepct = getnoiseinfo(noise)
                 for sample in ["sgatL","sgatLm1"]:
                     infile = "%s/benchmarkdata/%s%s_%s_l%s_u%s.csv"%(folder,fname,noisestr,sample,lbdesc[lnum],ubdesc[unum])
