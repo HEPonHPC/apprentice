@@ -273,7 +273,7 @@ class RationalApproximationSIP():
         self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
         self._dumpaftereachiter = int(kwargs["dumpaftereachiter"]) if kwargs.get("dumpaftereachiter") is not None else  0
         import uuid
-        self._uniqueid          = uuid.uuid4()
+        self._uniqueid          = str(uuid.uuid4().fields[-1])
 
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
