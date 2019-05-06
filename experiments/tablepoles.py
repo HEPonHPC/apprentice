@@ -343,6 +343,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
 
 
                     print(fndesc + " Done")
+                    sys.stdout.flush()
 
                     l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
                     l2allrapprd = np.sum((Y_pred_rapprd-Y_test)**2)
