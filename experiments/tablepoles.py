@@ -223,6 +223,18 @@ def getData(X_train, fn, noisepct):
     # return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
     return Y_train
 
+def findpredval(X_test,app):
+    numer = np.array([app.numer(x) for x in X_test])
+    denom = np.array([app.denom(x) for x in X_test])
+    Y_pred = np.array([])
+    for n,d in zip(numer,denom):
+        if d==0:
+            Y_pred = np.append(Y_pred,np.Infinity)
+        else:
+            Y_pred = np.append(Y_pred,n/d)
+    return Y_pred
+
+
 def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
     m=5
     n=5
@@ -311,11 +323,11 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
                         exit(1)
 
                     rappsip = RationalApproximationSIP(rappsipfile)
-                    Y_pred_rappsip = np.array([rappsip.numer(x)/rappsip.denom(x) for x in X_test])
+                    Y_pred_rappsip = findpredval(X_test,rappsip)
                     rapp = RationalApproximationONB(fname=rappfile)
-                    Y_pred_rapp = np.array([rapp.numer(x)/rapp.denom(x) for x in X_test])
+                    Y_pred_rapp = findpredval(X_test,rapp)
                     rapprd = RationalApproximationONB(fname=rapprdfile)
-                    Y_pred_rapprd = np.array([rapprd.numer(x)/rapprd.denom(x) for x in X_test])
+                    Y_pred_rapprd = findpredval(X_test,rapprd)
 
                     l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
                     l2allrapprd = np.sum((Y_pred_rapprd-Y_test)**2)
@@ -440,6 +452,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             for noise in noisearr:
                 strdata[sample][noise] = ""
         for fnum,fname in enumerate(farr):
+            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
             if outfilejson:
                 with open(outfilejson, 'r') as fn:
                     results = json.load(fn)
