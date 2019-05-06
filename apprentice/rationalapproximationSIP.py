@@ -271,6 +271,10 @@ class RationalApproximationSIP():
         self._M                 = tools.numCoeffsPoly(self.dim, self.m)
         self._N                 = tools.numCoeffsPoly(self.dim, self.n)
         self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
+        self._dumpaftereachiter = int(kwargs["dumpaftereachiter"]) if kwargs.get("dumpaftereachiter") is not None else  0
+        import uuid
+        self._uniqueid          = uuid.uuid4()
+
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
@@ -643,6 +647,11 @@ class RationalApproximationSIP():
             else: raise Exception("rob opt strategy unknown")
 
             self._iterationinfo.append(data)
+            if self._dumpaftereachiter == 1:
+                self._pcoeff = np.array(["see pcoeff from last iter"])
+                self._qcoeff = np.array(["see qcoeff from last iter"])
+                self.save("/tmp/"+self._uniqueid+".json")
+
             if(robO >= threshold):
                 break
 
@@ -1040,6 +1049,7 @@ class RationalApproximationSIP():
         d['N'] = self._N
         d["log"] = {"fittime":self._fittime}
         d['strategy'] = self._strategy
+        d['uniqueid'] = self._uniqueid
         d['roboptstrategy'] = self._roboptstrategy
         if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
             d['localoptsolver'] = self._localoptsolver
