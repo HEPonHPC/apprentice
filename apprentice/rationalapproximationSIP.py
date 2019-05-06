@@ -650,6 +650,7 @@ class RationalApproximationSIP():
             if self._dumpaftereachiter == 1:
                 self._pcoeff = np.array(["see pcoeff from last iter"])
                 self._qcoeff = np.array(["see qcoeff from last iter"])
+                self._fittime = 0
                 self.save("/tmp/"+self._uniqueid+".json")
                 self.printDebug("Output written to: /tmp/"+self._uniqueid+".json")
 
