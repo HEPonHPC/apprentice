@@ -321,7 +321,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
                                 break
                             continue
                         exit(1)
-
+                    print(fndesc)
                     rappsip = RationalApproximationSIP(rappsipfile)
                     Y_pred_rappsip = findpredval(X_test,rappsip)
                     rapp = RationalApproximationONB(fname=rappfile)
