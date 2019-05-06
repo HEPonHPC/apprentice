@@ -321,13 +321,28 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
                                 break
                             continue
                         exit(1)
-                    print(fndesc)
+                    print(fndesc + " Start")
+
                     rappsip = RationalApproximationSIP(rappsipfile)
-                    Y_pred_rappsip = findpredval(X_test,rappsip)
+                    try:
+                        Y_pred_rappsip = np.array([rappsip.numer(x)/rappsip.denom(x) for x in X_test])
+                    except:
+                        Y_pred_rappsip = findpredval(X_test,rappsip)
+
                     rapp = RationalApproximationONB(fname=rappfile)
-                    Y_pred_rapp = findpredval(X_test,rapp)
+                    try:
+                        Y_pred_rapp = np.array([rapp.numer(x)/rapp.denom(x) for x in X_test])
+                    except:
+                        Y_pred_rapp = findpredval(X_test,rapp)
+
                     rapprd = RationalApproximationONB(fname=rapprdfile)
-                    Y_pred_rapprd = findpredval(X_test,rapprd)
+                    try:
+                        Y_pred_rapprd = np.array([rapprd.numer(x)/rapprd.denom(x) for x in X_test])
+                    except:
+                        Y_pred_rapprd = findpredval(X_test,rapprd)
+
+
+                    print(fndesc + " Done")
 
                     l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
                     l2allrapprd = np.sum((Y_pred_rapprd-Y_test)**2)
