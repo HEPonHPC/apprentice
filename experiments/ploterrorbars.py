@@ -274,6 +274,28 @@ def ploterrorbars(baseline=13.5,plottype='persample',usejson=0):
             plt.clf()
             plt.close('all')
     # elif(plottype == 'pernoiselevel'):
+
+    # FOR FUTURE
+    # approxqqq = ["Polynomial Approximation", 'RA (linear algebra) without degree reduction', 'RA (linear algebra) with degree reduction', 'Pole-free RA']
+    # for nnum,noise in enumerate(noiselevels):
+    #     import matplotlib.pyplot as plt
+    #     plt.rc('ytick',labelsize=14)
+    #     fig, axarr = plt.subplots(4, 1, sharey=True,figsize=(21,20))
+    #     for anum,approx in enumerate(["pa","ra","rard","rasip"]):
+    #         barobj = {}
+    #         for snum,sample in enumerate(allsamples):
+    #             mean = []
+    #             sd = []
+    #             for fnum,fname in enumerate(fff):
+    #                 mean.append(data[sample][noise][fname][approx+"mean"])
+    #                 sd.append(data[sample][noise][fname][approx+"sd"])
+    #             barobj[snum] = axarr[anum].bar(X111+snum*width, np.array(mean)+baseline, width,color=color[snum], yerr=np.array(sd),align='center',  ecolor=ecolor, capsize=3)
+    #
+    #         axarr[anum].legend((barobj[0][0],barobj[1][0],barobj[2][0],barobj[3][0]),('Uniform Random','Latin Hypercube','Sobol Sequence', 'Sparse Grids'),loc = 'upper right',fontsize = 15)
+    #         axarr[anum].set_title(" approx = "+approxqqq[anum],fontsize = 15)
+
+
+
         for nnum,noise in enumerate(noiselevels):
             import matplotlib.pyplot as plt
             plt.rc('ytick',labelsize=14)
