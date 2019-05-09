@@ -105,7 +105,7 @@ def f18(P):
     atxarr = []
     for x in [x1,x2,x3,x4]:
         atx = np.arctanh(x)
-        if np.allclose(0, atx, 1e-5, 1e-5):
+        if np.allclose(0, atx, 1e-15, 1e-15):
             atx = 0
         atxarr.append(atx)
     return (atxarr[0]+atxarr[1]+atxarr[2]+atxarr[3])/((x1**2-1)*(x2**2-1))
@@ -124,7 +124,7 @@ def f20(P):
     sxarr = []
     for x in [x1,x2,x3,x4]:
         sx = np.sin(x)
-        if np.allclose(0, sx, 1e-5, 1e-5):
+        if np.allclose(0, sx, 1e-15, 1e-15):
             sx = 0
         sxarr.append(sx)
     return 10 * sxarr[0]/x1 * sxarr[1]/x2 * sxarr[2]/x3 * sxarr[3]/x4
@@ -141,7 +141,7 @@ def f21(P):
     sxarr = []
     for x in [x1,x2]:
         sx = np.sin(x)
-        if np.allclose(0, sx, 1e-5, 1e-5):
+        if np.allclose(0, sx, 1e-15, 1e-15):
             sx = 0
         sxarr.append(sx)
     return 10 * sxarr[0]/x1 * sxarr[1]/x2
