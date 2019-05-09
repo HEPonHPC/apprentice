@@ -124,9 +124,69 @@ def diffrarddegrees():
                     if(sample == "sg"):
                         break
 
+def printrarddegree():
+    noiselevels = ['10-6']
+    # allsamples = ['mc','lhs','so','sg']
+    allsamples = ['lhs']
+    # allsamples = ['sg']
+    fff = getfarr()
+    for snum,sample in enumerate(allsamples):
+        for nnum,noise in enumerate(noiselevels):
+            noisestr,noisepct = getnoiseinfo(noise)
+            for fnum,fname in enumerate(fff):
+                ts = "2x"
+
+                for run in ["exp1","exp2","exp3","exp4","exp5"]:
+                    fndesc = "%s%s_%s_%s"%(fname,noisestr,sample,ts)
+                    folder = "results/%s/%s"%(run,fndesc)
+                    m = 5
+                    n = 5
+                    pq = "p%d_q%d"%(m,n)
+                    # print(run, fname,noisestr,sample,m,n)
+
+                    rapprdfile = "%s/outrard/%s_%s_ts%s.json"%(folder,fndesc,pq,ts)
+
+                    if not os.path.exists(rapprdfile):
+                        print("rappfile %s not found\n"%(rapprdfile))
+                        if(sample == "sg"):
+                            break
+                        continue
+
+                    import json
+                    if rapprdfile:
+                        with open(rapprdfile, 'r') as fn:
+                            datastore = json.load(fn)
+                    mrd = datastore['m']
+                    nrd = datastore['n']
+                    tol = datastore['tol']
+
+
+                    if(mrd !=5 or nrd != 5):
+                        print("%s %f %d %d"%(fndesc, tol, mrd,nrd))
+
+
+
+                    if(sample == "sg"):
+                        break
+def plotpoledata():
+    fcorner = "results/plots/poledata_corner2D.csv"
+    fin = "results/plots/poledata_inside2D.csv"
+    import matplotlib.pyplot as plt
+
+    X1,X2 = tools.readData(fcorner)
+    plt.scatter(X1[1:],X2[1:],label="$X^{(corner)}$",s=5)
+    # print(np.c_[X1[1:10],X2[1:10]])
+    X1,X2 = tools.readData(fin)
+    plt.scatter(X1[1:500000],X2[1:500000],label="$X^{(in)}$",s=1)
+    plt.legend()
+    plt.savefig("results/plots/Ppoledata2D.png")
+
+    X1,X2 = tools.readData(fin)
 if __name__ == "__main__":
 
-    checkiffileexits()
+    # plotpoledata()
+    printrarddegree()
+    # checkiffileexits()
     # diffrarddegrees()
 
  ###########
