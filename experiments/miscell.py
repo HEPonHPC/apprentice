@@ -57,8 +57,8 @@ def checkiffileexits():
                     if not os.path.exists(rapprdfile):
                         print("rappfile %s not found\n"%(rapprdfile))
 
-                    if not os.path.exists(rapprd1file):
-                        print("rappfile %s not found\n"%(rapprd1file))
+                    # if not os.path.exists(rapprd1file):
+                    #     print("rappfile %s not found\n"%(rapprd1file))
 
                     if not os.path.exists(pappfile):
                         print("pappfile %s not found\n"%(pappfile))
@@ -185,8 +185,8 @@ def plotpoledata():
 if __name__ == "__main__":
 
     # plotpoledata()
-    printrarddegree()
-    # checkiffileexits()
+    # printrarddegree()
+    checkiffileexits()
     # diffrarddegrees()
 
  ###########
