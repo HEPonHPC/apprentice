@@ -438,6 +438,29 @@ def runsincall():
                         os.system(cmd)
                         # exit(1)
 
+def analyzesinc():
+
+    fname ="f20"
+    m=5
+    n=5
+
+    folder = "%s_special/sincrun%d%d"%(fname,m,n)
+    bmfolder = folder+"/benchmarkdata"
+
+    filearr = [
+                bmfolder+"/f20_noisepct10-2_sgatL_l-6_u4pi.csv",
+                bmfolder+"/f20_noisepct10-2_sgatLm1_l-6_u4pi.csv"
+    ]
+    for f in filearr:
+
+        X,Y = tools.readData(f)
+        Ysorted = np.sort(np.absolute(Y))
+
+        print(f)
+        print(Ysorted[0:300])
+        print("\n\n")
+
+
 
 
 
@@ -457,4 +480,5 @@ if __name__ == "__main__":
     # runrappsip(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
     # findroots(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
 
-    runsincall()
+    # runsincall()
+    analyzesinc()
