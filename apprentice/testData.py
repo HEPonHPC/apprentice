@@ -102,7 +102,13 @@ def f17(P):
 def f18(P):
     # Box for P [-0.95, 0.95)
     x1, x2, x3, x4 = P
-    return (np.arctanh(x1)+np.arctanh(x2)+np.arctanh(x3)+np.arctanh(x4))/((x1**2-1)*(x2**2-1))
+    atxarr = []
+    for x in [x1,x2,x3,x4]:
+        atx = np.arctanh(x)
+        if np.allclose(0, atx, 1e-5, 1e-5):
+            atx = 0
+        atxarr.append(atx)
+    return (atxarr[0]+atxarr[1]+atxarr[2]+atxarr[3])/((x1**2-1)*(x2**2-1))
 
 def f19(P):
     x1, x2, x3, x4 = P
@@ -114,7 +120,15 @@ Tom's sinc function - 4D
 """
 def f20(P):
     x1, x2, x3, x4 = P
-    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4
+    # return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3 * np.sin(x4)/x4
+    sxarr = []
+    for x in [x1,x2,x3,x4]:
+        sx = np.sin(x)
+        if np.allclose(0, sx, 1e-5, 1e-5):
+            sx = 0
+        sxarr.append(sx)
+    return 10 * sxarr[0]/x1 * sxarr[1]/x2 * sxarr[2]/x3 * sxarr[3]/x4
+
     # x1, x2, x3 = P
     # return 10 * np.sin(x1)/x1 * np.sin(x2)/x2 * np.sin(x3)/x3
 
@@ -123,7 +137,14 @@ Tom's sinc function - 2D
 """
 def f21(P):
     x1, x2 = P
-    return 10 * np.sin(x1)/x1 * np.sin(x2)/x2
+    # return 10 * np.sin(x1)/x1 * np.sin(x2)/x2
+    sxarr = []
+    for x in [x1,x2]:
+        sx = np.sin(x)
+        if np.allclose(0, sx, 1e-5, 1e-5):
+            sx = 0
+        sxarr.append(sx)
+    return 10 * sxarr[0]/x1 * sxarr[1]/x2
 
 def f22(P):
     x1, x2 = P
