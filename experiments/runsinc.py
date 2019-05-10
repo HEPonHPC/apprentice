@@ -559,7 +559,7 @@ def runsinccomprehensive():
     from dolo.numeric.interpolation.smolyak import SmolyakGrid
     from apprentice import monomial
     nr = 0
-    for dim in range(2,3): #3
+    for dim in range(4,5): #3
         for l in range(5,12):
             if(dim ==3 and l>7):
                 continue
