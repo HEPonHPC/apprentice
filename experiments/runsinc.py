@@ -558,7 +558,7 @@ def runsinccomprehensive():
 
     from dolo.numeric.interpolation.smolyak import SmolyakGrid
     nr = 0
-    for dim in range(2,5): #3
+    for dim in range(2,3): #3
         for l in range(5,12):
             if(dim ==3 and l>7):
                 continue
@@ -578,17 +578,18 @@ def runsinccomprehensive():
             sample = "sg_l%d"%(l)
             filecsv = "%s/benchmarkdata/%s%s_%s_d%d_l%s_u%s.csv"%(folder,fname,noisestr,sample,dim,lbdesc,ubdesc)
             np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
-            # fileplot = "%s/benchmarkdata/%s%s_%s_l%s_u%s.png"%(folder,fname,noisestr,sample,lbdesc,ubdesc)
-            # import matplotlib.pyplot as plt
-            # plt.scatter(X[:,0],X[:,1])
-            # plt.xlabel("x1")
-            # plt.ylabel("x2")
-            # plt.title("%s_l%s_u%s"%(sample,lbdesc,ubdesc))
-            # plt.savefig(fileplot)
-            # plt.clf()
+            # if dim ==2:
+            #     fileplot = "%s/benchmarkdata/%s%s_%s_d%d_l%s_u%s.png"%(folder,fname,noisestr,sample,dim,lbdesc,ubdesc)
+            #     import matplotlib.pyplot as plt
+            #     plt.scatter(X[:,0],X[:,1])
+            #     plt.xlabel("x1")
+            #     plt.ylabel("x2")
+            #     plt.title("%s. l = %s u = %s"%(sample,lbdesc,ubdesc))
+            #     plt.savefig(fileplot)
+            #     plt.clf()
 
-            for pdeg in range(3,7): #4
-                for qdeg in range(3,7): #4
+            for pdeg in range(3,8): #4
+                for qdeg in range(3,8): #4
                     if(dim ==4 and (pdeg>5 or qdeg>5)):
                         continue
                     fndesc = "%s%s_%s_d%d_l%s_u%s"%(fname,noisestr,sample,dim,lbdesc,ubdesc)
