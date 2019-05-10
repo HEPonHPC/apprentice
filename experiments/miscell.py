@@ -63,8 +63,6 @@ def checkiffileexits():
                     if not os.path.exists(pappfile):
                         print("pappfile %s not found\n"%(pappfile))
 
-
-
                     if(sample == "sg"):
                         break
 
