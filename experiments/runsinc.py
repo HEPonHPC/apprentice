@@ -527,7 +527,7 @@ def runsinccomprehensive():
     # exit(1)
 
 
-    fname = "f20-21-comp"
+    fname = "f20-21-comp_ipopt"
     larr = [10**-6,10**-3]
     uarr = [np.pi,2*np.pi,4*np.pi]
     lbdescarr = {0:"-6",1:"-3"}
@@ -557,6 +557,7 @@ def runsinccomprehensive():
     noisestr,noisepct = getnoiseinfo(noise)
 
     from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    from apprentice import monomial
     nr = 0
     for dim in range(2,3): #3
         for l in range(5,12):
@@ -592,6 +593,18 @@ def runsinccomprehensive():
                 for qdeg in range(3,8): #4
                     if(dim ==4 and (pdeg>5 or qdeg>5)):
                         continue
+
+                    VMp = monomial.vandermonde(X[:,:],pdeg)
+                    VMq = monomial.vandermonde(X[:,:],qdeg)
+                    rankp = np.linalg.matrix_rank(VMp)
+                    coeffp = tools.numCoeffsPoly(dim,pdeg)
+                    if(rankp != coeffp):
+                        print("%s\ncoeffp = %d, rankp = %d"%(desc,coeffp,rankp))
+                    rankq = np.linalg.matrix_rank(VMq)
+                    coeffq = tools.numCoeffsPoly(dim,qdeg)
+                    if(rankq != coeffq):
+                        print("%s\ncoeffq = %d, rankq = %d"%(desc,coeffq,rankq))
+
                     fndesc = "%s%s_%s_d%d_l%s_u%s"%(fname,noisestr,sample,dim,lbdesc,ubdesc)
                     folderplus = folder+"/"+fndesc
                     if not os.path.exists(folderplus + "/outrasip"):
