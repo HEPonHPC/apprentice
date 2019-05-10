@@ -431,7 +431,8 @@ class RationalApproximationSIP():
 
         model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
 
-        opt = environ.SolverFactory('filter')
+        # opt = environ.SolverFactory('filter')
+        opt = environ.SolverFactory('ipopt')
         # opt.options['eps'] = 1e-10
         # opt.options['iprint'] = 1
 
