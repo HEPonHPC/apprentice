@@ -7,8 +7,10 @@ import os, sys
 def sinc(X,dim):
     ret = 10
     for d in range(dim):
-        x = X[d]
-        ret *= np.sin(x)/x
+        sx = np.sin(X[d])
+        if np.allclose(0, sx, 1e-15, 1e-15):
+            sx = 0
+        ret = ret * sx/X[d]
     return ret
 
 def runrapp(m,n,ts):
@@ -460,6 +462,173 @@ def analyzesinc():
         print(Ysorted[0:300])
         print("\n\n")
 
+def checkrank():
+    fname = "f20"
+
+    larr = [10**-6,10**-3]
+    uarr = [np.pi,2*np.pi,4*np.pi]
+    lbdesc = {0:"-6",1:"-3"}
+    ubdesc = {0:"pi",1:"2pi",2:"4pi"}
+    # noisearr = ["0","10-2","10-6"]
+    noisearr = ["0"]
+    dim = 4
+    m = 5
+    n = 5
+    tstimes = 2
+    ts = "2x"
+    # folder = "%s_special/sincrun%d%d"%(fname,m,n)
+    folder = "experiments/%s_special/sincrun%d%d"%(fname,m,n)
+    # folder = "experiments/results/exp1/benchmarkdata"
+
+
+    for lnum,lb in enumerate(larr):
+        for unum,ub in enumerate(uarr):
+            minarr = []
+            maxarr = []
+            for noise in noisearr:
+                noisestr,noisepct = getnoiseinfo(noise)
+                for sample in ["sgatL","sgatLm1"]:
+                    desc ="%s%s_%s_l%s_u%s"%(fname,noisestr,sample,lbdesc[lnum],ubdesc[unum])
+                    file = "%s/benchmarkdata/%s.csv"%(folder,desc)
+                    # file = "%s/f20_l.txt"%(folder)
+                    X, Y = tools.readData(file)
+                    from apprentice import monomial
+                    VM = monomial.vandermonde(X[:,:],m)
+                    # Fmatrix=np.diag(Y)
+                    # rcond = -1 if np.version.version < "1.15" else None
+                    # MM, res, rank, s  = np.linalg.lstsq(VM, Y, rcond=rcond)
+                    rank = np.linalg.matrix_rank(VM)
+                    mcoeff = tools.numCoeffsPoly(dim,m)
+                    if(rank != mcoeff):
+                        print("%s\nmcoeff = %d, rank = %d"%(desc,mcoeff,rank))
+
+                    # print(np.shape(X))
+
+                    # exit(1)
+
+
+
+                    # print(outfile)
+
+
+
+def runsinccomprehensive():
+
+    # from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    # s = 0
+    # level = 1
+    # npoints = 2 * tools.numCoeffsRapp(4,[5,5])
+    # while(s<npoints):
+    #     sg = SmolyakGrid(a=[-1,-1,-1,-1],b=[1,1,1,1], l=level)
+    #     s = sg.grid.shape[0]
+    #     level+=1
+    # level-=1
+    # print(level)
+    # exit(1)
+
+
+    fname = "f20-21-comp"
+    larr = [10**-6,10**-3]
+    uarr = [np.pi,2*np.pi,4*np.pi]
+    lbdescarr = {0:"-6",1:"-3"}
+    ubdescarr = {0:"pi",1:"2pi",2:"4pi"}
+    noisearr = ["0","10-2","10-6"]
+    m = 5
+    n = 5
+
+    tstimes = 2
+    ts = "2x"
+
+
+
+    folder = "%s_special"%(fname)
+    if not os.path.exists(folder):
+        os.makedirs(folder,exist_ok = True)
+
+    if not os.path.exists(folder+"/benchmarkdata"):
+        os.makedirs(folder+"/benchmarkdata",exist_ok = True)
+
+    lb = larr[0]
+    ub = uarr[2]
+
+    lbdesc = lbdescarr[0]
+    ubdesc = ubdescarr[2]
+    noise = "0"
+    noisestr,noisepct = getnoiseinfo(noise)
+
+    from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    nr = 0
+    for dim in range(2,5): #3
+        for l in range(5,12):
+            if(dim ==3 and l>7):
+                continue
+            if(dim == 4 and l>7):
+                continue
+            minarr = []
+            maxarr = []
+            for d in range(dim):
+                minarr.append(lb)
+                maxarr.append(ub)
+
+            sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
+            X = sg.grid
+            Ys = [sinc(x,dim) for x in X]
+            Y = np.atleast_2d(np.array(Ys))
+
+            sample = "sg_l%d"%(l)
+            filecsv = "%s/benchmarkdata/%s%s_%s_d%d_l%s_u%s.csv"%(folder,fname,noisestr,sample,dim,lbdesc,ubdesc)
+            np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
+            # fileplot = "%s/benchmarkdata/%s%s_%s_l%s_u%s.png"%(folder,fname,noisestr,sample,lbdesc,ubdesc)
+            # import matplotlib.pyplot as plt
+            # plt.scatter(X[:,0],X[:,1])
+            # plt.xlabel("x1")
+            # plt.ylabel("x2")
+            # plt.title("%s_l%s_u%s"%(sample,lbdesc,ubdesc))
+            # plt.savefig(fileplot)
+            # plt.clf()
+
+            for pdeg in range(3,7): #4
+                for qdeg in range(3,7): #4
+                    if(dim ==4 and (pdeg>5 or qdeg>5)):
+                        continue
+                    fndesc = "%s%s_%s_d%d_l%s_u%s"%(fname,noisestr,sample,dim,lbdesc,ubdesc)
+                    folderplus = folder+"/"+fndesc
+                    if not os.path.exists(folderplus + "/outrasip"):
+                        os.makedirs(folderplus + "/outrasip",exist_ok = True)
+                    if not os.path.exists(folderplus + "/log/consolelograsip"):
+                        os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
+                    m=str(pdeg)
+                    n=str(qdeg)
+                    consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+                    outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                    if not os.path.exists(outfile):
+                        nr +=1
+                        cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(filecsv,fndesc,m,n,folderplus,outfile,consolelog)
+                        # print(cmd)
+                        os.system(cmd)
+                        # exit(1)
+    # print(nr)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -469,9 +638,9 @@ def analyzesinc():
 
 if __name__ == "__main__":
 
-    if len(sys.argv)!=4:
-        print("Usage: {} m n ts".format(sys.argv[0]))
-        sys.exit(1)
+    # if len(sys.argv)!=4:
+    #     print("Usage: {} m n ts".format(sys.argv[0]))
+    #     sys.exit(1)
 
 
     # runsinc(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
@@ -481,4 +650,7 @@ if __name__ == "__main__":
     # findroots(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
 
     # runsincall()
-    analyzesinc()
+    # analyzesinc()
+    # checkrank()
+
+    runsinccomprehensive()
