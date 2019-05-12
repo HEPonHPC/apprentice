@@ -451,9 +451,9 @@ class RationalApproximationSIP():
             opt.options['iprint'] = 1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
             nlfn = "%s/%s_p%d_q%d_ts%s_i%d.nl"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
-            model.write(nlfn)
             self.printDebug("Starting filter")
-            ret = opt.solve(model,logfile=logfn)
+            # ret = opt.solve(model,logfile=logfn)
+            ret = opt.solve(model, logfile=logfn, nlfile=nlfn, keepfiles=True)
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
