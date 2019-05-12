@@ -628,31 +628,102 @@ def runsinccomprehensive():
                         # exit(1)
     # print(nr)
 
+def runsinc2D_test():
+
+    fname = "f20-2D"
+    m = 2
+    n = 2
+    dim = 2
+    tstimes = 2
+    ts = "2x"
+
+    lb = 10**-6
+    ub = 4*np.pi
+    lbdesc = "10-6"
+    ubdesc = "4pi"
+    lbdescplot = "$10^{-6}$"
+    ubdescplot = "$4\\pi$"
+
+    noise = "0"
+    noisestr,noisepct = getnoiseinfo(noise)
+    minarr = []
+    maxarr = []
+    for d in range(dim):
+        minarr.append(lb)
+        maxarr.append(ub)
+
+    print(fname)
+    folder = "%s-special_d%d_l%s_u%s"%(fname,dim,lbdesc,ubdesc)
+    if not os.path.exists(folder):
+        os.makedirs(folder,exist_ok = True)
+
+    if not os.path.exists(folder+"/benchmarkdata"):
+        os.makedirs(folder+"/benchmarkdata",exist_ok = True)
+
+    from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    from apprentice import monomial
+    nr = 0
+
+    for l in range(1,11):
+        sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
+        X = sg.grid
+        Ys = [sinc(x,dim) for x in X]
+        Y = np.atleast_2d(np.array(Ys))
+
+        # data
+        sample = "sg_l%d"%(l)
+        filecsv = "%s/benchmarkdata/%s%s_%s.csv"%(folder,fname,noisestr,sample)
+        np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
+
+        # plot
+        fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
+        import matplotlib.pyplot as plt
+        plt.scatter(X[:,0],X[:,1])
+        plt.xlabel("x1")
+        plt.ylabel("x2")
+        plt.title("%s. l = %s u = %s"%(sample,lbdescplot,ubdescplot))
+        plt.savefig(fileplot)
+        plt.clf()
 
 
+        # VM
+        fndesc = "%s%s_%s"%(fname,noisestr,sample)
+        VMp = monomial.vandermonde(X[:,:],m)
+        VMq = monomial.vandermonde(X[:,:],n)
+        rankp = np.linalg.matrix_rank(VMp)
+        coeffp = tools.numCoeffsPoly(dim,m)
+        if(rankp != coeffp):
+            print("%s\ncoeffp = %d, rankp = %d"%(fndesc,coeffp,rankp))
+        rankq = np.linalg.matrix_rank(VMq)
+        coeffq = tools.numCoeffsPoly(dim,n)
+        if(rankq != coeffq):
+            print("%s\ncoeffq = %d, rankq = %d"%(fndesc,coeffq,rankq))
+        s = "     c     y       x       y^2     xy      x^2\n"
+        row_labels = range(1,len(X)+1)
+        for row_label, row in zip(row_labels, VMq):
+            s += ('%s [%s]' % (row_label, ' '.join('%f' % i for i in row)))
+            s+="\n"
+        filepVMout = "%s/benchmarkdata/%s%s_%s_VM.out"%(folder,fname,noisestr,sample)
+        f = open(filepVMout, "w")
+        f.write(s)
+        f.close()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # Run rasip
+        folderplus = folder+"/"+fndesc
+        if not os.path.exists(folderplus + "/outrasip"):
+            os.makedirs(folderplus + "/outrasip",exist_ok = True)
+        if not os.path.exists(folderplus + "/log/consolelograsip"):
+            os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
+        consolelog=folderplus + "/log/consolelograsip/"+fndesc+".log";
+        outfile = folderplus + "/outrasip/"+fndesc+".json";
+        if not os.path.exists(outfile):
+            nr +=1
+            cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(filecsv,fndesc,m,n,folderplus,outfile,consolelog)
+            # print(cmd)
+            os.system(cmd)
+            # exit(1)
+            # exit(1)
 
 
 if __name__ == "__main__":
@@ -672,4 +743,4 @@ if __name__ == "__main__":
     # analyzesinc()
     # checkrank()
 
-    runsinccomprehensive()
+    runsinc2D_test()
