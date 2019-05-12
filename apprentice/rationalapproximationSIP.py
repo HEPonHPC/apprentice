@@ -431,8 +431,8 @@ class RationalApproximationSIP():
 
         model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
 
-        # opt = environ.SolverFactory('filter')
-        opt = environ.SolverFactory('ipopt')
+        opt = environ.SolverFactory('filter')
+        # opt = environ.SolverFactory('ipopt')
         # opt.options['eps'] = 1e-10
         # opt.options['iprint'] = 1
 
@@ -448,11 +448,12 @@ class RationalApproximationSIP():
             model.pprint()
             ret.write()
         elif(pyomodebug==2):
-            # opt.options['iprint'] = 1
+            opt.options['iprint'] = 1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
             self.printDebug("Starting filter")
             ret = opt.solve(model,logfile=logfn)
-
+            nlfn = "%s/%s_p%d_q%d_ts%s_i%d.nl"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
+            model.write('nlfn')
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
