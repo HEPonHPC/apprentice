@@ -13,10 +13,10 @@ def runRASIP(X, Y, fndesc, m, n, ts, outfolder,outfile):
     							strategy=0,
     							roboptstrategy = 'msbarontime',
                                 dumpaftereachiter = 1,
-    							filterpyomodebug = 2,
+    							fitpyomodebug = 2,
     							debugfolder=outfolder+"/log",
     							fnname=fndesc,
-    							fitstrategy = 'filter',
+    							fitstrategy = 'ipopt',
     							localoptsolver = 'scipy',
             )
             # print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs,

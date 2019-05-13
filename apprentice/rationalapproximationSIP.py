@@ -146,6 +146,7 @@ class RationalApproximationSIP():
             fitstrategy     --- strategy to perform the fitting (least squares and sparse) --- if omitted: auto 'scipy' used
                                 scipy: SLSQP optimization solver in scipy (scipy.SLSQP)
                                 filter: filterSQP solver through pyomo (REQUIRED: pyomo and filter executable in PATH)
+                                ipopt:  IPOPT solver through pyomo (REQUIRED: pyomo and ipopt executable in PATH)
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
@@ -279,8 +280,8 @@ class RationalApproximationSIP():
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
 
-        self._filterpyomodebug = kwargs["filterpyomodebug"] if kwargs.get("filterpyomodebug") is not None else 0
-        if self._filterpyomodebug == 2:
+        self._fitpyomodebug = kwargs["fitpyomodebug"] if kwargs.get("fitpyomodebug") is not None else 0
+        if self._fitpyomodebug == 2:
             self._debugfolder      = kwargs["debugfolder"]
             self._fnname           = kwargs["fnname"]
 
@@ -375,7 +376,7 @@ class RationalApproximationSIP():
         return coeffs,leastSq,optstatus
 
     # Does 1 fitting for now
-    def filterpyomofit(self,iterationNo):
+    def pyomofit(self,iterationNo,solver='filter'):
         from pyomo import environ
 
         def lsqObjPyomo(model):
@@ -431,12 +432,12 @@ class RationalApproximationSIP():
 
         model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
 
-        opt = environ.SolverFactory('filter')
+        opt = environ.SolverFactory(solver)
         # opt = environ.SolverFactory('ipopt')
         # opt.options['eps'] = 1e-10
         # opt.options['iprint'] = 1
 
-        pyomodebug = self._filterpyomodebug
+        pyomodebug = self._fitpyomodebug
         if(pyomodebug == 0):
             ret = opt.solve(model)
         elif(pyomodebug == 1):
@@ -448,11 +449,12 @@ class RationalApproximationSIP():
             model.pprint()
             ret.write()
         elif(pyomodebug==2):
-            opt.options['iprint'] = 1
+            if(solver == 'filter'):
+                opt.options['iprint'] = 1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
-            self.printDebug("Starting filter")
-            # ret = opt.solve(model,logfile=logfn)
-            ret = opt.solve(model, logfile=logfn, keepfiles=True)
+            self.printDebug("Starting %s"%(solver))
+            ret = opt.solve(model,logfile=logfn)
+            # ret = opt.solve(model, logfile=logfn, keepfiles=True)
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
@@ -519,8 +521,8 @@ class RationalApproximationSIP():
             if(self._fitstrategy == 'scipy'):
                 coeffs,leastSq,optstatus = self.scipyfit(coeffs0, cons)
                 # coeffs,leastSq,optstatus = self.scipyfit2(coeffs0)
-            elif(self._fitstrategy == 'filter'):
-                coeffs,leastSq,optstatus = self.filterpyomofit(iter-1)
+            elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
+                coeffs,leastSq,optstatus = self.pyomofit(iter-1,self._fitstrategy)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
 
             data['log'] = optstatus
@@ -661,7 +663,7 @@ class RationalApproximationSIP():
             q_ipo_new = self.recurrence(x,self._struct_q)
             if(self._fitstrategy == 'scipy'):
                 cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
-            elif(self._fitstrategy == 'filter'):
+            elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
                 self._ipo = np.vstack([self._ipo, np.empty((1,2),"object")])
                 self._ipo[self.trainingsize+iter-1][1] = q_ipo_new
 
