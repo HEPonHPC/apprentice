@@ -3,7 +3,7 @@ import numpy as np
 from timeit import default_timer as timer
 
 
-def runRA(X, Y, fndesc, m, n, ts, tol,outfile):
+def runRA(X, Y, fndesc, m, n, ts, tol,denomfirst,outfile):
     dim = X[0].shape[0]
     M = apprentice.tools.numCoeffsPoly(dim,m)
     N = apprentice.tools.numCoeffsPoly(dim,n)
@@ -24,12 +24,25 @@ def runRA(X, Y, fndesc, m, n, ts, tol,outfile):
     train = range(trainingsize)
     from apprentice import RationalApproximationONB
     start = timer()
-    ra = RationalApproximationONB(
-    							X[train],
-    							Y[train],
-    							order=(m,n),
-                                tol=tol
-    )
+    if(denomfirst == -1):
+        ra = RationalApproximationONB(
+        							X[train],
+        							Y[train],
+        							order=(m,n),
+                                    tol=tol
+        )
+    else:
+        if(denomfirst==1):
+            strategy = 1
+        elif(denomfirst==0):
+            strategy = 2
+        ra = RationalApproximationONB(
+        							X[train],
+        							Y[train],
+        							order=(m,n),
+                                    strategy=strategy,
+                                    tol=tol
+        )
     end = timer()
 
     radict = ra.asDict
@@ -48,8 +61,8 @@ def runRA(X, Y, fndesc, m, n, ts, tol,outfile):
 if __name__ == "__main__":
 
     import os, sys
-    if len(sys.argv)!=8:
-        print("Usage: {} infile fndesc m n trainingscale tolerance outfile".format(sys.argv[0]))
+    if len(sys.argv)!=9:
+        print("Usage: {} infile fndesc m n trainingscale tolerance denomfirst(-1, 0 or 1) outfile".format(sys.argv[0]))
         sys.exit(1)
 
     if not os.path.exists(sys.argv[1]):
@@ -70,5 +83,6 @@ if __name__ == "__main__":
         n=int(sys.argv[4]),
         ts=sys.argv[5],
         tol = float(sys.argv[6]),
-        outfile=sys.argv[7]
+        denomfirst=int(sys.argv[7]),
+        outfile=sys.argv[8]
     )

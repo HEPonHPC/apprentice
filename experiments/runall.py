@@ -313,8 +313,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                 consolelog=folderplus + "/log/consolelogra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 tol = -1
+                denomfirst = -1
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
@@ -348,9 +349,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                     # elif noise =="10-6":
                     #     tol = 10**-3
 
-
+                denomfirst = 1
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,outfile,consolelog)
+                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
