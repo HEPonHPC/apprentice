@@ -180,11 +180,44 @@ def plotpoledata():
     plt.savefig("results/plots/Ppoledata2D.png")
 
     X1,X2 = tools.readData(fin)
+
+def renamelogfiles2D():
+    folder = "f20-2D-special_d2_l10-6_u4pi"
+    import os
+    for l in range(1,11):
+        folderplus = folder+"/f20-2D_sg_l"+str(l)
+        logf = "%s/log/f20-2D_sg_l%d_p2_q2_tsCp_i0.log"%(folderplus,l)
+        f = open(logf, "r")
+        fline = f.readline()
+        myList = fline.split(",")
+        nlname = myList[1]
+        myList = nlname.split("/")
+        nlname = myList[2]
+        nlname = nlname[:-1]
+        # os.rename(folder + "/"+ nlname, folderplus+"/log/level_"+str(l)+"_iter0.nl")
+        os.rename(logf,folderplus+"/log/level_"+str(l)+"_iter0.log")
+
+def renamelogfiles4D():
+    folder = "f20_sg_2x"
+    import os
+    for iter in range(71):
+        logf = "%s/log/f20_sg_2x_p5_q5_tsCp_i%d.log"%(folder,iter)
+        f = open(logf, "r")
+        fline = f.readline()
+        myList = fline.split(",")
+        nlname = myList[1]
+        myList = nlname.split("/")
+        nlname = myList[2]
+        nlname = nlname[:-1]
+        # os.rename(folder + "/"+ nlname, folder+"/log/iter_"+str(iter)+".nl")
+        os.rename(logf, folder+"/log/iter_"+str(iter)+".log")
 if __name__ == "__main__":
 
     # plotpoledata()
     # printrarddegree()
-    checkiffileexits()
+    # checkiffileexits()
     # diffrarddegrees()
+    # renamelogfiles2D()
+    renamelogfiles4D()
 
  ###########

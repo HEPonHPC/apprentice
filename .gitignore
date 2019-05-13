@@ -12,4 +12,6 @@ dist
 *.csv
 NLPproblem.summary
 *.299445.*
+*.nl
+*.sol
 results_p4_q3_ts2x
