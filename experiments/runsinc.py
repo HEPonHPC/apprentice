@@ -695,10 +695,25 @@ def runsinc2D_test(sss = 'sg'):
             X = lhs(dim, samples=npoints, criterion='maximin')
             s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
             X = s.scaledPoints
+        elif(sample == "mc"):
+            Xperdim = ()
+            for d in range(dim):
+                Xperdim = Xperdim + (np.random.rand(npoints,)*(maxarr[d]-minarr[d])+minarr[d],)
+            X = np.column_stack(Xperdim)
+            formatStr = "{0:0%db}"%(dim)
+            for d in range(2**dim):
+                binArr = [int(x) for x in formatStr.format(d)[0:]]
+                val = []
+                for i in range(dim):
+                    if(binArr[i] == 0):
+                        val.append(minarr[i])
+                    else:
+                        val.append(maxarr[i])
+                X[d] = val
+
         Ys = [sinc(x,dim) for x in X]
         Y = np.atleast_2d(np.array(Ys))
         np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
-        
         # plot
         fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
         import matplotlib.pyplot as plt
