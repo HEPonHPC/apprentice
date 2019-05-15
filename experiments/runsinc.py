@@ -748,7 +748,7 @@ def runsinc2D_test(sss = 'sg'):
             os.system(cmd)
             # exit(1)
             # exit(1)
-        if(sample!="sg"):
+        if(sss!="sg"):
             break
 
 if __name__ == "__main__":
