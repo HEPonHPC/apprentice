@@ -16,7 +16,7 @@ def runRASIP(X, Y, fndesc, m, n, ts, outfolder,outfile):
     							fitpyomodebug = 2,
     							debugfolder=outfolder+"/log",
     							fnname=fndesc,
-    							fitstrategy = 'ipopt',
+    							fitstrategy = 'filter',
     							localoptsolver = 'scipy',
             )
             # print("Test error FS {} RS {}: 1N:{} 2N:{} InfN:{}".format(fs, rs,

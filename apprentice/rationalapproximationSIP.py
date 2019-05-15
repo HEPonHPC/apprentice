@@ -381,19 +381,26 @@ class RationalApproximationSIP():
 
         def lsqObjPyomo(model):
             sum = 0
+            sigma = 10**-2
             for index in range(model.trainingsize):
                 p_ipo = model.pipo[index]
                 q_ipo = model.qipo[index]
 
                 P=0
+                coeffsump=0
                 for i in model.prange:
                     P += model.coeff[i]*p_ipo[i]
+                    coeffsump+=model.coeff[i]**2
 
                 Q=0
+                coeffsumq=0
                 for i in model.qrange:
                     Q += model.coeff[i]*q_ipo[i-model.M]
+                    coeffsumq+=model.coeff[i]**2
 
                 sum += (model.Y[index] * Q - P)**2
+                #sum += (model.Y[index] * Q - P)**2 + sigma*(coeffsump + coeffsumq)
+               # sum += (model.Y[index] * Q - P)**2 + sigma*(Q**2 + P**2)
             return sum
 
         def robustConstrPyomo(model,index):
@@ -402,7 +409,7 @@ class RationalApproximationSIP():
             Q=0
             for i in model.qrange:
                 Q += model.coeff[i]*q_ipo[i-model.M]
-            return Q >= 1
+            return Q >= 0.2
 
         if(self._strategy != 0):
             raise Exception("strategy %d for fitstrategy, %s not yet implemented"%(self.strategy, self.fitstrategy))
@@ -451,10 +458,13 @@ class RationalApproximationSIP():
         elif(pyomodebug==2):
             if(solver == 'filter'):
                 opt.options['iprint'] = 1
+                opt.options['rho'] = 10**18
+              #  opt.options['maxiter'] = 1
+                opt.options['z_print'] = -1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
             self.printDebug("Starting %s"%(solver))
-            ret = opt.solve(model,logfile=logfn)
-            # ret = opt.solve(model, logfile=logfn, keepfiles=True)
+            #ret = opt.solve(model,logfile=logfn)
+            ret = opt.solve(model, logfile=logfn, keepfiles=True)
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
