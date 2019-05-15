@@ -188,10 +188,10 @@ def renamelogfiles2D(sample = 'sg'):
     for l in range(1,11):
         if(sample == 'sg'):
             folderplus = folder+"/f20-2D_"+sample+"_l"+str(l)
-            logf = "%s/log/f20-2D_"+sample+"_l%d_p2_q2_tsCp_i0.log"%(folderplus,l)
+            logf = "%s/log/f20-2D_%s_l%d_p2_q2_tsCp_i0.log"%(folderplus,sample,l)
         else:
             folderplus = folder+"/f20-2D_"+sample
-            logf = "%s/log/f20-2D_"+sample+"_p2_q2_tsCp_i0.log"%(folderplus)
+            logf = "%s/log/f20-2D_%s_p2_q2_tsCp_i0.log"%(folderplus,sample)
         f = open(logf, "r")
         fline = f.readline()
         myList = fline.split(",")
