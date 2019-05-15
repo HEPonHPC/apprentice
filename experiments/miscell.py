@@ -181,13 +181,17 @@ def plotpoledata():
 
     X1,X2 = tools.readData(fin)
 
-def renamelogfiles2D():
+def renamelogfiles2D(sample = 'sg'):
     folder = "f20-2D-special_d2_l10-6_u4pi"
     import os
     import shutil
     for l in range(1,11):
-        folderplus = folder+"/f20-2D_sg_l"+str(l)
-        logf = "%s/log/f20-2D_sg_l%d_p2_q2_tsCp_i0.log"%(folderplus,l)
+        if(sample == 'sg'):
+            folderplus = folder+"/f20-2D_"+sample+"_l"+str(l)
+            logf = "%s/log/f20-2D_"+sample+"_l%d_p2_q2_tsCp_i0.log"%(folderplus,l)
+        else:
+            folderplus = folder+"/f20-2D_"+sample
+            logf = "%s/log/f20-2D_"+sample+"_p2_q2_tsCp_i0.log"%(folderplus)
         f = open(logf, "r")
         fline = f.readline()
         myList = fline.split(",")
@@ -200,6 +204,8 @@ def renamelogfiles2D():
         #os.rename("/tmp/"+ nlname, folder+"/level_"+str(l)+"_iter0.nl")
         shutil.move("/tmp/"+ nlname, folder+"/level_"+str(l)+"_iter0.nl")
         # os.rename(logf,folderplus+"/log/level_"+str(l)+"_iter0.log")
+        if(sample != 'sg'):
+            break
 
 def renamelogfiles4D():
     folder = "f20_sg_2x"
@@ -223,10 +229,10 @@ if __name__ == "__main__":
     # printrarddegree()
     # checkiffileexits()
     # diffrarddegrees()
-    renamelogfiles2D()
+    # renamelogfiles2D()
     # renamelogfiles4D()
-    # if len(sys.argv)==2:
-    #     getHfromlog(sys.argv[1])
-    # else:getHfromlog()
+    if len(sys.argv)==2:
+        renamelogfiles2D(sys.argv[1])
+    else:renamelogfiles2D()
 
  ###########
