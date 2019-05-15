@@ -684,22 +684,21 @@ def runsinc2D_test(sss = 'sg'):
         else:
             sample = sss
         filecsv = "%s/benchmarkdata/%s%s_%s.csv"%(folder,fname,noisestr,sample)
-        if not os.path.exists(filecsv):
-            if(sss=='sg'):
-                sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
-                X = sg.grid
-            elif sss =='so':
-                X = my_i4_sobol_generate(dim,npoints,seed)
-                s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
-                X = s.scaledPoints
-            elif(sss == 'lhs'):
-                X = lhs(dim, samples=npoints, criterion='maximin')
-                s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
-                X = s.scaledPoints
-            Ys = [sinc(x,dim) for x in X]
-            Y = np.atleast_2d(np.array(Ys))
-            np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
-
+        if(sss=='sg'):
+            sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
+            X = sg.grid
+        elif sss =='so':
+            X = my_i4_sobol_generate(dim,npoints,seed)
+            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+            X = s.scaledPoints
+        elif(sss == 'lhs'):
+            X = lhs(dim, samples=npoints, criterion='maximin')
+            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+            X = s.scaledPoints
+        Ys = [sinc(x,dim) for x in X]
+        Y = np.atleast_2d(np.array(Ys))
+        np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
+        
         # plot
         fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
         import matplotlib.pyplot as plt
