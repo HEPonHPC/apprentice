@@ -637,13 +637,12 @@ def runsinccomprehensive():
                         # exit(1)
     # print(nr)
 
-def runsinc2D_test(sss = 'sg'):
+def runsincnD_test(sss = 'sg',dim=2):
     seed = 54321
     np.random.seed(seed)
-    fname = "f20-2D"
+    fname = "f20-"+str(dim)+"D"
     m = 2
     n = 2
-    dim = 2
     tstimes = 2
     ts = "2x"
     from apprentice import tools
@@ -715,37 +714,38 @@ def runsinc2D_test(sss = 'sg'):
         Y = np.atleast_2d(np.array(Ys))
         np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
         # plot
-        fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
-        import matplotlib.pyplot as plt
-        plt.scatter(X[:,0],X[:,1])
-        plt.xlabel("x1")
-        plt.ylabel("x2")
-        plt.title("%s. l = %s u = %s"%(sample,lbdescplot,ubdescplot))
-        plt.savefig(fileplot)
-        plt.clf()
-
-
-        # VM
         fndesc = "%s%s_%s"%(fname,noisestr,sample)
-        VMp = monomial.vandermonde(X[:,:],m)
-        VMq = monomial.vandermonde(X[:,:],n)
-        rankp = np.linalg.matrix_rank(VMp)
-        coeffp = tools.numCoeffsPoly(dim,m)
-        if(rankp != coeffp):
-            print("%s\ncoeffp = %d, rankp = %d"%(fndesc,coeffp,rankp))
-        rankq = np.linalg.matrix_rank(VMq)
-        coeffq = tools.numCoeffsPoly(dim,n)
-        if(rankq != coeffq):
-            print("%s\ncoeffq = %d, rankq = %d"%(fndesc,coeffq,rankq))
-        s = "     c     y       x       y^2     xy      x^2\n"
-        row_labels = range(1,len(X)+1)
-        for row_label, row in zip(row_labels, VMq):
-            s += ('%s [%s]' % (row_label, ' '.join('%f' % i for i in row)))
-            s+="\n"
-        filepVMout = "%s/benchmarkdata/%s%s_%s_VM.out"%(folder,fname,noisestr,sample)
-        f = open(filepVMout, "w")
-        f.write(s)
-        f.close()
+        if(dim==2):
+            fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
+            import matplotlib.pyplot as plt
+            plt.scatter(X[:,0],X[:,1])
+            plt.xlabel("x1")
+            plt.ylabel("x2")
+            plt.title("%s. l = %s u = %s"%(sample,lbdescplot,ubdescplot))
+            plt.savefig(fileplot)
+            plt.clf()
+
+
+            # VM
+            VMp = monomial.vandermonde(X[:,:],m)
+            VMq = monomial.vandermonde(X[:,:],n)
+            rankp = np.linalg.matrix_rank(VMp)
+            coeffp = tools.numCoeffsPoly(dim,m)
+            if(rankp != coeffp):
+                print("%s\ncoeffp = %d, rankp = %d"%(fndesc,coeffp,rankp))
+            rankq = np.linalg.matrix_rank(VMq)
+            coeffq = tools.numCoeffsPoly(dim,n)
+            if(rankq != coeffq):
+                print("%s\ncoeffq = %d, rankq = %d"%(fndesc,coeffq,rankq))
+            s = "     c     y       x       y^2     xy      x^2\n"
+            row_labels = range(1,len(X)+1)
+            for row_label, row in zip(row_labels, VMq):
+                s += ('%s [%s]' % (row_label, ' '.join('%f' % i for i in row)))
+                s+="\n"
+            filepVMout = "%s/benchmarkdata/%s%s_%s_VM.out"%(folder,fname,noisestr,sample)
+            f = open(filepVMout, "w")
+            f.write(s)
+            f.close()
 
 
         # Run rasip
@@ -765,6 +765,9 @@ def runsinc2D_test(sss = 'sg'):
             # exit(1)
         if(sss!="sg"):
             break
+        else:
+            if(dim>2 and l >7):
+                break
 
 if __name__ == "__main__":
 
@@ -783,5 +786,7 @@ if __name__ == "__main__":
     # analyzesinc()
     # checkrank()
     if len(sys.argv)==2:
-        runsinc2D_test(sys.argv[1])
-    else:runsinc2D_test()
+        runsincnD_test(sys.argv[1])
+    elif len(sys.argv)==3:
+        runsincnD_test(sys.argv[1],int(sys.argv[2]))
+    else:runsincnD_test()
