@@ -184,6 +184,7 @@ def plotpoledata():
 def renamelogfiles2D():
     folder = "f20-2D-special_d2_l10-6_u4pi"
     import os
+    import shutil
     for l in range(1,11):
         folderplus = folder+"/f20-2D_sg_l"+str(l)
         logf = "%s/log/f20-2D_sg_l%d_p2_q2_tsCp_i0.log"%(folderplus,l)
@@ -194,8 +195,11 @@ def renamelogfiles2D():
         myList = nlname.split("/")
         nlname = myList[2]
         nlname = nlname[:-1]
-        # os.rename(folder + "/"+ nlname, folderplus+"/log/level_"+str(l)+"_iter0.nl")
-        os.rename(logf,folderplus+"/log/level_"+str(l)+"_iter0.log")
+        print(nlname)
+        print(folder+"/level_"+str(l)+"_iter0.nl")
+        #os.rename("/tmp/"+ nlname, folder+"/level_"+str(l)+"_iter0.nl")
+        shutil.move("/tmp/"+ nlname, folder+"/level_"+str(l)+"_iter0.nl")
+        # os.rename(logf,folderplus+"/log/level_"+str(l)+"_iter0.log")
 
 def renamelogfiles4D():
     folder = "f20_sg_2x"
@@ -217,7 +221,7 @@ if __name__ == "__main__":
     # printrarddegree()
     # checkiffileexits()
     # diffrarddegrees()
-    # renamelogfiles2D()
-    renamelogfiles4D()
+    renamelogfiles2D()
+    # renamelogfiles4D()
 
  ###########
