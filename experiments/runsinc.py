@@ -4,6 +4,15 @@ from apprentice import tools
 import numpy as np
 import os, sys
 
+def my_i4_sobol_generate(dim, n, seed):
+    import sobol_seq
+    r = np.full((n, dim), np.nan)
+    currentseed = seed
+    for j in range(n):
+        r[j, 0:dim], newseed = sobol_seq.i4_sobol(dim, currentseed)
+        currentseed = newseed
+    return r
+
 def sinc(X,dim):
     ret = 10
     for d in range(dim):
@@ -628,14 +637,18 @@ def runsinccomprehensive():
                         # exit(1)
     # print(nr)
 
-def runsinc2D_test():
-
+def runsinc2D_test(sss = 'sg'):
+    seed = 54321
+    np.random.seed(seed)
     fname = "f20-2D"
     m = 2
     n = 2
     dim = 2
     tstimes = 2
     ts = "2x"
+    from apprentice import tools
+    from pyDOE import lhs
+    npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
 
     lb = 10**-6
     ub = 4*np.pi
@@ -665,15 +678,27 @@ def runsinc2D_test():
     nr = 0
 
     for l in range(1,11):
-        sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
-        X = sg.grid
-        Ys = [sinc(x,dim) for x in X]
-        Y = np.atleast_2d(np.array(Ys))
-
         # data
-        sample = "sg_l%d"%(l)
+        if(sss =='sg'):
+            sample = sss+"_l%d"%(l)
+        else:
+            sample = sss
         filecsv = "%s/benchmarkdata/%s%s_%s.csv"%(folder,fname,noisestr,sample)
-        np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
+        if not os.path.exists(filecsv):
+            if(sss=='sg'):
+                sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
+                X = sg.grid
+            elif sss =='so':
+                X = my_i4_sobol_generate(dim,npoints,seed)
+                s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+                X = s.scaledPoints
+            elif(sss == 'lhs'):
+                X = lhs(dim, samples=npoints, criterion='maximin')
+                s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+                X = s.scaledPoints
+            Ys = [sinc(x,dim) for x in X]
+            Y = np.atleast_2d(np.array(Ys))
+            np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
 
         # plot
         fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
@@ -724,7 +749,8 @@ def runsinc2D_test():
             os.system(cmd)
             # exit(1)
             # exit(1)
-
+        if(sample!="sg"):
+            break
 
 if __name__ == "__main__":
 
@@ -742,5 +768,6 @@ if __name__ == "__main__":
     # runsincall()
     # analyzesinc()
     # checkrank()
-
-    runsinc2D_test()
+    if len(sys.argv)==2:
+        runsinc2D_test(sys.argv[1])
+    else:runsinc2D_test()

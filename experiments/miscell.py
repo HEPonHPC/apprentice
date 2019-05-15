@@ -216,25 +216,6 @@ def renamelogfiles4D():
         # os.rename(folder + "/"+ nlname, folder+"/log/iter_"+str(iter)+".nl")
         os.rename(logf, folder+"/log/iter_"+str(iter)+".log")
 
-def getHfromlog(logf="f20-2D-special_d2_l10-6_u4pi/f20-2D_sg_l2_p2_q2_tsCp_i0.log"):
-    logf = "experiments/"+logf
-    f = open(logf, "r")
-    import re
-    content = f.readlines()
-    f.close()
-    start = 0
-    for line in content:
-        if "Quadratic part of objective" in line:
-            start=1
-            continue
-        if start==1:
-
-            matches = re.findall('.*\d\s[;]?\s+[+-]?\d+(?:\.\d+)', line, re.DOTALL)
-
-            print(matches)
-            if(len(matches)==0):
-                exit(1)
-
 
 if __name__ == "__main__":
     import sys
@@ -242,10 +223,10 @@ if __name__ == "__main__":
     # printrarddegree()
     # checkiffileexits()
     # diffrarddegrees()
-    # renamelogfiles2D()
+    renamelogfiles2D()
     # renamelogfiles4D()
-    if len(sys.argv)==2:
-        getHfromlog(sys.argv[1])
-    else:getHfromlog()
+    # if len(sys.argv)==2:
+    #     getHfromlog(sys.argv[1])
+    # else:getHfromlog()
 
  ###########
