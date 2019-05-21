@@ -381,7 +381,7 @@ class RationalApproximationSIP():
 
         def lsqObjPyomo(model):
             sum = 0
-            sigma = 10**-2
+            sigma = self._penaltyparam
             for index in range(model.trainingsize):
                 p_ipo = model.pipo[index]
                 q_ipo = model.qipo[index]
@@ -398,9 +398,8 @@ class RationalApproximationSIP():
                     Q += model.coeff[i]*q_ipo[i-model.M]
                     coeffsumq+=model.coeff[i]**2
 
-                sum += (model.Y[index] * Q - P)**2
-                #sum += (model.Y[index] * Q - P)**2 + sigma*(coeffsump + coeffsumq)
-               # sum += (model.Y[index] * Q - P)**2 + sigma*(Q**2 + P**2)
+                # sum += (model.Y[index] * Q - P)**2 # sigma = 0
+                sum += (model.Y[index] * Q - P)**2 + sigma*(coeffsump + coeffsumq)
             return sum
 
         def robustConstrPyomo(model,index):
@@ -540,10 +539,17 @@ class RationalApproximationSIP():
             data['pcoeff'] = coeffs[0:self.M].tolist()
             data['qcoeff'] = coeffs[self.M:self.M+self.N].tolist()
 
-            if(self.strategy == 2):
+            if(self.strategy == 2 or  self.strategy == 0):
                 lsqsplit = {}
-                l1term = self.computel1Term(coeffs,p_penaltyIndex,q_penaltyIndex)
-                lsqsplit['l1term'] = l1term
+                l1term = 0
+                if(self.strategy == 2):
+                    l1term = self.computel1Term(coeffs,p_penaltyIndex,q_penaltyIndex)
+                elif(self.strategy == 0):
+                    l1term = self.computel1Term(coeffs)
+                if self.penaltyparam != 0:
+                    lsqsplit['l1term'] = l1term
+                else:
+                    lsqsplit['l1term'] = 0
                 lsqsplit['l2term'] = leastSq - self.penaltyparam * l1term
                 data['leastSqSplit'] = lsqsplit
 
@@ -938,6 +944,15 @@ class RationalApproximationSIP():
                 l1Term += term
         return l1Term
 
+    def computel1Term(self,coeff):
+        coeffsump = 0
+        for i in range(self.M):
+            coeffsump += coeff[i]**2
+        coeffsumq = 0
+        for i in range(self.M,self.M+self.N):
+            coeffsumq += coeff[i]**2
+        return (coeffsump + coeffsumq)
+
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         sum = self.leastSqObj(coeff)
         l1Term = self.penaltyparam * self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
@@ -1078,7 +1093,7 @@ class RationalApproximationSIP():
             d['chosenqpenalty'] = self._qpenaltybin
 
 
-        if(self.strategy==2):
+        if(self.strategy==2 or self.strategy==0):
             d['lambda'] = self._penaltyparam
         d["scaler"] = self._scaler.asDict
         return d

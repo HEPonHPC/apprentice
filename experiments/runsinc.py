@@ -769,6 +769,152 @@ def runsincnD_test(sss = 'sg',dim=2):
             if(dim>2 and l >7):
                 break
 
+def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
+    seed = 54321
+    sss='sg'
+    np.random.seed(seed)
+    fname = "f20-"+str(dim)+"D"
+    m = 2
+    n = 2
+    tstimes = 2
+    ts = "2x"
+    from apprentice import tools
+    from pyDOE import lhs
+    npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
+
+    lb = 10**-6
+    ub = 4*np.pi
+    lbdesc = "10-6"
+    ubdesc = "4pi"
+    lbdescplot = "$10^{-6}$"
+    ubdescplot = "$4\\pi$"
+
+    noise = "0"
+    noisestr,noisepct = getnoiseinfo(noise)
+    minarr = []
+    maxarr = []
+    for d in range(dim):
+        minarr.append(lb)
+        maxarr.append(ub)
+
+    print(fname)
+    folder = "%s-regularized_d%d_l%s_u%s"%(fname,dim,lbdesc,ubdesc)
+    if not os.path.exists(folder):
+        os.makedirs(folder,exist_ok = True)
+
+    if not os.path.exists(folder+"/benchmarkdata"):
+        os.makedirs(folder+"/benchmarkdata",exist_ok = True)
+
+    from dolo.numeric.interpolation.smolyak import SmolyakGrid
+    from apprentice import monomial
+    nr = 0
+
+    l = level
+    # data
+    if(sss =='sg'):
+        sample = sss+"_l%d"%(l)
+    else:
+        sample = sss
+    fndesc = "%s%s_%s"%(fname,noisestr,sample)
+    folderplus = folder+"/"+fndesc
+    if type == 'run':
+        filecsv = "%s/benchmarkdata/%s%s_%s.csv"%(folder,fname,noisestr,sample)
+        if(sss=='sg'):
+            sg = SmolyakGrid(a=minarr,b=maxarr, l=l)
+            X = sg.grid
+
+        Ys = [sinc(x,dim) for x in X]
+        Y = np.atleast_2d(np.array(Ys))
+        np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
+        # plot
+
+        if(dim==2):
+            fileplot = "%s/benchmarkdata/%s%s_%s.png"%(folder,fname,noisestr,sample)
+            import matplotlib.pyplot as plt
+            plt.scatter(X[:,0],X[:,1])
+            plt.xlabel("x1")
+            plt.ylabel("x2")
+            plt.title("%s. l = %s u = %s"%(sample,lbdescplot,ubdescplot))
+            plt.savefig(fileplot)
+            plt.clf()
+
+            # VM
+            VMp = monomial.vandermonde(X[:,:],m)
+            VMq = monomial.vandermonde(X[:,:],n)
+            rankp = np.linalg.matrix_rank(VMp)
+            coeffp = tools.numCoeffsPoly(dim,m)
+            if(rankp != coeffp):
+                print("%s\ncoeffp = %d, rankp = %d"%(fndesc,coeffp,rankp))
+            rankq = np.linalg.matrix_rank(VMq)
+            coeffq = tools.numCoeffsPoly(dim,n)
+            if(rankq != coeffq):
+                print("%s\ncoeffq = %d, rankq = %d"%(fndesc,coeffq,rankq))
+            s = "     c     y       x       y^2     xy      x^2\n"
+            row_labels = range(1,len(X)+1)
+            for row_label, row in zip(row_labels, VMq):
+                s += ('%s [%s]' % (row_label, ' '.join('%f' % i for i in row)))
+                s+="\n"
+            filepVMout = "%s/benchmarkdata/%s%s_%s_VM.out"%(folder,fname,noisestr,sample)
+            f = open(filepVMout, "w")
+            f.write(s)
+            f.close()
+
+        # Run rasip
+        if not os.path.exists(folderplus + "/outrasip"):
+            os.makedirs(folderplus + "/outrasip",exist_ok = True)
+        if not os.path.exists(folderplus + "/log/consolelograsip"):
+            os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
+        fndesctemp = fndesc
+        for exp in range(10,-6,-1):
+            pp = 10**exp
+            fndesc = fndesctemp + "_pp"+str(exp)
+            consolelog=folderplus + "/log/consolelograsip/"+fndesc+".log";
+            outfile = folderplus + "/outrasip/"+fndesc+".json";
+            if not os.path.exists(outfile):
+                nr +=1
+                cmd = 'nohup python runrappsip.py %s %s %s %s Cp %f %s %s >%s 2>&1 &'%(filecsv,fndesc,m,n,pp,folderplus,outfile,consolelog)
+                # print(cmd)
+                os.system(cmd)
+                # exit(1)
+                # exit(1)
+
+    elif type == 'analyze':
+        fndesctemp = fndesc
+        Y_l2=[]
+        X_l1=[]
+        pparr=[]
+        import json
+        for exp in range(10,-6,-1):
+            pp = 10**exp
+            fndesc = fndesctemp + "_pp"+str(exp)
+            outfile = folderplus + "/outrasip/"+fndesc+".json";
+            if not os.path.exists(outfile):
+                print("rappsip file %s not found"%(outfile))
+                exit(1)
+            if outfile:
+                with open(outfile, 'r') as fn:
+                    datastore = json.load(fn)
+            iinfo = datastore['iterationinfo']
+            leastSqSplit = iinfo[len(iinfo)-1]['leastSqSplit']
+            pparr.append(pp)
+            X_l1.append(leastSqSplit['l1term'])
+            Y_l2.append(leastSqSplit['l2term'])
+        if not os.path.exists(folderplus + "/plots/"):
+            os.makedirs(folderplus + "/plots/",exist_ok = True)
+        plotfile = "%s/plots/Pplotreg_d%d_l%d.png"%(folderplus,dim,l)
+        import matplotlib.pyplot as plt
+        plt.plot(X_l1,np.log10(Y_l2))
+        for num,x in enumerate(X_l1):
+            plt.annotate("%.E"%(pparr[num]),(x,np.log10(Y_l2[num])))
+        plt.savefig(plotfile)
+
+    else:
+        print("type %s unknown"%(type))
+        exit(1)
+
+
+
+
 if __name__ == "__main__":
 
     # if len(sys.argv)!=4:
@@ -785,8 +931,18 @@ if __name__ == "__main__":
     # runsincall()
     # analyzesinc()
     # checkrank()
+
+
+    # if len(sys.argv)==2:
+    #     runsincnD_test(sys.argv[1])
+    # elif len(sys.argv)==3:
+    #     runsincnD_test(sys.argv[1],int(sys.argv[2]))
+    # else:runsincnD_test()
+
     if len(sys.argv)==2:
-        runsincnD_test(sys.argv[1])
+        runsincnD_penaltyobjective(int(sys.argv[1]))
     elif len(sys.argv)==3:
-        runsincnD_test(sys.argv[1],int(sys.argv[2]))
-    else:runsincnD_test()
+        runsincnD_penaltyobjective(int(sys.argv[1]),int(sys.argv[2]))
+    elif len(sys.argv)==4:
+        runsincnD_penaltyobjective(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])
+    else:runsincnD_penaltyobjective()
