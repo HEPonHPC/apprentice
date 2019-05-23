@@ -183,15 +183,17 @@ def plotpoledata():
 
 def renamelogfilesnD(sample = 'sg',dim = 2):
     folder = "f20-"+str(dim)+"D-special_d"+str(dim)+"_l10-6_u4pi"
+    m = 5
+    n = 5
     import os
     import shutil
     for l in range(1,11):
         if(sample == 'sg'):
             folderplus = folder+"/f20-"+str(dim)+"D_"+sample+"_l"+str(l)
-            logf = "%s/log/f20-%dD_%s_l%d_p2_q2_tsCp_i0.log"%(folderplus,dim,sample,l)
+            logf = "%s/log/f20-%dD_%s_l%d_p%d_q%d_tsCp_i0.log"%(folderplus,dim,sample,l,m,n)
         else:
             folderplus = folder+"/f20-"+str(dim)+"D_"+sample
-            logf = "%s/log/f20-%dD_%s_p2_q2_tsCp_i0.log"%(folderplus,dim,sample)
+            logf = "%s/log/f20-%dD_%s_p%d_q%d_tsCp_i0.log"%(folderplus,dim,sample,m,n)
         f = open(logf, "r")
         fline = f.readline()
         myList = fline.split(",")

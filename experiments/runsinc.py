@@ -641,10 +641,10 @@ def runsincnD_test(sss = 'sg',dim=2):
     seed = 54321
     np.random.seed(seed)
     fname = "f20-"+str(dim)+"D"
-    m = 2
-    n = 2
-    tstimes = 2
-    ts = "2x"
+    m = 5
+    n = 5
+    tstimes = 3
+    ts = "3x"
     from apprentice import tools
     from pyDOE import lhs
     npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
@@ -675,10 +675,11 @@ def runsincnD_test(sss = 'sg',dim=2):
     from dolo.numeric.interpolation.smolyak import SmolyakGrid
     from apprentice import monomial
     nr = 0
-
+    penaltyparam = 0
     for l in range(1,11):
         # data
         if(sss =='sg'):
+            penaltyparam = 1
             sample = sss+"_l%d"%(l)
         else:
             sample = sss
@@ -712,6 +713,7 @@ def runsincnD_test(sss = 'sg',dim=2):
 
         Ys = [sinc(x,dim) for x in X]
         Y = np.atleast_2d(np.array(Ys))
+        print(m,n,dim,ts,l,npoints,len(Ys))
         np.savetxt(filecsv, np.hstack((X,Y.T)), delimiter=",")
         # plot
         fndesc = "%s%s_%s"%(fname,noisestr,sample)
@@ -758,7 +760,7 @@ def runsincnD_test(sss = 'sg',dim=2):
         outfile = folderplus + "/outrasip/"+fndesc+".json";
         if not os.path.exists(outfile):
             nr +=1
-            cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(filecsv,fndesc,m,n,folderplus,outfile,consolelog)
+            cmd = 'nohup python runrappsip.py %s %s %s %s Cp %f %s %s >%s 2>&1 &'%(filecsv,fndesc,m,n,penaltyparam,folderplus,outfile,consolelog)
             # print(cmd)
             os.system(cmd)
             # exit(1)
@@ -773,11 +775,12 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
     seed = 54321
     sss='sg'
     np.random.seed(seed)
-    fname = "f20-"+str(dim)+"D"
-    m = 2
-    n = 2
+    m = 5
+    n = 5
     tstimes = 2
     ts = "2x"
+    # fname = "f20-"+str(dim)+"D_ts"+ts
+    fname = "f20-"+str(dim)+"D"
     from apprentice import tools
     from pyDOE import lhs
     npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
@@ -907,6 +910,7 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
         for num,x in enumerate(X_l1):
             plt.annotate("%.E"%(pparr[num]),(x,np.log10(Y_l2[num])))
         plt.savefig(plotfile)
+        print(plotfile)
 
     else:
         print("type %s unknown"%(type))
