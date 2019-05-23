@@ -224,6 +224,122 @@ def renamelogfiles4D():
         # os.rename(folder + "/"+ nlname, folder+"/log/iter_"+str(iter)+".nl")
         os.rename(logf, folder+"/log/iter_"+str(iter)+".log")
 
+def cubeplot():
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from itertools import product, combinations
+
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.set_aspect("equal")
+
+    vertices = np.empty(shape=(0,3))
+    # draw cube
+    r = [-1, 1]
+    coord = combinations(np.array(list(product(r, r, r))), 2)
+    for s, e in coord:
+        if np.sum(np.abs(s-e)) == r[1]-r[0]:
+            ax.plot3D(*zip(s, e), color="b")
+        # print(s)
+        vertices = np.append(vertices,[s],axis =0)
+        vertices = np.append(vertices,[e],axis =0)
+    vertices = np.unique(vertices,axis=0)
+    print(np.shape(vertices))
+
+
+    print(vertices)
+
+    npoints = 50
+    eps = 0.2
+    dim = 3
+    from pyDOE import lhs
+    import apprentice
+
+    # for v in vertices:
+    #     minarr = []
+    #     maxarr = []
+    #     for p in v:
+    #         if(p==1):
+    #             maxarr.append(p)
+    #             minarr.append(p-eps)
+    #         elif(p==-1):
+    #             maxarr.append(p+eps)
+    #             minarr.append(p)
+    #     for d in range(dim):
+    #         if minarr[d] == -1+eps:
+    #             maxarr[d] == 1
+    #         elif maxarr[d] == 1-eps:
+    #             minarr[d] == -1
+    #         print(v,minarr,maxarr)
+    #         s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+    #         X = s.scaledPoints
+    #         # ax.scatter3D(X[:,0],X[:,1],X[:,2])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+
+    # plt.show()
+    # exit(1)
+
+
+    Xmain = np.empty([0,3])
+    index = -1
+    for d in range(dim):
+        for x in [-1,1]:
+            index+=1
+            seedarr = [221,323,545,435,944,664]
+            np.random.seed(seedarr[index])
+            X = lhs(dim, samples=npoints, criterion='maximin')
+            minarr = [0,0,0]
+            maxarr = [0,0,0]
+            for p in range(dim):
+                if(p==d):
+                    if x == 1:
+                        minarr[p] = x + ((-1*x)/np.abs(x)) * eps
+                        maxarr[p] = x
+                    else:
+                        minarr[p] = x
+                        maxarr[p] = x + ((-1*x)/np.abs(x)) * eps
+                else:
+                    minarr[p] = -1
+                    maxarr[p] = 1
+
+            print(minarr,maxarr)
+            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+            X = s.scaledPoints
+            # X = np.append(X,[[0,0,0]],axis = 0)
+            Xmain = np.vstack((Xmain,X))
+            ax.scatter3D(X[:,0],X[:,1],X[:,2])
+            # if(index == 4): break
+        # print(Xmain)
+    print(np.shape(Xmain))
+    Xmain = np.unique(Xmain,axis = 0)
+    print(np.shape(Xmain))
+
+
+    # minarr = [-1,   1-eps,  -1]
+    # maxarr = [1,    1,      1]
+    # print(minarr,maxarr)
+    # s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+    # X = s.scaledPoints
+    # ax.scatter3D(X[:,0],X[:,1],X[:,2])
+
+    # minarr = [-1,   -1,  -1]
+    # maxarr = [1,    1,      -1+eps]
+    # s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+    # X = s.scaledPoints
+    # ax.scatter3D(X[:,0],X[:,1],X[:,2])
+
+
+    plt.show()
+
+
+
+    # plt.show()
+
+
 
 if __name__ == "__main__":
     import sys
@@ -233,10 +349,12 @@ if __name__ == "__main__":
     # diffrarddegrees()
     # renamelogfiles2D()
     # renamelogfiles4D()
-    if len(sys.argv)==2:
-        renamelogfilesnD(sys.argv[1])
-    if len(sys.argv)==3:
-        renamelogfilesnD(sys.argv[1],int(sys.argv[2]))
-    else:renamelogfilesnD()
+    # if len(sys.argv)==2:
+    #     renamelogfilesnD(sys.argv[1])
+    # if len(sys.argv)==3:
+    #     renamelogfilesnD(sys.argv[1],int(sys.argv[2]))
+    # else:renamelogfilesnD()
+
+    cubeplot()
 
  ###########
