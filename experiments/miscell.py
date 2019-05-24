@@ -332,7 +332,35 @@ def cubeplot():
     # X = s.scaledPoints
     # ax.scatter3D(X[:,0],X[:,1],X[:,2])
 
+    plt.show()
 
+def plotfnassubplot():
+    import matplotlib.pyplot as plt
+    rasiplhs = range(20)
+    rasiphybridlhs = range(20,40)
+    rasipsg = range(40,60)
+    rasg = range(60,80)
+    plt.figure(0,figsize=(10, 8))
+    plots = []
+
+
+    axfirst = plt.subplot2grid((5,4), (0,0))
+    for x,typearr,m in zip(range(1,5),[rasiplhs,rasiphybridlhs,rasipsg,rasg],['o','x','s','*']):
+        axfirst.scatter(x,typearr[0],marker=m)
+    axfirst.label_outer()
+
+    for i in range(5):
+        for j in range(4):
+            if(i==0 and j==0): continue
+            ax = plt.subplot2grid((5,4), (i,j),sharex=axfirst,sharey=axfirst)
+            # xpoints = [1,2,3,4] #f1-f20
+            ax.label_outer()
+            for x,typearr,m in zip(range(1,5),[rasiplhs,rasiphybridlhs,rasipsg,rasg],['o','x','s','*']):
+                ax.scatter(x,typearr[i*4+j],marker=m)
+
+
+    # plt.subplots_adjust(wspace=0,hspace=0)
+    plt.tight_layout()
     plt.show()
 
 
@@ -355,6 +383,7 @@ if __name__ == "__main__":
     #     renamelogfilesnD(sys.argv[1],int(sys.argv[2]))
     # else:renamelogfilesnD()
 
-    cubeplot()
+    # cubeplot()
+    plotfnassubplot()
 
  ###########
