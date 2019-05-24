@@ -248,18 +248,45 @@ def generatebenchmarkdata(m,n):
                 if(sample == "sg"):
                     break
 
+def findfreecputhreads():
+    freecputhreads = []
+    threshold = 5
+    import psutil
+    cpup = psutil.cpu_percent(interval=5, percpu=True)
+    for t in range(len(cpup)):
+        if cpup[t] < threshold:
+            freecputhreads.append(t)
+    # for num,p in enumerate(cpup): print(num,p)
+    # print(freecputhreads)
+    # print(len(freecputhreads))
+    return freecputhreads
 
-def runall(type, sample, noise,m,n,pstarendarr):
+def runall(type, sample, ex,noise,m,n,pstarendarr):
     if(type == "gen"):
         generatebenchmarkdata(m,n)
         exit(0)
     commands = []
     farr = getfarr()
     folder= "results"
-    runs = ["exp1","exp2","exp3","exp4","exp5"]
+    # runs = ["exp1","exp2","exp3","exp4","exp5"]
     usetaskset = 0
-    if int(pstarendarr[0]) >= 0 and int(pstarendarr[1]) >= 0:
-        usetaskset = 1
+    if int(pstarendarr[0]) == -1 and int(pstarendarr[1]) == -1:
+        usetaskset = 0 # Dont use taskset
+    elif int(pstarendarr[0]) == -2 and int(pstarendarr[1]) == -2:
+        usetaskset = 2 # use auto taskset
+        freecputhreads = findfreecputhreads()
+        sum = len(freecputhreads)
+        if(sample == "sg"):
+            if(sum < len(farr)):
+                print("not enough processes. %d required and only have %d. Try again"%(len(farr),sum))
+                exit(1)
+        # else:
+        #     if(sum < len(farr)*len(runs)):
+        #         print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),sum))
+        #         exit(1)
+
+    elif int(pstarendarr[0]) >= 0 and int(pstarendarr[1]) >= 0:
+        usetaskset = 1 #use taskset using start,end thread# given
         sum = 0
         i=0
         while i < len(pstarendarr):
@@ -269,123 +296,144 @@ def runall(type, sample, noise,m,n,pstarendarr):
             if(sum < len(farr)):
                 print("not enough processes. %d required and only have %d. Try again"%(len(farr),sum))
                 exit(1)
-        else:
-            if(sum < len(farr)*len(runs)):
-                print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),sum))
-                exit(1)
+        # else:
+        #     if(sum < len(farr)*len(runs)):
+        #         print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),sum))
+        #         exit(1)
     pcurr = int(pstarendarr[0])
     pindex = 0
+    autocpuindex = 0
     noisestr,noisepct = getnoiseinfo(noise)
     for fname in farr:
-        for numex,ex in enumerate(runs):
-            fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
-            folderplus = folder+"/"+ex+"/"+fndesc
-            infile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
-            if not os.path.exists(infile):
-                print("Infile %s not found"%infile)
-                exit(1)
-            if(type == "pa"):
-                if not os.path.exists(folderplus + "/outpa"):
-                    os.makedirs(folderplus + "/outpa",exist_ok = True)
-                if not os.path.exists(folderplus + "/log/consolelogpa"):
-                    os.makedirs(folderplus + "/log/consolelogpa",exist_ok = True)
-                consolelog=folderplus + "/log/consolelogpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
-                outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
-                if not os.path.exists(outfile):
-                    cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
-                    if usetaskset ==1:
-                        cmd = "taskset -c %d %s"%(pcurr,cmd)
-                        if(pcurr == int(pstarendarr[pindex+1])):
-                            pcurr = int(pstarendarr[pindex+2])
-                            pindex += 2
-                        else:
-                            pcurr += 1
+        fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
+        folderplus = folder+"/"+ex+"/"+fndesc
+        infile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
+        if not os.path.exists(infile):
+            print("Infile %s not found"%infile)
+            exit(1)
+        if(type == "pa"):
+            if not os.path.exists(folderplus + "/outpa"):
+                os.makedirs(folderplus + "/outpa",exist_ok = True)
+            if not os.path.exists(folderplus + "/log/consolelogpa"):
+                os.makedirs(folderplus + "/log/consolelogpa",exist_ok = True)
+            consolelog=folderplus + "/log/consolelogpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+            outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+            if not os.path.exists(outfile):
+                cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                if usetaskset ==2:
+                    cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                    autocpuindex+=1
+                if usetaskset ==1:
+                    cmd = "taskset -c %d %s"%(pcurr,cmd)
+                    if(pcurr == int(pstarendarr[pindex+1])):
+                        pcurr = int(pstarendarr[pindex+2])
+                        pindex += 2
+                    else:
+                        pcurr += 1
 
-                    commands.append(cmd)
-                    # print(cmd)
-                    os.system(cmd)
-                    # exit(1)
-            elif(type == "ra"):
-                if not os.path.exists(folderplus + "/outra"):
-                    os.makedirs(folderplus + "/outra",exist_ok = True)
-                if not os.path.exists(folderplus + "/log/consolelogra"):
-                    os.makedirs(folderplus + "/log/consolelogra",exist_ok = True)
-                consolelog=folderplus + "/log/consolelogra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
-                outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
-                tol = -1
-                denomfirst = -1
-                if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
-                    if usetaskset ==1:
-                        cmd = "taskset -c %d %s"%(pcurr,cmd)
-                        if(pcurr == int(pstarendarr[pindex+1])):
-                            pcurr = int(pstarendarr[pindex+2])
-                            pindex += 2
-                        else:
-                            pcurr += 1
-                    commands.append(cmd)
-                    # print(cmd)
-                    os.system(cmd)
-                    # exit(1)
-            elif(type == "rard"):
-                if not os.path.exists(folderplus + "/outrard"):
-                    os.makedirs(folderplus + "/outrard",exist_ok = True)
-                if not os.path.exists(folderplus + "/log/consolelogrard"):
-                    os.makedirs(folderplus + "/log/consolelogrard",exist_ok = True)
-                consolelog=folderplus + "/log/consolelogrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
-                outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
-                if noise =="0":
-                    tol = 10**-12
+                commands.append(cmd)
+                # print(cmd)
+                os.system(cmd)
+                # exit(1)
+        elif(type == "ra"):
+            if not os.path.exists(folderplus + "/outra"):
+                os.makedirs(folderplus + "/outra",exist_ok = True)
+            if not os.path.exists(folderplus + "/log/consolelogra"):
+                os.makedirs(folderplus + "/log/consolelogra",exist_ok = True)
+            consolelog=folderplus + "/log/consolelogra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+            outfile = folderplus + "/outra/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+            tol = -1
+            denomfirst = -1
+            if not os.path.exists(outfile):
+                cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
+                if usetaskset ==2:
+                    cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                    autocpuindex+=1
+                if usetaskset ==1:
+                    cmd = "taskset -c %d %s"%(pcurr,cmd)
+                    if(pcurr == int(pstarendarr[pindex+1])):
+                        pcurr = int(pstarendarr[pindex+2])
+                        pindex += 2
+                    else:
+                        pcurr += 1
+                commands.append(cmd)
+                # print(cmd)
+                os.system(cmd)
+                # exit(1)
+        elif(type == "rard"):
+            if not os.path.exists(folderplus + "/outrard"):
+                os.makedirs(folderplus + "/outrard",exist_ok = True)
+            if not os.path.exists(folderplus + "/log/consolelogrard"):
+                os.makedirs(folderplus + "/log/consolelogrard",exist_ok = True)
+            consolelog=folderplus + "/log/consolelogrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+            outfile = folderplus + "/outrard/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+            if noise =="0":
+                tol = 10**-12
+            else:
+                noisestr,noisepct = getnoiseinfo(noise)
+                # rard
+                tol = noisepct * 10
+
+                # rard1 (k/2)
+                # if noise =="10-2":
+                #     tol = 10**-1
+                # elif noise =="10-4":
+                #     tol = 10**-2
+                # elif noise =="10-6":
+                #     tol = 10**-3
+
+            denomfirst = 1
+            if not os.path.exists(outfile):
+                cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
+                if usetaskset ==2:
+                    cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                    autocpuindex+=1
+                if usetaskset ==1:
+                    cmd = "taskset -c %d %s"%(pcurr,cmd)
+                    if(pcurr == int(pstarendarr[pindex+1])):
+                        pcurr = int(pstarendarr[pindex+2])
+                        pindex += 2
+                    else:
+                        pcurr += 1
+                commands.append(cmd)
+                # print(cmd)
+                os.system(cmd)
+                # exit(1)
+        elif(type == "rasip"):
+            if not os.path.exists(folderplus + "/outrasip"):
+                os.makedirs(folderplus + "/outrasip",exist_ok = True)
+            if not os.path.exists(folderplus + "/log/consolelograsip"):
+                os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
+            consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+            outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+            penaltyparam = 0
+            if sample == 'sg':
+                if m == '5' and n == '5':
+                    penaltyparam = 10**-1
                 else:
-                    noisestr,noisepct = getnoiseinfo(noise)
-                    # rard
-                    tol = noisepct * 10
+                    print("penalty param not defined for m = %s and n = %s"%(m,n))
+                    exit(1)
 
-                    # rard1 (k/2)
-                    # if noise =="10-2":
-                    #     tol = 10**-1
-                    # elif noise =="10-4":
-                    #     tol = 10**-2
-                    # elif noise =="10-6":
-                    #     tol = 10**-3
+            if not os.path.exists(outfile):
+                cmd = 'nohup python runrappsip.py %s %s %s %s Cp %f %s %s >%s 2>&1 &'%(infile,fndesc,m,n,penaltyparam,folderplus,outfile,consolelog)
+                if usetaskset ==2:
+                    cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                    autocpuindex+=1
+                if usetaskset ==1:
+                    cmd = "taskset -c %d %s"%(pcurr,cmd)
+                    if(pcurr == int(pstarendarr[pindex+1])):
+                        pcurr = int(pstarendarr[pindex+2])
+                        pindex += 2
+                    else:
+                        pcurr += 1
+                commands.append(cmd)
+                # print(cmd)
+                os.system(cmd)
+                # exit(1)
 
-                denomfirst = 1
-                if not os.path.exists(outfile):
-                    cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
-                    if usetaskset ==1:
-                        cmd = "taskset -c %d %s"%(pcurr,cmd)
-                        if(pcurr == int(pstarendarr[pindex+1])):
-                            pcurr = int(pstarendarr[pindex+2])
-                            pindex += 2
-                        else:
-                            pcurr += 1
-                    commands.append(cmd)
-                    # print(cmd)
-                    os.system(cmd)
-                    # exit(1)
-            elif(type == "rasip"):
-                if not os.path.exists(folderplus + "/outrasip"):
-                    os.makedirs(folderplus + "/outrasip",exist_ok = True)
-                if not os.path.exists(folderplus + "/log/consolelograsip"):
-                    os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
-                consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
-                outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
-                if not os.path.exists(outfile):
-                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
-                    if usetaskset ==1:
-                        cmd = "taskset -c %d %s"%(pcurr,cmd)
-                        if(pcurr == int(pstarendarr[pindex+1])):
-                            pcurr = int(pstarendarr[pindex+2])
-                            pindex += 2
-                        else:
-                            pcurr += 1
-                    commands.append(cmd)
-                    # print(cmd)
-                    os.system(cmd)
-                    # exit(1)
 
-            if(sample == "sg"):
-                break
+
+
     # cmdstr = ""
     # for cmd in commands:
     #     cmdstr+= cmd +"\n"
@@ -412,13 +460,13 @@ if __name__ == "__main__":
     # exit(1)
 
     import os, sys
-    if len(sys.argv)!=7:
-        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg noise m n pstart,pend".format(sys.argv[0]))
+    if len(sys.argv)!=8:
+        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg exp noise m n pstart,pend".format(sys.argv[0]))
         sys.exit(1)
 
-    pstarendarr = sys.argv[6].split(',')
+    pstarendarr = sys.argv[7].split(',')
     if len(pstarendarr) == 0 or len(pstarendarr) % 2 !=0:
         print("please specify comma saperated start and end processes")
         sys.exit(1)
 
-    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],pstarendarr)
+    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],sys.argv[6],pstarendarr)

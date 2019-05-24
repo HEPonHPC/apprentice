@@ -457,7 +457,7 @@ class RationalApproximationSIP():
         elif(pyomodebug==2):
             if(solver == 'filter'):
                 opt.options['iprint'] = 1
-                opt.options['rho'] = 10**18
+                opt.options['rho'] = 10**10
                 # opt.options['maxiter'] = 1
                 # opt.options['z_print'] = -1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
