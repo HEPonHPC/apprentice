@@ -367,6 +367,26 @@ def plotfnassubplot():
 
     # plt.show()
 
+def splitlhsnpoints():
+    from apprentice import tools
+    m=5
+    n=5
+    print ("n\tM\tN\tTP\tFPp\tTFP\tIN\n")
+    for dim in range(2,10):
+        npoints = 2*tools.numCoeffsRapp(dim,[m,n])
+        facepointsper = int(2*tools.numCoeffsRapp(dim-1,[m,n])/(2*dim))
+        totalfacepoints = 2*dim*facepointsper
+        inpoints = int(npoints - totalfacepoints)
+
+        print("%d\t%d\t%d\t%d\t%d\t%d\t%d"%(dim,m,n,npoints,facepointsper,totalfacepoints,inpoints))
+        # for m in range(2,8):
+            # for n in range(2,9):
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -384,6 +404,7 @@ if __name__ == "__main__":
     # else:renamelogfilesnD()
 
     # cubeplot()
-    plotfnassubplot()
+    # plotfnassubplot()
+    splitlhsnpoints()
 
  ###########

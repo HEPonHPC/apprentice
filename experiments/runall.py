@@ -86,6 +86,9 @@ def getbox(f):
     elif(f=="f17"):
         minbox  = [80,5,90]
         maxbox  = [100,10,93]
+    # elif(f=="f17"):
+    #     minbox  = [-1,-1,-1]
+    #     maxbox  = [1,1,1]
     elif(f=="f18"):
         minbox  = [-0.95,-0.95,-0.95,-0.95]
         maxbox  = [0.95,0.95,0.95,0.95]
@@ -111,11 +114,12 @@ def getnoiseinfo(noise):
 
 
 def getfarr():
-    # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
-    #        "f17","f18","f19","f20","f21","f22"]
+    farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
+           "f17","f18","f19","f20","f21","f22"]
     # farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
     #         "f17","f18","f19","f21","f22"]
-    farr = ["f20"]
+    # farr = ["f20"]
+    # farr = ["f17"]
 
     return farr
 
@@ -189,6 +193,9 @@ def generatespecialdata():
 def generatebenchmarkdata(m,n):
     seedarr = [54321,456789,9876512,7919820,10397531]
     folder= "results"
+    # samplearr = ["mc","lhs","so","sg"]
+    samplearr = ["lhs","sg","splitlhs"]
+    # samplearr = ["splitlhs"]
     from apprentice import tools
     from pyDOE import lhs
     import apprentice
@@ -199,7 +206,7 @@ def generatebenchmarkdata(m,n):
         minarr,maxarr = getbox(fname)
         npoints = ts * tools.numCoeffsRapp(dim,[int(m),int(n)])
         print (npoints)
-        for sample in ["mc","lhs","so","sg"]:
+        for sample in samplearr:
             for numex,ex in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
                 seed = seedarr[numex]
                 np.random.seed(seed)
@@ -235,6 +242,52 @@ def generatebenchmarkdata(m,n):
                     X = lhs(dim, samples=npoints, criterion='maximin')
                     s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
                     X = s.scaledPoints
+                elif(sample == "splitlhs"):
+                    epsarr = []
+                    for d in range(dim):
+                        epsarr.append((maxarr[d] - minarr[d])/10)
+
+                    facepoints = int(2 * tools.numCoeffsRapp(dim-1,[int(m),int(n)]))
+                    insidepoints = int(npoints - facepoints)
+                    Xmain = np.empty([0,dim])
+                    # Generate inside points
+                    minarrinside = []
+                    maxarrinside = []
+                    for d in range(dim):
+                        minarrinside.append(minarr[d] + ((-1*minarr[d])/np.abs(minarr[d])) * epsarr[d])
+                        maxarrinside.append(maxarr[d] + ((-1*maxarr[d])/np.abs(maxarr[d])) * epsarr[d])
+                    X = lhs(dim, samples=insidepoints, criterion='maximin')
+                    s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrinside, b=maxarrinside)
+                    X = s.scaledPoints
+                    Xmain = np.vstack((Xmain,X))
+
+                    #Generate face points
+                    perfacepoints = int(np.ceil(facepoints/(2*dim)))
+                    index = 0
+                    for d in range(dim):
+                        for e in [minarr[d],maxarr[d]]:
+                            index+=1
+                            np.random.seed(seed+index*100)
+                            X = lhs(dim, samples=perfacepoints, criterion='maximin')
+                            minarrface = np.empty(shape=dim,dtype=np.float64)
+                            maxarrface = np.empty(shape=dim,dtype=np.float64)
+                            for p in range(dim):
+                                if(p==d):
+                                    if e == maxarr[d]:
+                                        minarrface[p] = e - epsarr[d]
+                                        maxarrface[p] = e
+                                    else:
+                                        minarrface[p] = e
+                                        maxarrface[p] = e + epsarr[d]
+                                else:
+                                    minarrface[p] = minarr[p]
+                                    maxarrface[p] = maxarr[p]
+                            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrface, b=maxarrface)
+                            X = s.scaledPoints
+                            Xmain = np.vstack((Xmain,X))
+                    Xmain = np.unique(Xmain,axis = 0)
+                    X = Xmain
+
                 if not os.path.exists(folder+"/"+ex+'/benchmarkdata'):
                     os.makedirs(folder+"/"+ex+'/benchmarkdata',exist_ok = True)
                 for noise in ["0","10-2","10-4","10-6"]:
@@ -248,37 +301,54 @@ def generatebenchmarkdata(m,n):
                 if(sample == "sg"):
                     break
 
+def findfreecputhreads():
+    freecputhreads = []
+    threshold = 5
+    import psutil
+    cpup = psutil.cpu_percent(interval=5, percpu=True)
+    for t in range(len(cpup)):
+        if cpup[t] < threshold:
+            freecputhreads.append(t)
+    # for num,p in enumerate(cpup): print(num,p)
+    # print(freecputhreads)
+    # print(len(freecputhreads))
+    return freecputhreads
 
-def runall(type, sample, noise,m,n,pstarendarr):
-    if(type == "gen"):
-        generatebenchmarkdata(m,n)
-        exit(0)
+def runall(type, sample, exparr,noise,m,n,pstarendarr):
     commands = []
     farr = getfarr()
     folder= "results"
-    runs = ["exp1","exp2","exp3","exp4","exp5"]
+
     usetaskset = 0
-    if int(pstarendarr[0]) >= 0 and int(pstarendarr[1]) >= 0:
-        usetaskset = 1
+    if int(pstarendarr[0]) == -1 and int(pstarendarr[1]) == -1:
+        usetaskset = 0 # Dont use taskset
+
+    elif int(pstarendarr[0]) == -2 and int(pstarendarr[1]) == -2:
+        usetaskset = 2 # use auto taskset
+        freecputhreads = findfreecputhreads()
+        sum = len(freecputhreads)
+        if sum < len(farr) * len(exparr):
+            print("not enough processes. %d required and only have %d. Try again"%(len(farr),sum))
+            exit(1)
+
+    elif int(pstarendarr[0]) >= 0 and int(pstarendarr[1]) >= 0:
+        usetaskset = 1 #use taskset using start,end thread# given
         sum = 0
         i=0
         while i < len(pstarendarr):
             sum += int(pstarendarr[i+1]) - int(pstarendarr[i])
             i+=2
-        if(sample == "sg"):
-            if(sum < len(farr)):
-                print("not enough processes. %d required and only have %d. Try again"%(len(farr),sum))
-                exit(1)
-        else:
-            if(sum < len(farr)*len(runs)):
-                print("not enough processes. %d required and only have %d. Try again"%(len(farr)*len(runs),sum))
-                exit(1)
+        if sum < len(farr) * len(exparr):
+            print("not enough processes. %d required and only have %d. Try again"%(len(farr) * len(exparr), sum))
+            exit(1)
+
     pcurr = int(pstarendarr[0])
     pindex = 0
+    autocpuindex = 0
     noisestr,noisepct = getnoiseinfo(noise)
     for fname in farr:
-        for numex,ex in enumerate(runs):
-            fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
+        fndesc = "%s%s_%s_2x"%(fname,noisestr,sample)
+        for ex in exparr:
             folderplus = folder+"/"+ex+"/"+fndesc
             infile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
             if not os.path.exists(infile):
@@ -293,6 +363,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                 outfile = folderplus + "/outpa/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runpappforsimcoeffs.py %s %s %s %s Cp %s >%s 2>&1 &'%(infile,fndesc,m,n,outfile,consolelog)
+                    if usetaskset ==2:
+                        cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                        autocpuindex+=1
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
@@ -316,6 +389,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                 denomfirst = -1
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
+                    if usetaskset ==2:
+                        cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                        autocpuindex+=1
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
@@ -352,6 +428,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                 denomfirst = 1
                 if not os.path.exists(outfile):
                     cmd = 'nohup python runnonsiprapp.py %s %s %s %s Cp %f %d %s >%s 2>&1 &'%(infile,fndesc,m,n,tol,denomfirst,outfile,consolelog)
+                    if usetaskset ==2:
+                        cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                        autocpuindex+=1
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
@@ -370,8 +449,19 @@ def runall(type, sample, noise,m,n,pstarendarr):
                     os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
                 consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
                 outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                penaltyparam = 0
+                if sample == 'sg':
+                    if m == '5' and n == '5':
+                        penaltyparam = 10**-1
+                    else:
+                        print("penalty param not defined for m = %s and n = %s"%(m,n))
+                        exit(1)
+
                 if not os.path.exists(outfile):
-                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %s %s >%s 2>&1 &'%(infile,fndesc,m,n,folderplus,outfile,consolelog)
+                    cmd = 'nohup python runrappsip.py %s %s %s %s Cp %f %s %s >%s 2>&1 &'%(infile,fndesc,m,n,penaltyparam,folderplus,outfile,consolelog)
+                    if usetaskset ==2:
+                        cmd = "taskset -c %d %s"%(freecputhreads[autocpuindex],cmd)
+                        autocpuindex+=1
                     if usetaskset ==1:
                         cmd = "taskset -c %d %s"%(pcurr,cmd)
                         if(pcurr == int(pstarendarr[pindex+1])):
@@ -384,8 +474,9 @@ def runall(type, sample, noise,m,n,pstarendarr):
                     os.system(cmd)
                     # exit(1)
 
-            if(sample == "sg"):
-                break
+
+
+
     # cmdstr = ""
     # for cmd in commands:
     #     cmdstr+= cmd +"\n"
@@ -412,13 +503,33 @@ if __name__ == "__main__":
     # exit(1)
 
     import os, sys
-    if len(sys.argv)!=7:
-        print("Usage: {} ra_or_pa_or_rasip_or_gen mc_or_lhs_so_or_sg noise m n pstart,pend".format(sys.argv[0]))
+    if sys.argv[1] == "gen":
+        if len(sys.argv) != 4:
+            print("Usage: {} gen m n".format(sys.argv[0]))
+            sys.exit(1)
+        generatebenchmarkdata(m=sys.argv[2],n=sys.argv[3])
+        exit(0)
+
+    if len(sys.argv)!=8:
+        print("Usage: {} ra_rard_pa_or_rasip m n mc_lhs_splitlhs_so_or_sg exp noise pstart,pend".format(sys.argv[0]))
         sys.exit(1)
 
-    pstarendarr = sys.argv[6].split(',')
+    type = sys.argv[1]
+    m = sys.argv[2]
+    n = sys.argv[3]
+    sample = sys.argv[4]
+
+    exparr = sys.argv[5].split(',')
+    if len(exparr) == 0:
+        print("please specify comma saperated exp#")
+        sys.exit(1)
+
+    noise = sys.argv[6]
+
+    pstarendarr = sys.argv[7].split(',')
     if len(pstarendarr) == 0 or len(pstarendarr) % 2 !=0:
         print("please specify comma saperated start and end processes")
         sys.exit(1)
 
-    runall(sys.argv[1], sys.argv[2], sys.argv[3],sys.argv[4],sys.argv[5],pstarendarr)
+
+    runall(type=type, sample=sample, exparr=exparr,noise=noise,m=m,n=n,pstarendarr=pstarendarr)
