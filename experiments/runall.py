@@ -10,7 +10,7 @@ def my_i4_sobol_generate(dim, n, seed):
         currentseed = newseed
     return r
 
-def getData(X_train, fn, noisepct):
+def getData(X_train, fn, noisepct,seed):
     """
     TODO use eval or something to make this less noisy
     """
@@ -63,6 +63,7 @@ def getData(X_train, fn, noisepct):
         Y_train = [testData.f24(x) for x in X_train]
     else:
         raise Exception("function {} not implemented, exiting".format(fn))
+    np.random.seed(seed)
 
     stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
     for i in range(len(Y_train)):
@@ -182,7 +183,7 @@ def generatespecialdata():
             elif(noise=="10-12"):
                 noisepct=10**-12
             print(noisepct)
-            Y = getData(X, fn=fname, noisepct=0)
+            Y = getData(X, fn=fname, noisepct=0,seed=seed)
             Y_train = np.atleast_2d(np.array(Y)*(1+ noisepct*stdnormalnoise))
             outfolder = "/Users/mkrishnamoorthy/Desktop/Data"
             outfile = "%s/%s%s_%s.txt"%(outfolder,fname,noisestr,sample)
@@ -293,7 +294,7 @@ def generatebenchmarkdata(m,n):
                 for noise in ["0","10-2","10-4","10-6"]:
                     noisestr,noisepct = getnoiseinfo(noise)
 
-                    Y = getData(X, fn=fname, noisepct=noisepct)
+                    Y = getData(X, fn=fname, noisepct=noisepct,seed=seed)
 
                     outfile = "%s/%s/benchmarkdata/%s%s_%s.txt"%(folder,ex,fname,noisestr,sample)
                     print(outfile)
