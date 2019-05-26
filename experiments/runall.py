@@ -193,8 +193,8 @@ def generatespecialdata():
 def generatebenchmarkdata(m,n):
     seedarr = [54321,456789,9876512,7919820,10397531]
     folder= "results"
-    # samplearr = ["mc","lhs","so","sg"]
-    samplearr = ["lhs","sg","splitlhs"]
+    samplearr = ["mc","lhs","so","sg","splitlhs"]
+    # samplearr = ["lhs","sg","splitlhs"]
     # samplearr = ["splitlhs"]
     from apprentice import tools
     from pyDOE import lhs
