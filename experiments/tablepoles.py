@@ -440,7 +440,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
     # allsamples = ['sg']
     # allsamples = ['lhs']
-    allsamples = ['mc','lhs','so','sg']
+    # allsamples = ['mc','lhs','so','sg']
+    allsamples = ['lhs','splitlhs','sg']
 
     outfilejson = "results/plots/Jpoleinfo"+farr[0]+".json"
     import json
