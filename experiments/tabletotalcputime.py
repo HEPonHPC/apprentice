@@ -262,7 +262,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 for f in farr:
                     # print(f)
                     # xlab.append("\\ref{fn:%s}"%(f))
-                    xlab.append("\\ref{%s}"%(f))
+                    # xlab.append("\\ref{%s}"%(f))
+                    xlab.append("%s"%(f))
                 ax.set_xticklabels(xlab,fontsize = 20)
                 ax.set_xlabel("Test functions",fontsize=22)
                 ax.set_ylabel("$\\log_{10}$ [CPU time (sec)]",fontsize=22)
@@ -279,7 +280,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 
     color = ['#FFC300','#FF5733','#900C3F']
-    
+
     ffffff = plt.figure(0,figsize=(45, 20))
     plt.rc('ytick',labelsize=20)
     plt.rc('xtick',labelsize=20)
@@ -315,7 +316,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             for f in farr:
                 # print(f)
                 # xlab.append("\\ref{fn:%s}"%(f))
-                xlab.append("\\ref{%s}"%(f))
+                # xlab.append("\\ref{%s}"%(f))
+                xlab.append("%s"%(f))
             ax.set_xticklabels(xlab,fontsize = 20)
             ax.set_xlabel("Test functions",fontsize=22)
             ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=22)
