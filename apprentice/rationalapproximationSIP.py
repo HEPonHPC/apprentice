@@ -462,8 +462,8 @@ class RationalApproximationSIP():
                 # opt.options['z_print'] = -1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
             self.printDebug("Starting %s"%(solver))
-            #ret = opt.solve(model,logfile=logfn)
-            ret = opt.solve(model, logfile=logfn, keepfiles=True)
+            ret = opt.solve(model,logfile=logfn)
+            #ret = opt.solve(model, logfile=logfn, keepfiles=True)
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
