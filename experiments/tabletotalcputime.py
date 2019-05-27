@@ -2,6 +2,7 @@
 import numpy as np
 from apprentice import RationalApproximationSIP, RationalApproximation, PolynomialApproximation
 from apprentice import tools, readData
+import matplotlib.ticker as mtick
 import os
 
 def knowmissing(filename):
@@ -108,21 +109,21 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                             datastore = json.load(fn)
                     rappsiptime = datastore['log']['fittime']
                     rnoiters = len(datastore['iterationinfo'])
-                    timerasip.append(rappsiptime)
-                    iterrasip.append(rnoiters)
+                    timerasip.append(np.log10(rappsiptime))
+                    iterrasip.append(np.log10(rnoiters))
 
 
                     if rappfile:
                         with open(rappfile, 'r') as fn:
                             datastore = json.load(fn)
                     rapptime = datastore['log']['fittime']
-                    timera.append(rapptime)
+                    timera.append(np.log10(rapptime))
 
                     if rapprdfile:
                         with open(rapprdfile, 'r') as fn:
                             datastore = json.load(fn)
                     rapprdtime = datastore['log']['fittime']
-                    timerard.append(rapprdtime)
+                    timerard.append(np.log10(rapprdtime))
 
 
                     if pappfile:
@@ -130,7 +131,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                             datastore = json.load(fn)
                     papptime = datastore['log']['fittime']
                     pdof = tools.numCoeffsPoly(datastore['dim'],datastore['m'])
-                    timepa.append(papptime)
+                    timepa.append(np.log10(papptime))
                     if(sample == "sg"):
                         break
 
@@ -207,36 +208,73 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
         # from IPython import embed
         # embed()
 
-    print(results)
-    totalrow = 1
+    # print(results)
+    baseline = 0.5
+    totalrow = 3
     totalcol = 3
     import matplotlib.pyplot as plt
-    plt.figure(0,figsize=(10, 8))
+    ffffff = plt.figure(0,figsize=(36, 20))
     axarray = []
-    noise = "0"
-    for snum, sample in enumerate(allsamples):
-        mean ={}
-        for type in ['papp','rappsip','rapp','rapprd']:
-            mean[type] = []
-        sd = {}
-        for type in ['pappsd','rappsipsd','rappsd','rapprdsd']:
-            sd[type] = []
-        for fname in farr:
-            for type in ['papp','rappsip','rapp','rapprd']:
-                mean[type].append(np.log10(results[sample][fname][noise][type]))
-            for type in ['pappsd','rappsipsd','rappsd','rapprdsd']:
-                sd[type].append(np.log10(results[sample][fname][noise][type]))
-        if(len(axarray)>0):
-            ax = plt.subplot2grid((totalrow,totalcol), (0,snum),sharex=axarray[0],sharey=axarray[0])
-            axarray.append(ax)
-        else:
-            ax = plt.subplot2grid((totalrow,totalcol), (0,snum))
-            axarray.append(ax)
-        ax.label_outer()
-        for typenum,type in enumerate(['papp','rappsip','rapp','rapprd']):
-            for fnum,fname in enumerate(farr):
-                ax.scatter(fnum,mean[type][fnum])
-    plt.show()
+    width = 0.2
+    ecolor = 'black'
+    X111 = np.arange(len(farr))
+    meankeyarr = ['papp','rapp','rapprd','rappsip']
+    sdkeyarr = ['pappsd','rappsd','rapprdsd','rappsipsd']
+    legendarr = ['Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}']
+    color = ['#900C3F','#C70039','#FF5733','#FFC300']
+    props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
+    plt.rc('ytick',labelsize=20)
+    plt.rc('xtick',labelsize=20)
+    for nnum,noise in enumerate(noisearr):
+        for snum, sample in enumerate(allsamples):
+            mean ={}
+            for type in meankeyarr:
+                mean[type] = []
+            sd = {}
+            for type in sdkeyarr:
+                sd[type] = []
+            for fname in farr:
+                for type in meankeyarr:
+                    mean[type].append(results[sample][fname][noise][type])
+                    # mean[type].append(np.ma.log10(results[sample][fname][noise][type]))
+                for type in sdkeyarr:
+                    # print(results[sample][fname][noise][type])
+                    sd[type].append(results[sample][fname][noise][type])
+                    # sd[type].append(np.ma.log10(results[sample][fname][noise][type]))
+            if(len(axarray)>0):
+                ax = plt.subplot2grid((totalrow,totalcol), (nnum,snum),sharex=axarray[0],sharey=axarray[0])
+                axarray.append(ax)
+            else:
+                ax = plt.subplot2grid((totalrow,totalcol), (nnum,snum))
+                axarray.append(ax)
+
+            # print(mean)
+            # print(sd)
+            for typenum,type in enumerate(meankeyarr):
+                sdkey = sdkeyarr[typenum]
+                # print(mean[type])
+                if(sample == 'sg'):
+                    ax.bar(X111+typenum*width, np.array(mean[type])+baseline, width,color=color[typenum], capsize=3)
+                else:
+                    ax.bar(X111+typenum*width, np.array(mean[type])+baseline, width,color=color[typenum], yerr=np.array(sd[sdkey]),align='center',  ecolor=ecolor, capsize=3)
+                ax.set_xticks(X111 + (len(meankeyarr)-1)*width / 2)
+                xlab = []
+                for f in farr:
+                    print(f)
+                    # xlab.append("\\ref{fn:%s}"%(f))
+                    xlab.append("%s"%(f))
+                ax.set_xticklabels(xlab,fontsize = 20)
+                ax.set_xlabel("Test functions",fontsize=22)
+                ax.set_ylabel("$\\log_{10}$ [CPU time (sec)]",fontsize=22)
+                ax.label_outer()
+
+    ffffff.legend((legendarr),
+               loc='upper center', ncol=5,bbox_to_anchor=(0.5, 0.99), fontsize = 25,borderaxespad=0.,shadow=False)
+    plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+    plt.tight_layout()
+    plt.savefig("../../log/cputime.png")
+    plt.clf()
+    plt.close('all')
     exit(1)
 
 
