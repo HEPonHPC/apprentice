@@ -213,14 +213,14 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     totalrow = 3
     totalcol = 3
     import matplotlib.pyplot as plt
-    ffffff = plt.figure(0,figsize=(36, 20))
+    ffffff = plt.figure(0,figsize=(45, 20))
     axarray = []
-    width = 0.2
+    width = 0.21
     ecolor = 'black'
     X111 = np.arange(len(farr))
     meankeyarr = ['papp','rapp','rapprd','rappsip']
     sdkeyarr = ['pappsd','rappsd','rapprdsd','rappsipsd']
-    legendarr = ['Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR}','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}']
+    legendarr = ['Polynomial Approx. ', 'Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR}' ,'Algorithm \\ref{A:Polyak}']
     color = ['#900C3F','#C70039','#FF5733','#FFC300']
     props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
     plt.rc('ytick',labelsize=20)
@@ -260,9 +260,9 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 ax.set_xticks(X111 + (len(meankeyarr)-1)*width / 2)
                 xlab = []
                 for f in farr:
-                    print(f)
+                    # print(f)
                     # xlab.append("\\ref{fn:%s}"%(f))
-                    xlab.append("%s"%(f))
+                    xlab.append("\\ref{%s}"%(f))
                 ax.set_xticklabels(xlab,fontsize = 20)
                 ax.set_xlabel("Test functions",fontsize=22)
                 ax.set_ylabel("$\\log_{10}$ [CPU time (sec)]",fontsize=22)
@@ -275,6 +275,59 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     plt.savefig("../../log/cputime.png")
     plt.clf()
     plt.close('all')
+
+
+
+    color = ['#FFC300','#FF5733','#900C3F']
+    
+    ffffff = plt.figure(0,figsize=(45, 20))
+    plt.rc('ytick',labelsize=20)
+    plt.rc('xtick',labelsize=20)
+    totalrow = 1
+    totalcol = 3
+    baseline = 0.1
+    axarray = []
+    legendarr = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
+    for nnum,noise in enumerate(noisearr):
+        mean ={}
+        sd = {}
+        for snum, sample in enumerate(allsamples):
+            mean[sample] = []
+            sd[sample] = []
+            for fname in farr:
+                mean[sample].append(results[sample][fname][noise]['rnoiters'])
+                sd[sample].append(results[sample][fname][noise]['rnoiterssd'])
+            if(len(axarray)>0):
+                ax = plt.subplot2grid((totalrow,totalcol), (0,nnum),sharex=axarray[0],sharey=axarray[0])
+                axarray.append(ax)
+            else:
+                ax = plt.subplot2grid((totalrow,totalcol), (0,nnum))
+                axarray.append(ax)
+
+        for snum, sample in enumerate(allsamples):
+            # print(mean[type])
+            if(sample == 'sg'):
+                ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], capsize=3)
+            else:
+                ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], yerr=np.array(sd[sample]),align='center',  ecolor=ecolor, capsize=3)
+            ax.set_xticks(X111 + (len(sample)-1)*width / 2)
+            xlab = []
+            for f in farr:
+                # print(f)
+                # xlab.append("\\ref{fn:%s}"%(f))
+                xlab.append("\\ref{%s}"%(f))
+            ax.set_xticklabels(xlab,fontsize = 20)
+            ax.set_xlabel("Test functions",fontsize=22)
+            ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=22)
+            ax.label_outer()
+    ffffff.legend((legendarr),
+               loc='upper center', ncol=5,bbox_to_anchor=(0.5, 0.99), fontsize = 25,borderaxespad=0.,shadow=False)
+    plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+    plt.tight_layout()
+    plt.savefig("../../log/iterations.png")
+    plt.clf()
+    plt.close('all')
+
     exit(1)
 
 
@@ -335,6 +388,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 # python tabletotalcputime.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-1 2x latex
 
 # python tabletotalcputime.py f1,f2 0,10-2,10-6 2x latex
+# python tabletotalcputime.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 2x latex
 
 if __name__ == "__main__":
     import os, sys
