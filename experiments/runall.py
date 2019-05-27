@@ -196,6 +196,7 @@ def generatebenchmarkdata(m,n):
     folder= "results"
     samplearr = ["mc","lhs","so","sg","splitlhs"]
     # samplearr = ["lhs","sg","splitlhs"]
+    # samplearr = ["lhs","splitlhs"]
     # samplearr = ["splitlhs"]
     from apprentice import tools
     from pyDOE import lhs
@@ -246,7 +247,8 @@ def generatebenchmarkdata(m,n):
                 elif(sample == "splitlhs"):
                     epsarr = []
                     for d in range(dim):
-                        epsarr.append((maxarr[d] - minarr[d])/10)
+                        #epsarr.append((maxarr[d] - minarr[d])/10)
+                        epsarr.append(10**-6)
 
                     facepoints = int(2 * tools.numCoeffsRapp(dim-1,[int(m),int(n)]))
                     insidepoints = int(npoints - facepoints)
@@ -255,8 +257,8 @@ def generatebenchmarkdata(m,n):
                     minarrinside = []
                     maxarrinside = []
                     for d in range(dim):
-                        minarrinside.append(minarr[d] + ((-1*minarr[d])/np.abs(minarr[d])) * epsarr[d])
-                        maxarrinside.append(maxarr[d] + ((-1*maxarr[d])/np.abs(maxarr[d])) * epsarr[d])
+                        minarrinside.append(minarr[d] + epsarr[d])
+                        maxarrinside.append(maxarr[d] - epsarr[d])
                     X = lhs(dim, samples=insidepoints, criterion='maximin')
                     s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrinside, b=maxarrinside)
                     X = s.scaledPoints
@@ -288,6 +290,18 @@ def generatebenchmarkdata(m,n):
                             Xmain = np.vstack((Xmain,X))
                     Xmain = np.unique(Xmain,axis = 0)
                     X = Xmain
+                    formatStr = "{0:0%db}"%(dim)
+                    for d in range(2**dim):
+                        binArr = [int(x) for x in formatStr.format(d)[0:]]
+                        val = []
+                        for i in range(dim):
+                            if(binArr[i] == 0):
+                                val.append(minarr[i])
+                            else:
+                                val.append(maxarr[i])
+                        X[d] = val
+
+
 
                 if not os.path.exists(folder+"/"+ex+'/benchmarkdata'):
                     os.makedirs(folder+"/"+ex+'/benchmarkdata',exist_ok = True)
