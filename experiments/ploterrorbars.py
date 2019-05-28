@@ -4,6 +4,61 @@ from apprentice import tools, readData
 import matplotlib.ticker as mtick
 import os
 
+def getData(X_train, fn, noisepct):
+    """
+    TODO use eval or something to make this less noisy
+    """
+    from apprentice import testData
+    if fn=="f1":
+        Y_train = [testData.f1(x) for x in X_train]
+    elif fn=="f2":
+        Y_train = [testData.f2(x) for x in X_train]
+    elif fn=="f3":
+        Y_train = [testData.f3(x) for x in X_train]
+    elif fn=="f4":
+        Y_train = [testData.f4(x) for x in X_train]
+    elif fn=="f5":
+        Y_train = [testData.f5(x) for x in X_train]
+    elif fn=="f6":
+        Y_train = [testData.f6(x) for x in X_train]
+    elif fn=="f7":
+        Y_train = [testData.f7(x) for x in X_train]
+    elif fn=="f8":
+        Y_train = [testData.f8(x) for x in X_train]
+    elif fn=="f9":
+        Y_train = [testData.f9(x) for x in X_train]
+    elif fn=="f10":
+        Y_train = [testData.f10(x) for x in X_train]
+    elif fn=="f12":
+        Y_train = [testData.f12(x) for x in X_train]
+    elif fn=="f13":
+        Y_train = [testData.f13(x) for x in X_train]
+    elif fn=="f14":
+        Y_train = [testData.f14(x) for x in X_train]
+    elif fn=="f15":
+        Y_train = [testData.f15(x) for x in X_train]
+    elif fn=="f16":
+        Y_train = [testData.f16(x) for x in X_train]
+    elif fn=="f17":
+        Y_train = [testData.f17(x) for x in X_train]
+    elif fn=="f18":
+        Y_train = [testData.f18(x) for x in X_train]
+    elif fn=="f19":
+        Y_train = [testData.f19(x) for x in X_train]
+    elif fn=="f20":
+        Y_train = [testData.f20(x) for x in X_train]
+    elif fn=="f21":
+        Y_train = [testData.f21(x) for x in X_train]
+    elif fn=="f22":
+        Y_train = [testData.f22(x) for x in X_train]
+    elif fn=="f23":
+        Y_train = [testData.f23(x) for x in X_train]
+    elif fn=="f24":
+        Y_train = [testData.f24(x) for x in X_train]
+    else:
+        raise Exception("function {} not implemented, exiting".format(fn))
+    return Y_train
+
 def getfarr():
     farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
             "f17","f18","f19","f20","f21","f22"]
@@ -13,6 +68,11 @@ def getfarr():
     # farr = ["f1"]
 
     return farr
+
+def getdim(fname):
+    dim = {"f1":2,"f2":2,"f3":2,"f4":2,"f5":2,"f7":2,"f8":2,"f9":2,"f10":4,"f12":2,"f13":2,
+            "f14":2,"f15":2,"f16":2,"f17":3,"f18":4,"f19":4,"f20":4,"f21":2,"f22":2}
+    return dim[fname]
 
 def getnoiseinfo(noise):
     noisearr = ["0","10-2","10-4","10-6"]
@@ -32,7 +92,7 @@ def knowmissing(filename):
             return 1
     return 0
 
-def ploterrorbars(baseline=13.5,usejson=0):
+def ploterrorbars(fff, baseline=13.5,usejson=0):
     import matplotlib as mpl
     import json
     if not os.path.exists('results/plots/'):
@@ -50,7 +110,7 @@ def ploterrorbars(baseline=13.5,usejson=0):
     # mpl.rcParams.update(pgf_with_custom_preamble)
 
 
-    fff = getfarr()
+    # fff = getfarr()
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     # import matplotlib.pyplot as plt
@@ -74,26 +134,43 @@ def ploterrorbars(baseline=13.5,usejson=0):
                 noisestr,noisepct = getnoiseinfo(noise)
 
                 for fnum,fname in enumerate(fff):
-
                     data[sample][noise][fname] = {}
-                    testfile = "../benchmarkdata/"+fname+"_test.txt"
-                    # testfile = "../benchmarkdata/"+fname+".txt"
-                    print(testfile)
-                    bottom_or_all = all
-                    try:
-                        X, Y = readData(testfile)
-                    except:
-                        DATA = tools.readH5(testfile, [0])
-                        X, Y= DATA[0]
 
-                    if(bottom_or_all == "bottom"):
-                        testset = [i for i in range(trainingsize,len(X_test))]
-                        X_test = X[testset]
-                        Y_test = Y[testset]
-                    else:
-                        X_test = X
-                        Y_test = Y
+                    # IF USING TESTFILE
+
+                    # testfile = "../benchmarkdata/"+fname+"_test.txt"
+                    # # testfile = "../benchmarkdata/"+fname+".txt"
+                    # print(testfile)
+                    # bottom_or_all = all
+                    # try:
+                    #     X, Y = readData(testfile)
+                    # except:
+                    #     DATA = tools.readH5(testfile, [0])
+                    #     X, Y= DATA[0]
+                    #
+                    # if(bottom_or_all == "bottom"):
+                    #     testset = [i for i in range(trainingsize,len(X_test))]
+                    #     X_test = X[testset]
+                    #     Y_test = Y[testset]
+                    # else:
+                    #     X_test = X
+                    #     Y_test = Y
+
+
+                    # IF USING POLEDATA FILES
+                    dim = getdim(fname)
+                    infile = "results/plots/poledata_corner"+str(dim)+"D.csv"
+                    X_test_1 = np.loadtxt(infile, delimiter=',')
+                    infile = "results/plots/poledata_inside"+str(dim)+"D.csv"
+                    X_test_2 = np.loadtxt(infile, delimiter=',')
+                    X_test = np.vstack([X_test_1,X_test_2])
+                    # print(np.shape(X_test_1),np.shape(X_test_2),np.shape(X_test))
+                    Y_test = np.array(getData(X_test,fname,0))
+                    # print(np.shape(np.array(Y_test)))
+                    # exit(1)
+
                     ts = "2x"
+
 
                     datapa = []
                     datara = []
@@ -198,7 +275,9 @@ def ploterrorbars(baseline=13.5,usejson=0):
                         data[sample][noise][fname]['rardsd'] = 0
                         data[sample][noise][fname]['rasipsd'] = 0
 
-        outfile111 = "results/plots/Jerrors.json"
+
+
+        outfile111 = "results/plots/Jerrors_"+fff[0]+".json"
         import json
         with open(outfile111, "w") as f:
             json.dump(data, f,indent=4, sort_keys=True)
@@ -238,10 +317,11 @@ def ploterrorbars(baseline=13.5,usejson=0):
             plotd[sample] = {}
             plotd[sample]['mean'] = []
             plotd[sample]['sd'] = []
-            for method in methodarr:
-                meankey = method+'mean'
-                sdkey = method+'sd'
-                for nnum, noise in enumerate(noiselevels):
+            for nnum, noise in enumerate(noiselevels):
+                for method in methodarr:
+                    meankey = method+'mean'
+                    sdkey = method+'sd'
+
                     plotd[sample]['mean'].append(data[sample][noise][fname][meankey])
                     plotd[sample]['sd'].append(data[sample][noise][fname][sdkey])
         if(len(axarray)>0):
@@ -492,11 +572,21 @@ if __name__ == "__main__":
     #
     #
     # # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
+
+     # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python ploterrorbars.py $name 14 0 > ../../log/"ploterrorbarjson_"$name".log" 2>&1 &  done
     import os, sys
+
+    farr = sys.argv[1].split(',')
+    if len(farr) == 0:
+        print("please specify comma saperated functions")
+        sys.exit(1)
+
     if len(sys.argv)==2:
-        ploterrorbars(float(sys.argv[1]))
+        ploterrorbars(farr)
     elif len(sys.argv)==3:
-        ploterrorbars(float(sys.argv[1]),int(sys.argv[2]))
+        ploterrorbars(farr,float(sys.argv[2]))
+    elif len(sys.argv)==4:
+        ploterrorbars(farr,float(sys.argv[2]),int(sys.argv[3]))
     else:
-        print("baseline (13.5), usejson(0 or 1) ")
+        print("farr baseline (13.5), usejson(0 or 1) ")
 ###########
