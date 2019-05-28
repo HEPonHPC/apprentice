@@ -59,6 +59,35 @@ def getData(X_train, fn, noisepct):
         raise Exception("function {} not implemented, exiting".format(fn))
     return Y_train
 
+def getbox(f):
+    minbox = []
+    maxbox = []
+    if(f=="f7"):
+        minbox  = [0,0]
+        maxbox = [1,1]
+    elif(f=="f10" or f=="f19"):
+        minbox  = [-1,-1,-1,-1]
+        maxbox = [1,1,1,1]
+    elif(f=="f17"):
+        minbox  = [80,5,90]
+        maxbox  = [100,10,93]
+    # elif(f=="f17"):
+    #     minbox  = [-1,-1,-1]
+    #     maxbox  = [1,1,1]
+    elif(f=="f18"):
+        minbox  = [-0.95,-0.95,-0.95,-0.95]
+        maxbox  = [0.95,0.95,0.95,0.95]
+    elif(f=="f20"):
+        minbox  = [10**-6,10**-6,10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi]
+    elif(f=="f21"):
+        minbox  = [10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi]
+    else:
+        minbox  = [-1,-1]
+        maxbox = [1,1]
+    return minbox,maxbox
+
 def getfarr():
     farr = ["f1","f2","f3","f4","f5","f7","f8","f9","f10","f12","f13","f14","f15","f16",
             "f17","f18","f19","f20","f21","f22"]
@@ -95,6 +124,7 @@ def knowmissing(filename):
 def ploterrorbars(fff, baseline=13.5,usejson=0):
     import matplotlib as mpl
     import json
+    import apprentice
     if not os.path.exists('results/plots/'):
         os.makedirs('results/plots/',exist_ok = True)
 
@@ -164,13 +194,17 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
                     infile = "results/plots/poledata_inside"+str(dim)+"D.csv"
                     X_test_2 = np.loadtxt(infile, delimiter=',')
                     X_test = np.vstack([X_test_1,X_test_2])
+                    minarr,maxarr = getbox(fname)
+                    s = apprentice.Scaler(np.array(X_test, dtype=np.float64), a=minarr, b=maxarr)
+                    X_test = s.scaledPoints
                     # print(np.shape(X_test_1),np.shape(X_test_2),np.shape(X_test))
                     Y_test = np.array(getData(X_test,fname,0))
+
+
                     # print(np.shape(np.array(Y_test)))
                     # exit(1)
 
                     ts = "2x"
-
 
                     datapa = []
                     datara = []
@@ -282,12 +316,12 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
         with open(outfile111, "w") as f:
             json.dump(data, f,indent=4, sort_keys=True)
         exit(0)
-    else:
-        import json
-        outfile111 = "results/plots/Jerrors.json"
-        if outfile111:
-            with open(outfile111, 'r') as fn:
-                data = json.load(fn)
+    # else:
+        # import json
+        # outfile111 = "results/plots/Jerrors.json"
+        # if outfile111:
+        #     with open(outfile111, 'r') as fn:
+        #         data = json.load(fn)
 
     ecolor = 'black'
     # if(plottype == 'persample' or plottype == 'pernoiselevel'):
@@ -312,6 +346,11 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
     axarray = []
 
     for fnum, fname in enumerate(fff):
+        import json
+        outfile111 = "results/plots/Jerrors_"+fname+".json"
+        if outfile111:
+            with open(outfile111, 'r') as fn:
+                data = json.load(fn)
         plotd = {}
         for snum, sample in enumerate(allsamples):
             plotd[sample] = {}
