@@ -286,7 +286,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     plt.rc('xtick',labelsize=20)
     totalrow = 1
     totalcol = 3
-    baseline = 0.1
+    baseline = 0.15
     axarray = []
     legendarr = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
     for nnum,noise in enumerate(noisearr):
@@ -298,12 +298,12 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             for fname in farr:
                 mean[sample].append(results[sample][fname][noise]['rnoiters'])
                 sd[sample].append(results[sample][fname][noise]['rnoiterssd'])
-            if(len(axarray)>0):
-                ax = plt.subplot2grid((totalrow,totalcol), (0,nnum),sharex=axarray[0],sharey=axarray[0])
-                axarray.append(ax)
-            else:
-                ax = plt.subplot2grid((totalrow,totalcol), (0,nnum))
-                axarray.append(ax)
+        if(len(axarray)>0):
+            ax = plt.subplot2grid((totalrow,totalcol), (0,nnum),sharex=axarray[0],sharey=axarray[0])
+            axarray.append(ax)
+        else:
+            ax = plt.subplot2grid((totalrow,totalcol), (0,nnum))
+            axarray.append(ax)
 
         for snum, sample in enumerate(allsamples):
             # print(mean[type])
@@ -311,17 +311,17 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], capsize=3)
             else:
                 ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], yerr=np.array(sd[sample]),align='center',  ecolor=ecolor, capsize=3)
-            ax.set_xticks(X111 + (len(sample)-1)*width / 2)
-            xlab = []
-            for f in farr:
-                # print(f)
-                # xlab.append("\\ref{fn:%s}"%(f))
-                # xlab.append("\\ref{%s}"%(f))
-                xlab.append("%s"%(f))
-            ax.set_xticklabels(xlab,fontsize = 20)
-            ax.set_xlabel("Test functions",fontsize=22)
-            ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=22)
-            ax.label_outer()
+        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+        xlab = []
+        for f in farr:
+            # print(f)
+            # xlab.append("\\ref{fn:%s}"%(f))
+            # xlab.append("\\ref{%s}"%(f))
+            xlab.append("%s"%(f))
+        ax.set_xticklabels(xlab,fontsize = 20)
+        ax.set_xlabel("Test functions",fontsize=22)
+        ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=22)
+        ax.label_outer()
     ffffff.legend((legendarr),
                loc='upper center', ncol=5,bbox_to_anchor=(0.5, 0.99), fontsize = 25,borderaxespad=0.,shadow=False)
     plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))

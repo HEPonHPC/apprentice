@@ -39,26 +39,24 @@ def ploterrorbars(baseline=13.5,usejson=0):
         os.makedirs('results/plots/',exist_ok = True)
 
 
-    mpl.use('pgf')
-    pgf_with_custom_preamble = {
-        "text.usetex": True,    # use inline math for ticks
-        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
-        "pgf.preamble": [
-            "\\usepackage{amsmath}",         # load additional packages
-        ]
-    }
-    mpl.rcParams.update(pgf_with_custom_preamble)
+    # mpl.use('pgf')
+    # pgf_with_custom_preamble = {
+    #     "text.usetex": True,    # use inline math for ticks
+    #     "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+    #     "pgf.preamble": [
+    #         "\\usepackage{amsmath}",         # load additional packages
+    #     ]
+    # }
+    # mpl.rcParams.update(pgf_with_custom_preamble)
 
-    color = ['#900C3F','#C70039','#FF5733','#FFC300']
 
     fff = getfarr()
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
-    X111 = np.arange(len(fff))
     # import matplotlib.pyplot as plt
     # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
     data = {}
-    noiselevels = ['0','10-2','10-6']
+    noiselevels = ['0','10-6','10-2']
     # noiselevels = ['0']
     # allsamples = ['mc','lhs','so','sg']
     allsamples = ['lhs','splitlhs','sg']
@@ -204,18 +202,114 @@ def ploterrorbars(baseline=13.5,usejson=0):
         import json
         with open(outfile111, "w") as f:
             json.dump(data, f,indent=4, sort_keys=True)
+        exit(0)
     else:
         import json
         outfile111 = "results/plots/Jerrors.json"
         if outfile111:
             with open(outfile111, 'r') as fn:
                 data = json.load(fn)
-    exit(0)
+
     ecolor = 'black'
     # if(plottype == 'persample' or plottype == 'pernoiselevel'):
     # if(plottype == 'persample'):
         # minval = np.Infinity
+    methodarr = ['ra','rard', 'rasip','pa']
+    import matplotlib.pyplot as plt
+    ffffff = plt.figure(0,figsize=(25, 20))
+    totalrow = 5
+    totalcol = 4
+    baseline = baseline
+    # color = ['#900C3F','#C70039','#FF5733','#FFC300']
+    color = ['#FFC300','#FF5733','#900C3F']
+    width = 0.2
+    ecolor = 'black'
+    plt.rc('ytick',labelsize=14)
+    plt.rc('xtick',labelsize=14)
+    props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
+    X111 = np.arange(len(noiselevels)*len(methodarr))
+    # color100 = ['#FFC300','#FF5733','#900C3F']
+    # color1k = ['yellow','wheat','r']
+    axarray = []
 
+    for fnum, fname in enumerate(fff):
+        plotd = {}
+        for snum, sample in enumerate(allsamples):
+            plotd[sample] = {}
+            plotd[sample]['mean'] = []
+            plotd[sample]['sd'] = []
+            for method in methodarr:
+                meankey = method+'mean'
+                sdkey = method+'sd'
+                for nnum, noise in enumerate(noiselevels):
+                    plotd[sample]['mean'].append(data[sample][noise][fname][meankey])
+                    plotd[sample]['sd'].append(data[sample][noise][fname][sdkey])
+        if(len(axarray)>0):
+            ax = plt.subplot2grid((totalrow,totalcol), (int(fnum/totalcol),int(fnum%totalcol)),sharex=axarray[0],sharey=axarray[0])
+            axarray.append(ax)
+        else:
+            ax = plt.subplot2grid((totalrow,totalcol), (int(fnum/totalcol),int(fnum%totalcol)))
+            axarray.append(ax)
+        ax.set_xlim(-.3,11.7)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.axvspan(-.3, 3.7, alpha=0.5, color='pink')
+        plt.axvspan(3.7, 7.7, alpha=0.5, color='lightgrey')
+        plt.axvspan(7.7, 11.7, alpha=0.5, color='cyan')
+        plt.title(fname)
+        # plt.text(1,3.35, "$\\epsilon = 0$", fontsize=10)
+        # plt.text(4,3.35, "$\\epsilon = 10^{-6}$", fontsize=10)
+        # plt.text(7,3.35, "$\\epsilon = 10^{-2}$", fontsize=10)
+        labels = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
+        legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
+        # plt.tight_layout()
+        l111 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.95), fontsize = 20,borderaxespad=0.,shadow=False)
+        for snum, sample in enumerate(allsamples):
+            if(sample == 'sg'):
+                ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width, color=color[snum], label=labels[snum])
+            else:
+                ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(plotd[sample]['sd']),align='center',  ecolor=ecolor, capsize=3,label=labels[snum])
+        if(fnum==0):
+            l222 = ffffff.legend(loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.92), fontsize = 20,borderaxespad=0.,shadow=False)
+
+        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+        xlab = [
+            'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+            'Algorithm \\ref{ALG:MVVandQR}' ,
+            'Algorithm \\ref{A:Polyak}',
+            'Poly. Approx.',
+            'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+            'Algorithm \\ref{ALG:MVVandQR}' ,
+            'Algorithm \\ref{A:Polyak}',
+            'Poly. Approx.',
+            'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+            'Algorithm \\ref{ALG:MVVandQR}' ,
+            'Algorithm \\ref{A:Polyak}',
+            'Poly. Approx.'
+        ]
+        xlab = np.concatenate((methodarr,methodarr,methodarr),axis=None)
+        ax.set_xticklabels(xlab,fontsize = 10)
+        ax.set_xlabel("Approach",fontsize=22)
+        ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
+        ax.label_outer()
+
+
+    # plt.show()
+    plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+    # plt.tight_layout()
+    plt.savefig("../../log/errors.png", bbox_extra_artists=(l222,l111,), bbox_inches='tight')
+    plt.savefig("../../log/errors.png")
+    plt.clf()
+    plt.close('all')
+
+
+
+
+
+
+
+
+    exit(0)
     for snum,sample in enumerate(allsamples):
         import matplotlib.pyplot as plt
         plt.rc('ytick',labelsize=14)
