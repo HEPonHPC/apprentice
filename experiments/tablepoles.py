@@ -1,6 +1,7 @@
 import numpy as np
 from apprentice import RationalApproximationSIP, RationalApproximationONB, PolynomialApproximation
 from apprentice import tools, readData
+import matplotlib.ticker as mtick
 import os,sys
 def sinc(X,dim):
     ret = 10
@@ -463,62 +464,144 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             strdata[sample] = {}
             for noise in noisearr:
                 strdata[sample][noise] = ""
-        for fnum,fname in enumerate(farr):
-            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
-            if outfilejson:
-                with open(outfilejson, 'r') as fn:
-                    results = json.load(fn)
-            Nin = results['resultsnotcorner'][fname]['npoints']
-            Ncorner = results['resultscorner'][fname]['npoints']-1
+        methodarr = ['rapp','rapprd', 'rappsip']
+        import matplotlib.pyplot as plt
+        ffffff = plt.figure(0,figsize=(25, 20))
+        totalrow = 2
+        totalcol = 1
+        baseline = 1
+        color100 = ['#FFC300','#FF5733','#900C3F']
+        color1k = ['yellow','wheat','r']
+        axarray = []
+        for pnum,position in enumerate(['resultscorner','resultsnotcorner']):
+            data = {}
+
+            width = 0.15
+            ecolor = 'black'
+            plt.rc('ytick',labelsize=14)
+            plt.rc('xtick',labelsize=14)
+
+            X111 = np.arange(len(noisearr)*len(methodarr))
             for snum, sample in enumerate(allsamples):
+                data[sample] = {}
+                data[sample+"+1"] ={}
+                data[sample]['mean'] = []
+                data[sample]['sd'] = []
+                data[sample+"+1"]['mean'] = []
+                data[sample+"+1"]['sd'] = []
+
                 for noise in noisearr:
-                    s= "\\multirow{2}{*}{\\ref{fn:%s}}&$|W_{r,t}^{cner}|/N$&%.1E"%(fname,Ncorner)
+                    for method in methodarr:
+                        meanarr = []
+                        meanp1arr = []
+                        for fnum,fname in enumerate(farr):
+                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
+                            if outfilejson:
+                                with open(outfilejson, 'r') as fn:
+                                    results = json.load(fn)
+                            Nin = results['resultsnotcorner'][fname]['npoints']
+                            Ncorner = results['resultscorner'][fname]['npoints']-1
+                            meanarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['no'])
+                            meanp1arr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['no'])
 
-                    noisestr,noisepct = getnoiseinfo(noise)
-                    for method in ['rapp','rapprd', 'rappsip']:
-                        for tval in thresholdvalarr:
-                            obj = results['resultscorner'][fname][sample][noise][method][str(tval)]
-                            if(obj['no'] == 0):
-                                s+="&0"
-                            else: s+="&%.1E"%(obj['no']/Ncorner)
-                            if(obj['nosd'] == 0):
-                                s+="&0"
-                            else: s+="&%.1E"%(obj['nosd']/Ncorner)
+
+                        data[sample]['mean'].append(np.average(np.array(meanarr)))
+                        data[sample]['sd'].append(np.std(np.array(meanarr)))
+
+                        data[sample+"+1"]['mean'].append(np.average(np.array(meanp1arr)))
+                        data[sample+"+1"]['sd'].append(np.std(np.array(meanp1arr)))
+
+            if(len(axarray)>0):
+                ax = plt.subplot2grid((totalrow,totalcol), (pnum,0),sharex=axarray[0],sharey=axarray[0])
+                axarray.append(ax)
+            else:
+                ax = plt.subplot2grid((totalrow,totalcol), (pnum,0))
+                axarray.append(ax)
+            ax.set_xlim(-.3,8.7)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
+            plt.axvspan(2.7, 5.7, alpha=0.5, color='lightgrey')
+            plt.axvspan(5.7, 8.7, alpha=0.5, color='cyan')
+            plt.text(1,3.35, "$\\epsilon = 0$", fontsize=18)
+            plt.text(4,3.35, "$\\epsilon = 10^{-6}$", fontsize=18)
+            plt.text(7,3.35, "$\\epsilon = 10^{-2}$", fontsize=18)
+            labels = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
+            for snum, sample in enumerate(allsamples):
+                # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
+                ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean'])-np.array(data[sample+"+1"]['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
+            for snum, sample in enumerate(allsamples):
+                ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+            if(pnum==0):
+                ffffff.legend(loc='upper center', ncol=3,bbox_to_anchor=(0.5, 0.99), fontsize = 20,borderaxespad=0.,shadow=False)
+            ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+
+            xlab = [
+                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+                'Algorithm \\ref{ALG:MVVandQR}' ,
+                'Algorithm \\ref{A:Polyak}',
+                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+                'Algorithm \\ref{ALG:MVVandQR}' ,
+                'Algorithm \\ref{A:Polyak}',
+                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
+                'Algorithm \\ref{ALG:MVVandQR}' ,
+                'Algorithm \\ref{A:Polyak}'
+            ]
+            xlab = np.concatenate((methodarr,methodarr,methodarr),axis=None)
 
 
-                    s+="\\\\\\cline{2-15}\n"
-                    s+="&$|W_{r,t}^{in}|/N$&%.1E"%(Nin)
+            ax.label_outer()
+            ax.set_xticklabels(xlab,fontsize = 18)
+            if pnum == 0:
+                ax.set_ylabel("$\\log_{10}\\left[\\sum_{f} E\\left(W_{r,t}^{(face)}\\right)\\right]$",fontsize=18)
+            elif pnum == 1:
+                ax.set_ylabel("$\\log_{10}\\left[\\sum_{f} E\\left(W_{r,t}^{(in)}\\right)\\right]$",fontsize=18)
+        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+        # plt.tight_layout()
+        # plt.show()
+        # plt.tight_layout()
+        plt.savefig("../../log/poles.png")
+        plt.clf()
+        plt.close('all')
 
-                    for method in ['rapp','rapprd', 'rappsip']:
-                        for tval in thresholdvalarr:
-                            obj = results['resultsnotcorner'][fname][sample][noise][method][str(tval)]
-                            if(obj['no'] == 0):
-                                s+="&0"
-                            else: s+="&%.1E"%(obj['no']/Nin)
-                            if(obj['nosd'] == 0):
-                                s+="&0"
-                            else: s+="&%.1E"%(obj['nosd']/Nin)
-                    s+="\\\\\\cline{2-15}\n"
-                    s+="\\hline\n"
-                    strdata[sample][noise] += s
+        exit(0)
+
+
         for snum, sample in enumerate(allsamples):
             for noise in noisearr:
-                print("sample = %s noise = %s"%(sample,noise))
-                print("\n%s\n\n\n"%(strdata[sample][noise]))
+                s= "\\multirow{2}{*}{\\ref{fn:%s}}&$|W_{r,t}^{cner}|/N$&%.1E"%(fname,Ncorner)
+
+                noisestr,noisepct = getnoiseinfo(noise)
+                for method in ['rapp','rapprd', 'rappsip']:
+                    for tval in thresholdvalarr:
+                        obj = results['resultscorner'][fname][sample][noise][method][str(tval)]
+                        if(obj['no'] == 0):
+                            s+="&0"
+                        else: s+="&%.1E"%(obj['no']/Ncorner)
+                        if(obj['nosd'] == 0):
+                            s+="&0"
+                        else: s+="&%.1E"%(obj['nosd']/Ncorner)
 
 
+                s+="\\\\\\cline{2-15}\n"
+                s+="&$|W_{r,t}^{in}|/N$&%.1E"%(Nin)
 
-
-
-
-
-
-
-
-
-
-
-
+                for method in ['rapp','rapprd', 'rappsip']:
+                    for tval in thresholdvalarr:
+                        obj = results['resultsnotcorner'][fname][sample][noise][method][str(tval)]
+                        if(obj['no'] == 0):
+                            s+="&0"
+                        else: s+="&%.1E"%(obj['no']/Nin)
+                        if(obj['nosd'] == 0):
+                            s+="&0"
+                        else: s+="&%.1E"%(obj['nosd']/Nin)
+                s+="\\\\\\cline{2-15}\n"
+                s+="\\hline\n"
+                strdata[sample][noise] += s
+    for snum, sample in enumerate(allsamples):
+        for noise in noisearr:
+            print("sample = %s noise = %s"%(sample,noise))
+            print("\n%s\n\n\n"%(strdata[sample][noise]))
 
     exit(0)
 
@@ -754,6 +837,7 @@ if __name__ == "__main__":
  # for fno in 3 5 9 13 14 18 19; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  latex> ../../debug/"tablepoles_latex_"$name".log" 2>&1 & done
 
 # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python tablepoles.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
+# python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 100,1000 2x table 1
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)
