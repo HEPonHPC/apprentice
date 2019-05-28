@@ -24,8 +24,7 @@ def getnoiseinfo(noise):
 
 def knowmissing(filename):
     arr = [
-        "results/exp1/f18_noisepct10-2_sg_2x/outrard/f18_noisepct10-2_sg_2x_p5_q5_ts2x.json",
-        "results/exp1/f18_noisepct10-6_sg_2x/outrard/f18_noisepct10-6_sg_2x_p5_q5_ts2x.json"
+
     ]
     for a in arr:
         if(filename == a):
@@ -55,12 +54,12 @@ def ploterrorbars(baseline=13.5,plottype='persample',usejson=0):
     # pqqq = ['p4_q3','p2_q3','p3_q3','p3_q7','p2_q7','p3_q6','p2_q3','p3_q3']
     width = 0.15
     X111 = np.arange(len(fff))
-    width = 0.15
-        # import matplotlib.pyplot as plt
-        # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(1,2,figsize=(15,10),sharey=True)
     data = {}
     noiselevels = ['0','10-2','10-6']
-    allsamples = ['mc','lhs','so','sg']
+    # allsamples = ['mc','lhs','so','sg']
+    allsamples = ['lhs','splitlhs','sg']
     # allsamples = ['mc','lhs']
     # allsamples = ['sg']
     if(usejson == 0):
