@@ -230,6 +230,34 @@ def findpredval(X_test,app):
             Y_pred = np.append(Y_pred,n/d)
     return Y_pred
 
+def getbox(f):
+    minbox = []
+    maxbox = []
+    if(f=="f7"):
+        minbox  = [0,0]
+        maxbox = [1,1]
+    elif(f=="f10" or f=="f19"):
+        minbox  = [-1,-1,-1,-1]
+        maxbox = [1,1,1,1]
+    elif(f=="f17"):
+        minbox  = [80,5,90]
+        maxbox  = [100,10,93]
+    # elif(f=="f17"):
+    #     minbox  = [-1,-1,-1]
+    #     maxbox  = [1,1,1]
+    elif(f=="f18"):
+        minbox  = [-0.95,-0.95,-0.95,-0.95]
+        maxbox  = [0.95,0.95,0.95,0.95]
+    elif(f=="f20"):
+        minbox  = [10**-6,10**-6,10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi]
+    elif(f=="f21"):
+        minbox  = [10**-6,10**-6]
+        maxbox  = [4*np.pi,4*np.pi]
+    else:
+        minbox  = [-1,-1]
+        maxbox = [1,1]
+    return minbox,maxbox
 
 def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
     m=5
@@ -250,6 +278,9 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
         X_test = np.loadtxt(infile, delimiter=',')
 
         print(len(X_test))
+        minarr,maxarr = getbox(fname)
+        s = apprentice.Scaler(np.array(X_test, dtype=np.float64), a=minarr, b=maxarr)
+        X_test = s.scaledPoints
 
         Y_test = getData(X_test,fname,0)
         maxY_test = max(1,abs(np.max(Y_test)))
@@ -321,19 +352,19 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
 
                     rappsip = RationalApproximationSIP(rappsipfile)
                     try:
-                        Y_pred_rappsip = np.array([rappsip.numer(x)/rappsip.denom(x) for x in X_test])
+                        Y_pred_rappsip = rappsip.predictOverArray(X_test)
                     except:
                         Y_pred_rappsip = findpredval(X_test,rappsip)
 
                     rapp = RationalApproximationONB(fname=rappfile)
                     try:
-                        Y_pred_rapp = np.array([rapp.numer(x)/rapp.denom(x) for x in X_test])
+                        Y_pred_rapp = np.array([rapp(x) for x in X_test])
                     except:
                         Y_pred_rapp = findpredval(X_test,rapp)
 
                     rapprd = RationalApproximationONB(fname=rapprdfile)
                     try:
-                        Y_pred_rapprd = np.array([rapprd.numer(x)/rapprd.denom(x) for x in X_test])
+                        Y_pred_rapprd = np.array([rapprd(x) for x in X_test])
                     except:
                         Y_pred_rapprd = findpredval(X_test,rapprd)
 
@@ -563,6 +594,199 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         plt.savefig("../../log/poles.png")
         plt.clf()
         plt.close('all')
+
+        xposarr = ['resultscorner','resultsnotcorner']
+        # FILTERED Pole plot
+        import matplotlib.pyplot as plt
+        ffffff = plt.figure(0,figsize=(25, 20))
+        totalrow = 1
+        totalcol = 1
+        baseline = 1
+        color100 = ['#FFC300','#FF5733','#900C3F']
+        color1k = ['yellow','wheat','r']
+        axarray = []
+
+
+        data = {}
+        width = 0.23
+        ecolor = 'black'
+        plt.rc('ytick',labelsize=14)
+        plt.rc('xtick',labelsize=14)
+
+        X111 = np.arange(len(noisearr)*len(methodarr)*len(xposarr))
+        for snum, sample in enumerate(allsamples):
+            data[sample] = {}
+            data[sample+"+1"] ={}
+            data[sample]['mean'] = []
+            data[sample]['sd'] = []
+            data[sample+"+1"]['mean'] = []
+            data[sample+"+1"]['sd'] = []
+
+            for noise in noisearr:
+                for position in xposarr:
+                    for method in methodarr:
+
+                        meanarr = []
+                        meanp1arr = []
+                        for fnum,fname in enumerate(farr):
+                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
+                            if outfilejson:
+                                with open(outfilejson, 'r') as fn:
+                                    results = json.load(fn)
+                            Nin = results['resultsnotcorner'][fname]['npoints']
+                            Ncorner = results['resultscorner'][fname]['npoints']-1
+                            meanarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['no'])
+                            meanp1arr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['no'])
+
+
+                        data[sample]['mean'].append(np.average(np.array(meanarr)))
+                        # data[sample]['sd'].append(np.std(np.array(meanarr)))
+
+                        data[sample+"+1"]['mean'].append(np.average(np.array(meanp1arr)))
+                        # data[sample+"+1"]['sd'].append(np.std(np.array(meanp1arr)))
+
+        if(len(axarray)>0):
+            ax = plt.subplot2grid((totalrow,totalcol), (0,0),sharex=axarray[0],sharey=axarray[0])
+            axarray.append(ax)
+        else:
+            ax = plt.subplot2grid((totalrow,totalcol), (0,0))
+            axarray.append(ax)
+
+        ax.set_xlim(-.3,17.7)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
+        plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
+        plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
+
+        methodlabel = ['A','B','C']
+        xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
+
+        # xlab1 = []
+        # for i in range(9):
+        #     xlab1.append('face')
+        #     xlab1.append('in')
+
+        # ffffff.text(0.33, 0.04, 'rapp', ha='center',fontsize = 18)
+        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+        for snum, sample in enumerate(allsamples):
+            # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean'])-np.array(data[sample+"+1"]['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
+        for snum, sample in enumerate(allsamples):
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+
+        # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
+        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
+        l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
+        l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
+        l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
+        l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
+        l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
+        l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
+
+        legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
+        l8 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
+
+        # for i in range()
+
+        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+        ax.set_xticklabels(xlab1,fontsize = 18)
+        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+        # plt.show()
+        ffffff.savefig('../../log/poles2.png', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
+        # os.system('open ../../log/poles2.png')
+        plt.clf()
+        plt.close('all')
+
+
+        # FILTERED Error plot
+        import matplotlib.pyplot as plt
+        ffffff = plt.figure(0,figsize=(25, 20))
+        totalrow = 1
+        totalcol = 1
+        baseline = 1
+        color100 = ['#FFC300','#FF5733','#900C3F']
+        color1k = ['yellow','wheat','r']
+        axarray = []
+
+
+        data = {}
+        width = 0.23
+        ecolor = 'black'
+        plt.rc('ytick',labelsize=14)
+        plt.rc('xtick',labelsize=14)
+
+        X111 = np.arange(len(noisearr)*len(methodarr)*len(xposarr))
+        for snum, sample in enumerate(allsamples):
+            data[sample] = {}
+            data[sample+"+1"] = {}
+            data[sample]['l2all'] = {}
+            data[sample]['l2count'] = {}
+            data[sample+"+1"]['l2count'] = {}
+
+            data[sample]['l2all']['mean'] = []
+            data[sample]['l2count']['mean'] = []
+            data[sample+"+1"]['l2count']['mean'] = []
+
+            for noise in noisearr:
+                for position in xposarr:
+                    for method in methodarr:
+                        l2allarr = []
+                        l2countarr = []
+                        l2p1countarr = []
+                        for fnum,fname in enumerate(farr):
+                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
+                            if outfilejson:
+                                with open(outfilejson, 'r') as fn:
+                                    results = json.load(fn)
+                            Nin = results['resultsnotcorner'][fname]['npoints']
+                            Ncorner = results['resultscorner'][fname]['npoints']-1
+                            l2allarr.append(results[position][fname][sample][noise][method]['l2all'])
+                            l2countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['l2count'])
+                            l2p1countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['l2count'])
+
+                        data[sample]['l2all']['mean'].append(np.sum(np.array(l2allarr)))
+                        data[sample]['l2count']['mean'].append(np.sum(np.array(l2countarr)))
+                        data[sample+"+1"]['l2count']['mean'].append(np.sum(np.array(l2p1countarr)))
+
+        if(len(axarray)>0):
+            ax = plt.subplot2grid((totalrow,totalcol), (0,0),sharex=axarray[0],sharey=axarray[0])
+            axarray.append(ax)
+        else:
+            ax = plt.subplot2grid((totalrow,totalcol), (0,0))
+            axarray.append(ax)
+
+        ax.set_xlim(-.3,17.7)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
+        plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
+        plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
+
+        methodlabel = ['A','B','C']
+        xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
+
+        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+        for snum, sample in enumerate(allsamples):
+            # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['l2all']['mean'])-np.array(data[sample+"+1"]['l2count']['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
+        for snum, sample in enumerate(allsamples):
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['l2count']['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+        plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         exit(0)
 
