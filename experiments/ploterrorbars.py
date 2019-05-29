@@ -408,9 +408,11 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
         ]
         xlab = np.concatenate((methodarr,methodarr,methodarr),axis=None)
         ax.set_xticklabels(xlab,fontsize = 10)
-        ax.set_xlabel("Approach",fontsize=22)
-        ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
-        ax.label_outer()
+        # ax.set_xlabel("Approach",fontsize=22)
+        # ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
+        # ax.label_outer()
+    ffffff.text(0.08, 0.5, "$\\log_{10}\\left[\\Delta_r\\right]$", fontsize=22,va='center', rotation='vertical')
+
 
 
     # plt.show()
@@ -613,6 +615,7 @@ if __name__ == "__main__":
     # # tablepoles(farr,noisearr, thresholdarr, testfilearr, bottomallarr,sys.argv[4],sys.argv[7])
 
      # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python ploterrorbars.py $name 14 0 > ../../log/"ploterrorbarjson_"$name".log" 2>&1 &  done
+     # python ploterrorbars.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 14 1
     import os, sys
 
     farr = sys.argv[1].split(',')
