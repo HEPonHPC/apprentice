@@ -260,6 +260,7 @@ def getbox(f):
     return minbox,maxbox
 
 def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
+    import apprentice
     m=5
     n=5
     thresholdvalarr = np.array([float(t) for t in tarr])
@@ -282,7 +283,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
         s = apprentice.Scaler(np.array(X_test, dtype=np.float64), a=minarr, b=maxarr)
         X_test = s.scaledPoints
 
-        Y_test = getData(X_test,fname,0)
+        Y_test = np.array(getData(X_test,fname,0))
         maxY_test = max(1,abs(np.max(Y_test)))
         print(fname,maxY_test)
 
@@ -375,6 +376,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples, usecornerpoints):
                     l2allrapp = np.sum((Y_pred_rapp-Y_test)**2)
                     l2allrapprd = np.sum((Y_pred_rapprd-Y_test)**2)
                     l2allrappsip = np.sum((Y_pred_rappsip-Y_test)**2)
+                    # print(l2allrapp,l2allrapprd,l2allrappsip)
 
                     resdata['rapp']['l2all'].append(np.sqrt(l2allrapp))
                     resdata['rapprd']['l2all'].append(np.sqrt(l2allrapprd))
