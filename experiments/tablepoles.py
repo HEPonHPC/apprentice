@@ -562,9 +562,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             labels = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
             for snum, sample in enumerate(allsamples):
                 # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-                ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean'])-np.array(data[sample+"+1"]['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
-            for snum, sample in enumerate(allsamples):
-                ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+                ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
+                ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
             if(pnum==0):
                 ffffff.legend(loc='upper center', ncol=3,bbox_to_anchor=(0.5, 0.99), fontsize = 20,borderaxespad=0.,shadow=False)
             ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
@@ -673,9 +672,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
         for snum, sample in enumerate(allsamples):
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean'])-np.array(data[sample+"+1"]['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
-        for snum, sample in enumerate(allsamples):
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
+            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
 
         # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
         l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
@@ -747,9 +745,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
                             l2countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['l2count'])
                             l2p1countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['l2count'])
 
-                        data[sample]['l2all']['mean'].append(np.sum(np.array(l2allarr)))
-                        data[sample]['l2count']['mean'].append(np.sum(np.array(l2countarr)))
-                        data[sample+"+1"]['l2count']['mean'].append(np.sum(np.array(l2p1countarr)))
+                        data[sample]['l2all']['mean'].append(np.average(np.array(l2allarr)))
+                        data[sample]['l2count']['mean'].append(np.average(np.array(l2countarr)))
+                        data[sample+"+1"]['l2count']['mean'].append(np.average(np.array(l2p1countarr)))
 
         if(len(axarray)>0):
             ax = plt.subplot2grid((totalrow,totalcol), (0,0),sharex=axarray[0],sharey=axarray[0])
@@ -769,12 +767,39 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
 
         # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+
+
         for snum, sample in enumerate(allsamples):
+            l10l2all = np.log10(np.array(data[sample]['l2all']['mean']))
+            l10l2countp1 = np.log10(np.array(data[sample+"+1"]['l2count']['mean']))
+            l10l2count = np.log10(np.array(data[sample]['l2count']['mean']))
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['l2all']['mean'])-np.array(data[sample+"+1"]['l2count']['mean'])+baseline), width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
-        for snum, sample in enumerate(allsamples):
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['l2count']['mean'])+baseline), width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
-        plt.show()
+            ax.bar(X111+snum*width, l10l2all+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($\\Delta_r$)")
+            ax.bar(X111+snum*width, l10l2countp1+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($E_{r,10^2}$)")
+
+
+        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
+        l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
+        l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
+        l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
+        l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
+        l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
+        l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
+
+        legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
+        l8 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
+
+        # for i in range()
+
+        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+        ax.set_xticklabels(xlab1,fontsize = 18)
+        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+        # plt.show()
+        ffffff.savefig('../../log/poleerror.png', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
+        # os.system('open ../../log/poles2.png')
+        plt.clf()
+        plt.close('all')
+
 
 
 

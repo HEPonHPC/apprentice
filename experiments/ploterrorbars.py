@@ -330,8 +330,10 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
     methodarr = ['ra','rard', 'rasip','pa']
     import matplotlib.pyplot as plt
     ffffff = plt.figure(0,figsize=(25, 20))
-    totalrow = 5
-    totalcol = 4
+    # totalrow = 5
+    # totalcol = 4
+    totalrow = 2
+    totalcol = 2
     baseline = baseline
     # color = ['#900C3F','#C70039','#FF5733','#FFC300']
     color = ['#FFC300','#FF5733','#900C3F']
@@ -382,14 +384,18 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
         labels = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
         legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
         # plt.tight_layout()
-        l111 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.95), fontsize = 20,borderaxespad=0.,shadow=False)
         for snum, sample in enumerate(allsamples):
             if(sample == 'sg'):
                 ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width, color=color[snum], label=labels[snum])
             else:
                 ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(plotd[sample]['sd']),align='center',  ecolor=ecolor, capsize=3,label=labels[snum])
+        
         if(fnum==0):
-            l222 = ffffff.legend(loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.92), fontsize = 20,borderaxespad=0.,shadow=False)
+            l1 = ffffff.legend(loc='upper center',ncol=3,fontsize = 20)
+        l2 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.83), fontsize = 20,borderaxespad=0.,shadow=False)
+        # ax.label_outer()
+        # if(fnum==0):
+        #     l222 = ffffff.legend(loc='upper center', ncol=4,bbox_to_anchor=(0.5, 0.92), fontsize = 20,borderaxespad=0.,shadow=False)
 
         ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
         xlab = [
@@ -406,20 +412,22 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
             'Algorithm \\ref{A:Polyak}',
             'Poly. Approx.'
         ]
-        xlab = np.concatenate((methodarr,methodarr,methodarr),axis=None)
-        ax.set_xticklabels(xlab,fontsize = 10)
+        methodlabel = ['A','B','C','D']
+        xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel),axis=None)
+        ax.set_xticklabels(xlab1,fontsize = 10)
         # ax.set_xlabel("Approach",fontsize=22)
-        # ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
+        ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
         # ax.label_outer()
-    ffffff.text(0.08, 0.5, "$\\log_{10}\\left[\\Delta_r\\right]$", fontsize=22,va='center', rotation='vertical')
+    # ffffff.text(0.08, 0.5, "$\\log_{10}\\left[\\Delta_r\\right]$", fontsize=22,va='center', rotation='vertical')
 
 
 
     # plt.show()
     plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
     # plt.tight_layout()
-    plt.savefig("../../log/errors.png", bbox_extra_artists=(l222,l111,), bbox_inches='tight')
-    plt.savefig("../../log/errors.png")
+    # plt.savefig("../../log/errors.png", bbox_extra_artists=(l1,l111,), bbox_inches='tight')
+    ffffff.savefig('../../log/errors.png', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
+    # plt.savefig("../../log/errors.png")
     plt.clf()
     plt.close('all')
 
