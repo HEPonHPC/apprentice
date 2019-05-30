@@ -660,7 +660,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
         plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
 
-        methodlabel = ['A','B','C']
+        methodlabel = ['$r_1$','$r_2$','$r_3$']
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
 
         # xlab1 = []
@@ -669,7 +669,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         #     xlab1.append('in')
 
         # ffffff.text(0.33, 0.04, 'rapp', ha='center',fontsize = 18)
-        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right] \\mathrm{\\ where\\ P}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
         for snum, sample in enumerate(allsamples):
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
             ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
@@ -677,12 +677,12 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
         # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
         l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
-        l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
-        l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
-        l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
-        l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
-        l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
-        l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
+        l2 = ffffff.text(0.19, 0.08, 'P = face', ha='center',fontsize = 18)
+        l3 = ffffff.text(0.32, 0.08, 'P = in', ha='center',fontsize = 18)
+        l4 = ffffff.text(0.45, 0.08, 'P = face', ha='center',fontsize = 18)
+        l5 = ffffff.text(0.58, 0.08, 'P = in', ha='center',fontsize = 18)
+        l6 = ffffff.text(0.71, 0.08, 'P = face', ha='center',fontsize = 18)
+        l7 = ffffff.text(0.835, 0.08, 'P = in', ha='center',fontsize = 18)
 
         legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
         l8 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
@@ -704,7 +704,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         ffffff = plt.figure(0,figsize=(25, 20))
         totalrow = 1
         totalcol = 1
-        baseline = 1
+        baseline = 0
         color100 = ['#FFC300','#FF5733','#900C3F']
         color1k = ['yellow','wheat','r']
         axarray = []
@@ -763,10 +763,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
         plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
 
-        methodlabel = ['A','B','C']
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
 
-        # ax.set_ylabel("$\\log_{10}\\left[\\error\\right]$",fontsize=18)
+        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(error}\\right)\\right]$",fontsize=18)
 
 
         for snum, sample in enumerate(allsamples):
@@ -774,20 +773,21 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             l10l2countp1 = np.log10(np.array(data[sample+"+1"]['l2count']['mean']))
             l10l2count = np.log10(np.array(data[sample]['l2count']['mean']))
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-            ax.bar(X111+snum*width, l10l2all+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($\\Delta_r$)")
-            ax.bar(X111+snum*width, l10l2countp1+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($E_{r,10^2}$)")
+            ax.bar(X111+snum*width, l10l2all+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(\\Delta_r)\\right]$)")
+            ax.bar(X111+snum*width, l10l2count+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(E_{r,10^2})\\right]$)")
+            # ax.bar(X111+snum*width, l10l2count+baseline, width,color=color1k[snum], capsize=3,label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(E_{r,10^2})\\right]$)")
 
 
         l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
-        l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
-        l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
-        l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
-        l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
-        l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
-        l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
+        # l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
+        # l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
+        # l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
+        # l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
+        # l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
+        # l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
 
         legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
-        l8 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
+        l2 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
 
         # for i in range()
 

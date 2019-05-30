@@ -389,7 +389,7 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
                 ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width, color=color[snum], label=labels[snum])
             else:
                 ax.bar(X111+snum*width, np.array(plotd[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(plotd[sample]['sd']),align='center',  ecolor=ecolor, capsize=3,label=labels[snum])
-        
+
         if(fnum==0):
             l1 = ffffff.legend(loc='upper center',ncol=3,fontsize = 20)
         l2 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.83), fontsize = 20,borderaxespad=0.,shadow=False)
@@ -412,9 +412,9 @@ def ploterrorbars(fff, baseline=13.5,usejson=0):
             'Algorithm \\ref{A:Polyak}',
             'Poly. Approx.'
         ]
-        methodlabel = ['A','B','C','D']
+        methodlabel = ['$r_1$','$r_2$','$r_3$','$r_4$']
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel),axis=None)
-        ax.set_xticklabels(xlab1,fontsize = 10)
+        ax.set_xticklabels(xlab1,fontsize = 22)
         # ax.set_xlabel("Approach",fontsize=22)
         ax.set_ylabel("$\\log_{10}\\left[\\Delta_r\\right]$",fontsize=22)
         # ax.label_outer()
@@ -624,6 +624,7 @@ if __name__ == "__main__":
 
      # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python ploterrorbars.py $name 14 0 > ../../log/"ploterrorbarjson_"$name".log" 2>&1 &  done
      # python ploterrorbars.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 14 1
+     # python ploterrorbars.py f4,f8,f18,f21 14 1
     import os, sys
 
     farr = sys.argv[1].split(',')
