@@ -766,7 +766,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         methodlabel = ['A','B','C']
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
 
-        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(X)}\\right)\\right] \\mathrm{\\ where\\ X}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+        # ax.set_ylabel("$\\log_{10}\\left[\\error\\right]$",fontsize=18)
 
 
         for snum, sample in enumerate(allsamples):
