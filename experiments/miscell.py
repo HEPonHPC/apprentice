@@ -383,7 +383,23 @@ def splitlhsnpoints():
             # for n in range(2,9):
 
 
+def plotsamplingstrategies():
 
+    folder = "results/exp1/benchmarkdata/f1_"
+    lhsfile = folder+"lhs.txt"
+    splilhsfile = folder+"splitlhs.txt"
+    sgfile   = folder+"sg.txt"
+    for file, name in zip([lhsfile,splilhsfile,sgfile],["LHS","d-LHS","SG"]):
+        X,Y = tools.readData(file)
+        import matplotlib.pyplot as plt
+        plt.figure(0,figsize=(15, 10))
+        plt.scatter(X[:,0],X[:,1])
+        plt.xlabel("$x_1$",fontsize = 32)
+        plt.ylabel("$x_2$",fontsize = 32)
+        plt.tick_params(labelsize=28)
+        plt.savefig("results/plots/"+name+".pdf", bbox_inches='tight')
+        plt.clf()
+        plt.close('all')
 
 
 
@@ -405,6 +421,7 @@ if __name__ == "__main__":
 
     # cubeplot()
     # plotfnassubplot()
-    splitlhsnpoints()
+    # splitlhsnpoints()
+    plotsamplingstrategies()
 
  ###########
