@@ -401,6 +401,57 @@ def plotsamplingstrategies():
         plt.clf()
         plt.close('all')
 
+def plotfnamepoles():
+    import json
+    folder = "results"
+    sample = 'lhs'
+    noise = "0"
+    fname = "f17"
+    noisestr,noisepct = getnoiseinfo(noise)
+    data = {}
+    maxiter = 0
+    maxiterexp = ""
+    for exp in ['exp1','exp2','exp3','exp4','exp5']:
+        file = "%s/%s/%s%s_%s_2x/outrasip/%s%s_%s_2x_p5_q5_ts2x.json"%(folder,exp,fname,noisestr,sample,fname,noisestr,sample)
+        if not os.path.exists(file):
+            print("rappsipfile %s not found"%(file))
+            exit(1)
+        if file:
+            with open(file, 'r') as fn:
+                datastore = json.load(fn)
+        # print(exp,len(datastore['iterationinfo']))
+        if len(datastore['iterationinfo']) > maxiter:
+            maxiter = len(datastore['iterationinfo'])
+            maxiterexp = exp
+
+    file = "%s/%s/%s%s_%s_2x/outrasip/%s%s_%s_2x_p5_q5_ts2x.json"%(folder,maxiterexp,fname,noisestr,sample,fname,noisestr,sample)
+    if not os.path.exists(file):
+        print("rappsipfile %s not found"%(file))
+        exit(1)
+    if file:
+        with open(file, 'r') as fn:
+            datastore = json.load(fn)
+    maxnum = 0
+    for iter in datastore['iterationinfo']:
+        # print(iter['robOptInfo']['robustArg'])
+        for num,x in enumerate(iter['robOptInfo']['robustArg']):
+            data[num] = []
+            maxnum = num+1
+        break
+    for iter in datastore['iterationinfo']:
+        for num,x in enumerate(iter['robOptInfo']['robustArg']):
+            data[num].append(x)
+    X = np.stack((data[0],data[1],data[2]),axis=-1)
+    outfile = folder+"/plots/Cpoledata.csv"
+    np.savetxt(outfile, X, delimiter=",")
+
+
+
+
+
+
+
+
 
 
 
@@ -422,6 +473,7 @@ if __name__ == "__main__":
     # cubeplot()
     # plotfnassubplot()
     # splitlhsnpoints()
-    plotsamplingstrategies()
+    # plotsamplingstrategies()
+    plotfnamepoles()
 
  ###########
