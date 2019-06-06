@@ -446,9 +446,238 @@ def plotfnamepoles():
     np.savetxt(outfile, X, delimiter=",")
 
 
+def runfacevsinner():
+    def getData(X_train, fn, noisepct,seed):
+        """
+        TODO use eval or something to make this less noisy
+        """
+        from apprentice import testData
+        if fn=="f18":
+            Y_train = [testData.f18(x) for x in X_train]
+        elif fn=="f20":
+            Y_train = [testData.f20(x) for x in X_train]
+        else:
+            raise Exception("function {} not implemented, exiting".format(fn))
+        np.random.seed(seed)
+
+        stdnormalnoise = np.zeros(shape = (len(Y_train)), dtype =np.float64)
+        for i in range(len(Y_train)):
+            stdnormalnoise[i] = np.random.normal(0,1)
+        # return Y_train
+        return np.atleast_2d(np.array(Y_train)*(1+ noisepct*stdnormalnoise))
+
+    def getbox(f):
+        minbox = []
+        maxbox = []
+        if(f=="f18"):
+            minbox  = [-0.95,-0.95,-0.95,-0.95]
+            maxbox  = [0.95,0.95,0.95,0.95]
+        elif(f=="f20"):
+            minbox  = [10**-6,10**-6,10**-6,10**-6]
+            maxbox  = [4*np.pi,4*np.pi,4*np.pi,4*np.pi]
+        else:
+            minbox  = [-1,-1]
+            maxbox = [1,1]
+        return minbox,maxbox
+
+    from apprentice import tools
+    data = {'info':[]}
+    import apprentice
+    dim = 4
+    seedarr = [54321,456789,9876512,7919820,10397531]
+
+    m = 5
+    n = 5
+    tstimes = 2
+    ts = "2x"
+    # fname = "f20-"+str(dim)+"D_ts"+ts
+    fname = "f20-"+str(dim)+"D"
+    from apprentice import tools
+    from pyDOE import lhs
+    npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
+    print(npoints)
+    epsarr = []
+    for d in range(dim):
+        #epsarr.append((maxarr[d] - minarr[d])/10)
+        epsarr.append(10**-6)
+
+
+    facespctarr = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+    folder = "f18_f20_facevsinner"
+    for numex,ex in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
+        seed = seedarr[numex]
+        for facenum,facepct in enumerate(facespctarr):
+            facepoints = int(np.ceil(npoints * facepct))
+            insidepoints = int(npoints - facepoints)
+            # print(insidepoints)
+            # Generate inside points
+            for fname in ['f18','f20']:
+                Xmain = np.empty([0,dim])
+                minarrinside = []
+                maxarrinside = []
+                minarr,maxarr = getbox(fname)
+                if(insidepoints>1):
+                    for d in range(dim):
+                        minarrinside.append(minarr[d] + epsarr[d])
+                        maxarrinside.append(maxarr[d] - epsarr[d])
+                    X = lhs(dim, samples=insidepoints, criterion='maximin')
+                    s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrinside, b=maxarrinside)
+                    X = s.scaledPoints
+                    Xmain = np.vstack((Xmain,X))
+
+                #Generate face points
+                perfacepoints = int(np.ceil(facepoints/(2*dim)))
+                if(perfacepoints>1):
+                    index = 0
+                    for d in range(dim):
+                        for e in [minarr[d],maxarr[d]]:
+                            index+=1
+                            np.random.seed(seed+index*100)
+                            X = lhs(dim, samples=perfacepoints, criterion='maximin')
+                            minarrface = np.empty(shape=dim,dtype=np.float64)
+                            maxarrface = np.empty(shape=dim,dtype=np.float64)
+                            for p in range(dim):
+                                if(p==d):
+                                    if e == maxarr[d]:
+                                        minarrface[p] = e - epsarr[d]
+                                        maxarrface[p] = e
+                                    else:
+                                        minarrface[p] = e
+                                        maxarrface[p] = e + epsarr[d]
+                                else:
+                                    minarrface[p] = minarr[p]
+                                    maxarrface[p] = maxarr[p]
+                            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrface, b=maxarrface)
+                            X = s.scaledPoints
+                            Xmain = np.vstack((Xmain,X))
+                Xmain = np.unique(Xmain,axis = 0)
+                X = Xmain
+                # formatStr = "{0:0%db}"%(dim)
+                # for d in range(2**dim):
+                #     binArr = [int(x) for x in formatStr.format(d)[0:]]
+                #     val = []
+                #     for i in range(dim):
+                #         if(binArr[i] == 0):
+                #             val.append(minarr[i])
+                #         else:
+                #             val.append(maxarr[i])
+                #     X[d] = val
+                if not os.path.exists(folder+"/"+ex+'/benchmarkdata'):
+                    os.makedirs(folder+"/"+ex+'/benchmarkdata',exist_ok = True)
+                noise = "0"
+                noisestr,noisepct = getnoiseinfo(noise)
+
+                Y = getData(X, fn=fname, noisepct=noisepct,seed=seed)
+                infile = "%s/%s/benchmarkdata/%s%s_splitlhs_f%d_i%d.txt"%(folder,ex,fname,noisestr,facepoints,insidepoints)
+                print(infile)
+                np.savetxt(infile, np.hstack((X,Y.T)), delimiter=",")
+
+                folderplus = "%s/%s/%s%s_splitlhs"%(folder,ex,fname,noisestr)
+                fndesc = "%s%s_splitlhs_f%d_i%d"%(fname,noisestr,facepoints,insidepoints)
+                if not os.path.exists(folderplus + "/outrasip"):
+                    os.makedirs(folderplus + "/outrasip",exist_ok = True)
+                if not os.path.exists(folderplus + "/log/consolelograsip"):
+                    os.makedirs(folderplus + "/log/consolelograsip",exist_ok = True)
+                m = str(m)
+                n = str(n)
+                consolelog=folderplus + "/log/consolelograsip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.log";
+                outfile = folderplus + "/outrasip/"+fndesc+"_p"+m+"_q"+n+"_ts2x.json";
+                data['info'].append({'exp':ex,'fname':fname,'outfile':outfile,'facepoints':facepoints,'insidepoints':insidepoints})
+                penaltyparam = 0
+                cmd = 'nohup python runrappsip.py %s %s %s %s Cp %f %s %s >%s 2>&1 &'%(infile,fndesc,m,n,penaltyparam,folderplus,outfile,consolelog)
+                # print(cmd)
+                # exit(1)
+                os.system(cmd)
+
+    import json
+    with open(folder+"/data.json", "w") as f:
+        json.dump(data, f,indent=4, sort_keys=True)
+
+def analyzefacevsinner():
+    folder = "f18_f20_facevsinner"
+    m = 5
+    n = 5
+    dim=4
+    tstimes = 2
+    ts = "2x"
+    # fname = "f20-"+str(dim)+"D_ts"+ts
+    fname = "f20-"+str(dim)+"D"
+    from apprentice import tools
+    from pyDOE import lhs
+    npoints = tstimes * tools.numCoeffsRapp(dim,[m,n])
+    facespctarr = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+    import json
+    file = folder + "/data.json"
+    if file:
+        with open(file, 'r') as fn:
+            data = json.load(fn)
+    X = []
+    Y18m =[]
+    Y18s =[]
+    Y20m =[]
+    Y20s =[]
+    for facenum,facepct in enumerate(facespctarr):
+        facepoints = int(np.ceil(npoints * facepct))
+        insidepoints = int(npoints - facepoints)
+        X.append(facepoints/insidepoints)
+    for facenum,facepct in enumerate(facespctarr):
+        facepoints = int(np.ceil(npoints * facepct))
+        insidepoints = int(npoints - facepoints)
+        f18iter=[]
+        f20iter=[]
+        for numex,ex in enumerate(["exp1","exp2","exp3","exp4","exp5"]):
+        # for numex,ex in enumerate(["exp3"]):
+            f18file = ""
+            f20file = ""
+            for d in data['info']:
+                if(d['exp'] == ex and d['facepoints'] == facepoints and d['insidepoints'] == insidepoints
+                    and d['fname'] == 'f18'):
+                    f18file = d['outfile']
+
+                if(d['exp'] == ex and d['facepoints'] == facepoints and d['insidepoints'] == insidepoints
+                    and d['fname'] == 'f20'):
+                    f20file = d['outfile']
+            if not os.path.exists(f18file):
+                print("f18 file not found: %s"%(f18file))
+                exit(1)
+            if not os.path.exists(f20file):
+                print("f20 file not found: %s"%(f20file))
+                exit(1)
+            import json
+            if f18file:
+                with open(f18file, 'r') as fn:
+                    datastore = json.load(fn)
+            f18iter.append(np.log10(len(datastore['iterationinfo'])))
+            if f20file:
+                with open(f20file, 'r') as fn:
+                    datastore = json.load(fn)
+            f20iter.append(np.log10(len(datastore['iterationinfo'])))
 
 
 
+        Y18m.append(np.average(f18iter))
+        Y18s.append(np.std(f18iter))
+        Y20m.append(np.average(f20iter))
+        Y20s.append(np.std(f20iter))
+
+    print(X)
+    print(Y18m)
+    print(Y20m)
+    # Y18m = np.log10(Y18m)
+    # Y20m = np.log10(Y20m)
+    import matplotlib.pyplot as plt
+    plt.figure(0,figsize=(15, 10))
+    plt.plot(X[1:],Y18m[1:],label='\\ref{fn:f18}')
+    plt.errorbar(X[1:],Y18m[1:], yerr=Y18s[1:], fmt='-o')
+    plt.plot(X[1:],Y20m[1:],label='\\ref{fn:f20}')
+    plt.errorbar(X[1:],Y20m[1:], yerr=Y20s[1:], fmt='-o')
+    # plt.xlabel("$x_1$",fontsize = 32)
+    # plt.ylabel("$x_2$",fontsize = 32)
+    plt.tick_params(labelsize=28)
+    plt.savefig("../../log/facevsinnter.pdf", bbox_inches='tight')
+    # plt.show()
+    # plt.clf()
+    # plt.close('all')
 
 
 
@@ -474,6 +703,8 @@ if __name__ == "__main__":
     # plotfnassubplot()
     # splitlhsnpoints()
     # plotsamplingstrategies()
-    plotfnamepoles()
+    # plotfnamepoles()
+    # runfacevsinner()
+    analyzefacevsinner()
 
  ###########

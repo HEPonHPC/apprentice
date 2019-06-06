@@ -447,16 +447,27 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 
     # Iteration plot
+    import matplotlib as mpl
+    mpl.use('pgf')
+    pgf_with_custom_preamble = {
+        "text.usetex": True,    # use inline math for ticks
+        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+        "pgf.preamble": [
+            "\\usepackage{amsmath}",         # load additional packages
+        ]
+    }
+    mpl.rcParams.update(pgf_with_custom_preamble)
+
     color = ['#FFC300','#FF5733','#900C3F']
     X111 = np.arange(len(farr))
     ffffff = plt.figure(0,figsize=(45, 20))
     plt.rc('ytick',labelsize=20)
     plt.rc('xtick',labelsize=20)
     totalrow = 1
-    totalcol = 3
-    baseline = 0.15
+    totalcol = len(noisearr)
+    baseline = 0.2
     axarray = []
-    legendarr = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
+    legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Sampling (d-LHS)', 'Sparse Grids (SG)']
     for nnum,noise in enumerate(noisearr):
         mean ={}
         sd = {}
@@ -483,75 +494,77 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
         xlab = []
         for f in farr:
             # print(f)
-            # xlab.append("\\ref{fn:%s}"%(f))
+            xlab.append("\\ref{fn:%s}"%(f))
             # xlab.append("\\ref{%s}"%(f))
-            xlab.append("%s"%(f))
-        ax.set_xticklabels(xlab,fontsize = 20)
-        ax.set_xlabel("Test functions",fontsize=22)
-        ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=22)
+            # xlab.append("%s"%(f))
+        ax.set_xticklabels(xlab,fontsize = 36)
+        # ax.set_xlabel("Test functions",fontsize=22)
+        ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=40)
         ax.label_outer()
-    ffffff.legend((legendarr),
-               loc='upper center', ncol=5,bbox_to_anchor=(0.5, 0.99), fontsize = 25,borderaxespad=0.,shadow=False)
+    l1 = ax.legend((legendarr),
+               loc='upper left', ncol=1,fontsize = 36,frameon=False)
     plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
     plt.tight_layout()
-    plt.savefig("../../log/iterations.png")
+    # plt.savefig("../../log/iterations.png")
+    # ffffff.savefig("../../log/iterations.png", bbox_extra_artists=(l1,), bbox_inches='tight')
+    ffffff.savefig("../../log/iterations.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
     plt.clf()
     plt.close('all')
 
     exit(1)
 
 
-    s = "\nsample is %s\n\n"%(sample)
-    if(table_or_latex == "table"):
-        s+= "WRONG \n\n \t\t\t"
-        for noise in noisearr:
-            s+= "%s\t\t\t\t\t\t\t\t\t\t"%(noise)
-        s+="\n"
-        for num,noise in enumerate(noisearr):
-            if(num==0):
-                s += "\t\tpdof\trdof"
-            s += "\tPoly App\tRat Apprx\tRat Apprx SIP\t"
-        s+="\n\n"
-        for fname in farr:
-            s += "%s"%(fname)
-            for num,noise in enumerate(noisearr):
-                if(num==0):
-                    s += "\t\t%d\t%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
-                    continue
-                # s += "\t\t%.4f"%(results[fname][noise]["papp"])
-                # s+="\t"
-                # s += "\t%.4f"%(results[fname][noise]["rapp"])
-                # s+="\t"
-                s += "\t%.2f"%(results[fname][noise]["rappsip"])
-                s+="\t"
-                s += "\t%d"%(results[fname][noise]["rnoiters"])
-                s+="\t"
-                s += "\t%d"%(results[fname][noise]["rpnnl"])
-                s+="\t"
-                s += "\t%d"%(results[fname][noise]["rqnnl"])
-                s+="\t"
-                # break
-            s+="\n"
-    elif(table_or_latex =="latex"):
-        for fname in farr:
-            s += "\\ref{fn:%s}"%(fname)
-            for num,noise in enumerate(noisearr):
-                if(num==0):
-                    s+="&%d&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"],results[fname][noise]["rqnnl"])
-                s += "&%.1f&%.1f"%(results[fname][noise]["papp"],results[fname][noise]["pappsd"])
-                s += "&%.1f&%.1f"%(results[fname][noise]["rapp"],results[fname][noise]["rappsd"])
-                s += "&%.1f&%.1f"%(results[fname][noise]["rapprd"],results[fname][noise]["rapprdsd"])
-                s += "&%.1f&%.1f"%(results[fname][noise]["rappsip"],results[fname][noise]["rappsipsd"])
-                s += "&%.1f&%.1f"%(results[fname][noise]["rnoiters"],results[fname][noise]["rnoiterssd"])
-                # s += "&%.1f"%(results[fname][noise]["papp"])
-                # s += "&%.1f"%(results[fname][noise]["rapp"])
-                # s += "&%.1f"%(results[fname][noise]["rapprd"])
-                # s += "&%.1f"%(results[fname][noise]["rappsip"])
-                # s += "&%.1f"%(results[fname][noise]["rnoiters"])
-
-            s+="\\\\\hline\n"
-
-    print(s)
+    # s = "\nsample is %s\n\n"%(sample)
+    # if(table_or_latex == "table"):
+    #     s+= "WRONG \n\n \t\t\t"
+    #     for noise in noisearr:
+    #         s+= "%s\t\t\t\t\t\t\t\t\t\t"%(noise)
+    #     s+="\n"
+    #     for num,noise in enumerate(noisearr):
+    #         if(num==0):
+    #             s += "\t\tpdof\trdof"
+    #         s += "\tPoly App\tRat Apprx\tRat Apprx SIP\t"
+    #     s+="\n\n"
+    #     for fname in farr:
+    #         s += "%s"%(fname)
+    #         for num,noise in enumerate(noisearr):
+    #             if(num==0):
+    #                 s += "\t\t%d\t%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"])
+    #                 continue
+    #             # s += "\t\t%.4f"%(results[fname][noise]["papp"])
+    #             # s+="\t"
+    #             # s += "\t%.4f"%(results[fname][noise]["rapp"])
+    #             # s+="\t"
+    #             s += "\t%.2f"%(results[fname][noise]["rappsip"])
+    #             s+="\t"
+    #             s += "\t%d"%(results[fname][noise]["rnoiters"])
+    #             s+="\t"
+    #             s += "\t%d"%(results[fname][noise]["rpnnl"])
+    #             s+="\t"
+    #             s += "\t%d"%(results[fname][noise]["rqnnl"])
+    #             s+="\t"
+    #             # break
+    #         s+="\n"
+    # elif(table_or_latex =="latex"):
+    #     for fname in farr:
+    #         s += "\\ref{fn:%s}"%(fname)
+    #         for num,noise in enumerate(noisearr):
+    #             if(num==0):
+    #                 s+="&%d&%d&%d"%(results[fname][noise]["pdof"],results[fname][noise]["rdof"],results[fname][noise]["rqnnl"])
+    #             s += "&%.1f&%.1f"%(results[fname][noise]["papp"],results[fname][noise]["pappsd"])
+    #             s += "&%.1f&%.1f"%(results[fname][noise]["rapp"],results[fname][noise]["rappsd"])
+    #             s += "&%.1f&%.1f"%(results[fname][noise]["rapprd"],results[fname][noise]["rapprdsd"])
+    #             s += "&%.1f&%.1f"%(results[fname][noise]["rappsip"],results[fname][noise]["rappsipsd"])
+    #             s += "&%.1f&%.1f"%(results[fname][noise]["rnoiters"],results[fname][noise]["rnoiterssd"])
+    #             # s += "&%.1f"%(results[fname][noise]["papp"])
+    #             # s += "&%.1f"%(results[fname][noise]["rapp"])
+    #             # s += "&%.1f"%(results[fname][noise]["rapprd"])
+    #             # s += "&%.1f"%(results[fname][noise]["rappsip"])
+    #             # s += "&%.1f"%(results[fname][noise]["rnoiters"])
+    #
+    #         s+="\\\\\hline\n"
+    #
+    # print(s)
 
 # python tablecompareall.py f7,f8  0,10-1 2x ../benchmarkdata/f7.txt,../benchmarkdata/f8.txt all,all latex
 
@@ -559,6 +572,9 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 # python tabletotalcputime.py f1,f2 0,10-2,10-6 2x latex
 # python tabletotalcputime.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 2x latex
+
+# iterations
+# python tabletotalcputime.py  f4,f8,f9,f10,f14,f16,f17,f18,f20,f21,f22 0 2x latex
 
 if __name__ == "__main__":
     import os, sys
