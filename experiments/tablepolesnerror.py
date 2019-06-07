@@ -503,6 +503,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
     print (noisearr)
     print (thresholdarr)
+    methodarr = ['rapp','rapprd', 'rappsip','papp']
     if not os.path.exists("results/plots"):
         os.makedirs("results/plots", exist_ok = True)
 
@@ -511,6 +512,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     # allsamples = ['mc','lhs','so','sg']
     # allsamples = ['lhs','splitlhs','sg']
     allsamples = ['splitlhs']
+    s= ""
+
 
     outfilejson = "results/plots/Jpoleanderrorinfo"+farr[0]+".json"
     import json
@@ -521,6 +524,56 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     elif(usejson ==1):
         thresholdvalarr = np.array([float(t) for t in tarr])
         thresholdvalarr = np.sort(thresholdvalarr)
+        tval = thresholdvalarr[0]
+        meanarr = []
+        meanp1arr = []
+        for fnum,fname in enumerate(farr):
+            outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
+            if outfilejson:
+                with open(outfilejson, 'r') as fn:
+                    results = json.load(fn)
+            for sample in allsamples:
+                for noise in noisearr:
+                    for method in methodarr:
+                        no = results[fname][sample][noise][method][str(tval)]['no']
+                        s+="& %.1E "%(no)
+                s+="\n"
+                for noise in noisearr:
+                    for method in methodarr:
+                        nosd = results[fname][sample][noise][method][str(tval)]['nosd']
+                        s+="& %.1E "%(nosd)
+                s+="\n"
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2count = results[fname][sample][noise][method][str(tval)]['l2count']
+                        s+="& %.1E "%(l2count)
+                s+="\n"
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2countsd = results[fname][sample][noise][method][str(tval)]['l2countsd']
+                        s+="& %.1E "%(l2countsd)
+                s+="\n"
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2notcount = results[fname][sample][noise][method][str(tval)]['l2notcount']
+                        s+="& %.1E "%(l2notcount)
+                s+="\n"
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2notcountsd = results[fname][sample][noise][method][str(tval)]['l2notcountsd']
+                        s+="& %.1E "%(l2notcountsd)
+                s+="\n"
+                # for noise in noisearr:
+                #     for method in methodarr:
+                #         l2all = results[fname][sample][noise][method][str(tval)]['l2all']
+                #         s+="& %.1E "%(l2all)
+                # s+="\n"
+                # for noise in noisearr:
+                #     for method in methodarr:
+                #         l2allsd = results[fname][sample][noise][method][str(tval)]['l2allsd']
+                #         s+="& %.1E "%(l2allsd)
+    print(s)
+
 
 
 if __name__ == "__main__":
@@ -539,7 +592,7 @@ if __name__ == "__main__":
 # python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 100,1000 2x table 1
 
 # for fno in 4 7 17 18 19; do  name="f"$fno; nohup python tablepolesnerror.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
-# nohup python tablepolesnerror.py f4,f7,f17,f18,f19 0,10-2,10-6 100 2x table 1
+# python tablepolesnerror.py f4,f7,f17,f18,f19 0,10-2,10-6 100 2x table 1
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)
