@@ -475,7 +475,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     # allsamples = ['sg']
     # allsamples = ['lhs']
     # allsamples = ['mc','lhs','so','sg']
-    allsamples = ['lhs','splitlhs','sg']
+    # allsamples = ['lhs','splitlhs','sg']
+    allsamples = ['splitlhs']
 
     outfilejson = "results/plots/Jpoleinfo"+farr[0]+".json"
     import json
@@ -509,7 +510,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         for pnum,position in enumerate(['resultscorner','resultsnotcorner']):
             data = {}
 
-            width = 0.15
+            width = 0.25
             ecolor = 'black'
             plt.rc('ytick',labelsize=14)
             plt.rc('xtick',labelsize=14)
@@ -559,13 +560,14 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             # plt.text(1,3.35, "$\\epsilon = 0$", fontsize=18)
             # plt.text(4,3.35, "$\\epsilon = 10^{-6}$", fontsize=18)
             # plt.text(7,3.35, "$\\epsilon = 10^{-2}$", fontsize=18)
-            labels = ['Latin hypercube sampling', 'Split latin hypercube sampling', 'Sparse grids']
+            # labels = ['LHS', 'd-LHS', 'SG']
+            labels = ['d-LHS']
             for snum, sample in enumerate(allsamples):
                 # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
                 ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
                 ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
             if(pnum==0):
-                ffffff.legend(loc='upper center', ncol=3,bbox_to_anchor=(0.5, 0.99), fontsize = 20,borderaxespad=0.,shadow=False)
+                ffffff.legend(loc='upper center', ncol=3,bbox_to_anchor=(0.5, 1.2), fontsize = 20,borderaxespad=0.,shadow=False)
             ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
 
             xlab = [
@@ -605,11 +607,13 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         baseline = 1
         color100 = ['#FFC300','#FF5733','#900C3F']
         color1k = ['yellow','wheat','r']
+        color100 = ['#FF5733','#900C3F','#FFC300']
+        color1k = ['wheat','r','yellow']
         axarray = []
 
 
         data = {}
-        width = 0.23
+        width = 0.35
         ecolor = 'black'
         plt.rc('ytick',labelsize=14)
         plt.rc('xtick',labelsize=14)
@@ -660,7 +664,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
         plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
 
-        methodlabel = ['$r_1$','$r_2$','$r_3$']
+        methodlabel = ['$r_1(x)$','$r_2(x)$','$r_3(x)$']
         xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
 
         # xlab1 = []
@@ -669,34 +673,36 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         #     xlab1.append('in')
 
         # ffffff.text(0.33, 0.04, 'rapp', ha='center',fontsize = 18)
-        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right] \\mathrm{\\ where\\ P}\\ \\in \\mathrm{\\{face,in\\}}$",fontsize=18)
+        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right] \\mathrm{\\ where\\ P}\\ \\in \\mathrm{\\{fc,in\\}}$",fontsize=18)
+        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right]$",fontsize=32)
         for snum, sample in enumerate(allsamples):
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
             ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
             ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
 
         # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
-        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
-        l2 = ffffff.text(0.19, 0.08, 'P = face', ha='center',fontsize = 18)
-        l3 = ffffff.text(0.32, 0.08, 'P = in', ha='center',fontsize = 18)
-        l4 = ffffff.text(0.45, 0.08, 'P = face', ha='center',fontsize = 18)
-        l5 = ffffff.text(0.58, 0.08, 'P = in', ha='center',fontsize = 18)
-        l6 = ffffff.text(0.71, 0.08, 'P = face', ha='center',fontsize = 18)
-        l7 = ffffff.text(0.835, 0.08, 'P = in', ha='center',fontsize = 18)
+        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 32)
+        l2 = ffffff.text(0.19, 0.065, 'P = fc', ha='center',fontsize = 28)
+        l3 = ffffff.text(0.32, 0.065, 'P = in', ha='center',fontsize = 28)
+        l4 = ffffff.text(0.45, 0.065, 'P = fc', ha='center',fontsize = 28)
+        l5 = ffffff.text(0.58, 0.065, 'P = in', ha='center',fontsize = 28)
+        l6 = ffffff.text(0.71, 0.065, 'P = fc', ha='center',fontsize = 28)
+        l7 = ffffff.text(0.835, 0.065, 'P = in', ha='center',fontsize = 28)
 
         legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
-        l8 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
+        l8 = ffffff.legend(legendarr,loc='upper center', ncol=3,bbox_to_anchor=(0.435, 0.88), fontsize = 32,borderaxespad=0.,shadow=False)
 
         # for i in range()
-
+        plt.tick_params(labelsize=28)
         ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
-        ax.set_xticklabels(xlab1,fontsize = 18)
+        ax.set_xticklabels(xlab1,fontsize = 28)
         plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
         # plt.show()
-        ffffff.savefig('../../log/poles2.png', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
+        ffffff.savefig('../../log/poles2.pdf', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
         # os.system('open ../../log/poles2.png')
         plt.clf()
         plt.close('all')
+        exit(1)
 
 
         # FILTERED Error plot
@@ -795,21 +801,13 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         ax.set_xticklabels(xlab1,fontsize = 18)
         plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
         # plt.show()
-        ffffff.savefig('../../log/poleerror.png', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
+        ffffff.savefig('../../log/poleerror.pdf', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
         # os.system('open ../../log/poles2.png')
         plt.clf()
         plt.close('all')
+        exit(1)
 
 
-        # Tables for paper. Average number of poles and pole error
-
-        # s=""
-        # for noise in noisearr:
-        #     for method in methodarr:
-        #         for tval in thresholdvalarr:
-        #             Win = []
-        #             Wfc = []
-        #
 
 
 
@@ -1096,7 +1094,7 @@ if __name__ == "__main__":
  # for fno in 3 5 9 13 14 18 19; do  name="f"$fno; nohup python tablepoles.py $name 0,10-1 10,100,1000 2x  latex> ../../debug/"tablepoles_latex_"$name".log" 2>&1 & done
 
 # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python tablepoles.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
-# python tablepoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 100,1000 2x table 1
+# python plotpoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 100,1000 2x table 1
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)
