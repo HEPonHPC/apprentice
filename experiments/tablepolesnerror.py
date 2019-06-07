@@ -515,7 +515,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     outfilejson = "results/plots/Jpoleanderrorinfo"+farr[0]+".json"
     import json
     if(usejson ==0):
-        resultsnotcorner = getresults(farr,noisearr, tarr, ts,allsamples)
+        results = getresults(farr,noisearr, tarr, ts,allsamples)
         with open(outfilejson, "w") as f:
             json.dump(results, f,indent=4, sort_keys=True)
     elif(usejson ==1):
