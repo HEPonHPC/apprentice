@@ -801,7 +801,15 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         plt.close('all')
 
 
+        # Tables for paper. Average number of poles and pole error
 
+        # s=""
+        # for noise in noisearr:
+        #     for method in methodarr:
+        #         for tval in thresholdvalarr:
+        #             Win = []
+        #             Wfc = []
+        #
 
 
 
