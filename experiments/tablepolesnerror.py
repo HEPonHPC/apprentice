@@ -498,6 +498,12 @@ def generatedata():
          np.savetxt(outfile, X_test, delimiter=",")
 
 
+def checkfloat(fmtstr,fl):
+    if fl != 0:
+        return fmtstr%(fl)
+    else:
+        return " & -"
+
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
@@ -527,51 +533,66 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         tval = thresholdvalarr[0]
         meanarr = []
         meanp1arr = []
+        fmtstr = "& %.1E "
         for fnum,fname in enumerate(farr):
             outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
             if outfilejson:
                 with open(outfilejson, 'r') as fn:
                     results = json.load(fn)
+            s+= "\\multirow{8}{*}{\\ref{fn:%s}}\n"%(fname)
             for sample in allsamples:
+                s+= "& \\multirow{2}{*}{$|W_{r,10^2}|$}\n"
+                s+= "& M "
                 for noise in noisearr:
                     for method in methodarr:
                         no = results[fname][sample][noise][method][str(tval)]['no']
-                        s+="& %.1E "%(no)
-                s+="\n"
+                        s+=checkfloat(fmtstr,no)
+                s+="\\\\ \n"
+                s+= "& & SD "
                 for noise in noisearr:
                     for method in methodarr:
                         nosd = results[fname][sample][noise][method][str(tval)]['nosd']
-                        s+="& %.1E "%(nosd)
-                s+="\n"
+                        s+=checkfloat(fmtstr,nosd)
+                s+="\\\\\n"
+                s+= "& \\multirow{2}{*}{$E_{r,10^2}$}\n"
+                s+= "& M "
                 for noise in noisearr:
                     for method in methodarr:
                         l2count = results[fname][sample][noise][method][str(tval)]['l2count']
-                        s+="& %.1E "%(l2count)
-                s+="\n"
+                        s+=checkfloat(fmtstr,l2count)
+                s+="\\\\\n"
+                s+= "& & SD "
                 for noise in noisearr:
                     for method in methodarr:
                         l2countsd = results[fname][sample][noise][method][str(tval)]['l2countsd']
-                        s+="& %.1E "%(l2countsd)
-                s+="\n"
+                        s+=checkfloat(fmtstr,l2countsd)
+                s+="\\\\\n"
+                s+= "& \\multirow{2}{*}{$E'_{r,10^2}$}\n"
+                s+= "& M "
                 for noise in noisearr:
                     for method in methodarr:
                         l2notcount = results[fname][sample][noise][method][str(tval)]['l2notcount']
-                        s+="& %.1E "%(l2notcount)
-                s+="\n"
+                        s+=checkfloat(fmtstr,l2notcount)
+                s+="\\\\\n"
+                s+= "& & SD "
                 for noise in noisearr:
                     for method in methodarr:
                         l2notcountsd = results[fname][sample][noise][method][str(tval)]['l2notcountsd']
-                        s+="& %.1E "%(l2notcountsd)
-                s+="\n"
-                # for noise in noisearr:
-                #     for method in methodarr:
-                #         l2all = results[fname][sample][noise][method][str(tval)]['l2all']
-                #         s+="& %.1E "%(l2all)
-                # s+="\n"
-                # for noise in noisearr:
-                #     for method in methodarr:
-                #         l2allsd = results[fname][sample][noise][method][str(tval)]['l2allsd']
-                #         s+="& %.1E "%(l2allsd)
+                        s+=checkfloat(fmtstr,l2notcountsd)
+                s+="\\\\\n"
+                s+= "& \\multirow{2}{*}{$\\Delta_r$}\n"
+                s+= "& M "
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2all = results[fname][sample][noise][method]['l2all']
+                        s+=checkfloat(fmtstr,l2all)
+                s+="\\\\\n"
+                s+= "& & SD "
+                for noise in noisearr:
+                    for method in methodarr:
+                        l2allsd = results[fname][sample][noise][method]['l2allsd']
+                        s+=checkfloat(fmtstr,l2allsd)
+                s+="\\\\\\cline{3-15}\\hline\n"
     print(s)
 
 
