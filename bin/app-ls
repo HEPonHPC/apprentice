@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+import apprentice
+import numpy as np
+
+
+if __name__ == "__main__":
+    import sys
+    import time
+
+
+    import optparse, os, sys
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-w", dest="WEIGHTS", default=False, action='store_true', help="print a weight file (default: %default)")
+    opts, args = op.parse_args()
+
+
+    binids, RA = apprentice.tools.readApprox(args[0])
+    hnames = sorted(list(set([b.split("#")[0] for b in binids])))
+
+
+    nbins = []
+    for hn in hnames:
+        nbins.append(sum([1 for b in binids if hn in b]))
+
+    if opts.WEIGHTS:
+        for hn, nb in zip(hnames, nbins):
+            print("{}\t1.0 # {} bins".format(hn,nb))
+
+
+    else:
+        print(RA[0]._scaler)
