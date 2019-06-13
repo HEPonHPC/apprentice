@@ -37,11 +37,14 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     # allsamples = ['lhs','splitlhs','sg']
     # allsamples = ['sg']
     allsamples = ['splitlhs']
+    # allsamples = ['lhs','splitlhs']
     import json
     from apprentice import tools
     results = {}
+    dumpr = {}
     for snum, sample in enumerate(allsamples):
         results[sample] = {}
+        dumpr[sample] = {}
         for num,fname in enumerate(farr):
             results[sample][fname] = {}
             m = 5
@@ -56,6 +59,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                 timerard = []
                 timerasip = []
                 iterrasip = []
+                iterrasipnonlog = []
                 fittime = []
                 mstime = []
                 for run in ["exp1","exp2","exp3","exp4","exp5"]:
@@ -115,6 +119,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                     timerasip.append(np.log10(rappsiptime))
                     # timerasip.append(rappsiptime)
                     iterrasip.append(np.log10(rnoiters))
+                    iterrasipnonlog.append(rnoiters)
                     ft = 0.
                     mt = 0.
                     for iter in datastore['iterationinfo']:
@@ -236,6 +241,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                     'rpnnl':rpnnl,
                     'rqnnl':rqnnl
                 }
+                dumpr[sample][fname] = iterrasipnonlog
 
 
 
@@ -243,6 +249,11 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
         # embed()
 
     # print(results)
+
+    import json
+    with open("results/plots/Jiterations.json", "w") as f:
+            json.dump(dumpr, f,indent=4, sort_keys=True)
+
     baseline = 2
     totalrow = 3
     totalcol = 3
