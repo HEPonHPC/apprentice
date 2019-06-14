@@ -116,17 +116,17 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                             datastore = json.load(fn)
                     rappsiptime = datastore['log']['fittime']
                     rnoiters = len(datastore['iterationinfo'])
-                    timerasip.append(np.log10(rappsiptime))
+                    timerasip.append(rappsiptime)
                     # timerasip.append(rappsiptime)
-                    iterrasip.append(np.log10(rnoiters))
+                    iterrasip.append(rnoiters)
                     iterrasipnonlog.append(rnoiters)
                     ft = 0.
                     mt = 0.
                     for iter in datastore['iterationinfo']:
                         ft+=iter['log']['time']
                         mt+=iter['robOptInfo']['info'][0]['log']['time']
-                    fittime.append(np.log10(ft))
-                    mstime.append(np.log10(mt))
+                    fittime.append(ft)
+                    mstime.append(mt)
                     # fittime.append(ft)
                     # mstime.append(mt)
 
@@ -135,14 +135,14 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                         with open(rappfile, 'r') as fn:
                             datastore = json.load(fn)
                     rapptime = datastore['log']['fittime']
-                    timera.append(np.log10(rapptime))
+                    timera.append(rapptime)
                     # timera.append(rapptime)
 
                     if rapprdfile:
                         with open(rapprdfile, 'r') as fn:
                             datastore = json.load(fn)
                     rapprdtime = datastore['log']['fittime']
-                    timerard.append(np.log10(rapprdtime))
+                    timerard.append(rapprdtime)
                     # timerard.append(rapprdtime)
 
 
@@ -151,7 +151,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
                             datastore = json.load(fn)
                     papptime = datastore['log']['fittime']
                     pdof = tools.numCoeffsPoly(datastore['dim'],datastore['m'])
-                    timepa.append(np.log10(papptime))
+                    timepa.append(papptime)
                     # timepa.append(papptime)
                     if(sample == "sg"):
                         break
@@ -451,31 +451,40 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
     # CPU time plot for paper
     import matplotlib as mpl
-    mpl.use('pgf')
-    pgf_with_custom_preamble = {
-        "text.usetex": True,    # use inline math for ticks
-        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
-        "pgf.preamble": [
-            "\\usepackage{amsmath}",         # load additional packages
-        ]
-    }
-    mpl.rcParams.update(pgf_with_custom_preamble)
+    # mpl.use('pgf')
+    # pgf_with_custom_preamble = {
+    #     "text.usetex": True,    # use inline math for ticks
+    #     "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+    #     "pgf.preamble": [
+    #         "\\usepackage{amsmath}",         # load additional packages
+    #     ]
+    # }
+    # mpl.rcParams.update(pgf_with_custom_preamble)
+
+
+
 
     totalrow = 1
     totalcol = 1
-    # meankeyarr1 = ['papp','rapp','rapprd','rappsip','rfittime','rmstime']
-    # sdkeyarr1 = ['pappsd','rappsd','rapprdsd','rappsipsd','rfittimesd','rmstimesd']
-    # color1 = ['#900C3F','#C70039','#FF5733','#FFC300','wheat','pink']
-    # legendarr1 = ['Polynomial Approximation ','Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}: total time','Algorithm \\ref{A:Polyak}: fit time','Algorithm \\ref{A:Polyak}: multistart time']
-    meankeyarr1 = ['papp','rapp','rapprd','rfittime','rmstime']
-    sdkeyarr1 = ['pappsd','rappsd','rapprdsd','rfittimesd','rmstimesd']
-    color1 = ['#900C3F','#C70039','#FF5733','#FFC300','pink']
-    legendarr1 = ['Polynomial Approximation ','Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}: fit time','Algorithm \\ref{A:Polyak}: multistart time']
+    meankeyarr1 = ['papp','rapp','rapprd','rappsip','rfittime']
+    sdkeyarr1 = ['pappsd','rappsd','rapprdsd','rappsipsd','rmstimesd']
+    # color1 = ['#900C3F','#C70039','#FF5733','#FFC300','pink']
+    color1 = ["m", "c", "g", "b"]
+    # legendarr1 = ['Polynomial Approximation ','Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}: fit time','Algorithm \\ref{A:Polyak}: multistart time']
+    legendarr1 = ['$p(x)$','$r_1(x)$','$r_2(x)$' ,'$r_3(x)$: multistart time','$r_3(x)$: fit time']
     import matplotlib.pyplot as plt
-    ffffff = plt.figure(0,figsize=(45, 20))
+    from matplotlib.ticker import ScalarFormatter
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+
+
+    mpl.rc('font',family='serif')
+
+    ffffff = plt.figure(0,figsize=(15, 10))
     X111 = np.arange(len(farr)*len(noisearr))
     axarray = []
-    width = 0.15
+    width = 0.2
     ecolor = 'black'
     plt.rc('ytick',labelsize=20)
     plt.rc('xtick',labelsize=20)
@@ -502,28 +511,40 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
         else:
             ax = plt.subplot2grid((totalrow,totalcol), (snum,0))
             axarray.append(ax)
-
+        # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         # ax.set_xlim(-.3,14.7)
         # ax.spines['top'].set_visible(False)
         # ax.spines['right'].set_visible(False)
         # plt.axvspan(-.3, 3.7, alpha=0.5, color='pink')
         # plt.axvspan(3.7, 9.7, alpha=0.5, color='lightgrey')
         # plt.axvspan(9.7, 14.7, alpha=0.5, color='cyan')
+        alignarr = [0.5,0.5,0.5,0.2]
         for typenum,type in enumerate(meankeyarr1):
             sdkey = sdkeyarr1[typenum]
             # print(mean[type])
             if(sample == 'sg'):
-                ax.bar(X111+typenum*width, np.array(mean[type])+baseline, width,color=color1[typenum], capsize=3,label=legendarr1[typenum])
+                ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], capsize=3,label=legendarr1[typenum])
             else:
-                ax.bar(X111+typenum*width, np.array(mean[type])+baseline, width,color=color1[typenum], yerr=np.array(sd[sdkey]),align='center',  ecolor=ecolor, capsize=3,label=legendarr1[typenum])
+                ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], alpha=alignarr[typenum],align='center',  ecolor=ecolor, capsize=3,label=legendarr1[typenum])
+                ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[sdkey]))
+            if(typenum == 3):
+                newtn = typenum + 1
+                newtype = meankeyarr1[newtn]
+                newsdkey = sdkeyarr1[newtn]
+                ax.bar(X111+typenum*width, np.array(mean[newtype]), width,color=color1[typenum], alpha=0.5,align='center',  ecolor=ecolor, capsize=3,label=legendarr1[newtn])
+                ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[newsdkey]))
+                break
+
 
         if(snum==0):
             l1 = ax.legend(
-                loc='upper left', ncol=1,fontsize = 38,framealpha=1,shadow=True,frameon=False)
+                loc='upper left', ncol=1,fontsize = 20,framealpha=1,shadow=True,frameon=False)
             l1.get_frame().set_facecolor('white')
             noiselegendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
             # l2 = ffffff.legend(noiselegendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
         ax.set_xticks(X111 + (len(meankeyarr)-1)*width / 2)
+        ax.set_yscale("log")
         xlab = []
         for f in farr:
             # print(f)
@@ -531,20 +552,30 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             # xlab.append("\\ref{%s}"%(f))
             # xlab.append("%s"%(f))
         # xlab1 = np.concatenate((xlab,xlab,xlab),axis=None)
-        ax.set_xticklabels(xlab,fontsize = 32)
-        plt.rc('ytick',labelsize=32)
-        plt.rc('xtick',labelsize=32)
-        plt.tick_params(labelsize=32)
+        xlab11= ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
+        ax.set_xticklabels(xlab11,fontsize = 20)
+
+        plt.rc('ytick',labelsize=20)
+        plt.rc('xtick',labelsize=20)
+        plt.tick_params(labelsize=20)
         # ax.set_xlabel("Test functions",fontsize=22)
-        ax.set_ylabel("$\\log_{10}$ [CPU time (sec)]",fontsize=32)
+        ax.set_ylabel("CPU time (sec)",fontsize=20)
+        # for axis in [ax.xaxis, ax.yaxis]:
+        #     axis.set_major_formatter(ScalarFormatter())
+
+
         ax.label_outer()
 
 
 
 
-    plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
 
-    ffffff.savefig("../../log/cputimeplot.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
+
+    # plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+
+    # ffffff.savefig("../../log/cputimeplot.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
+    # ffffff.savefig("../../log/cputimeplot.png", bbox_extra_artists=(l1,), bbox_inches='tight')
+    ffffff.savefig("../../log/cputimeplot.pdf", bbox_extra_artists=(l1,), bbox_inches='tight')
 
     plt.clf()
     plt.close('all')
@@ -572,12 +603,13 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
     color = ['#FFC300','#FF5733','#900C3F']
     X111 = np.arange(len(farr))
-    ffffff = plt.figure(0,figsize=(45, 20))
+    ffffff = plt.figure(0,figsize=(15, 10))
     plt.rc('ytick',labelsize=20)
     plt.rc('xtick',labelsize=20)
     totalrow = 1
     totalcol = len(noisearr)
-    baseline = 0.2
+    baseline = 0
+    width = 0.4
     axarray = []
     legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Sampling (d-LHS)', 'Sparse Grids (SG)']
     for nnum,noise in enumerate(noisearr):
@@ -587,8 +619,10 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             mean[sample] = []
             sd[sample] = []
             for fname in farr:
-                mean[sample].append(results[sample][fname][noise]['rnoiters'])
-                sd[sample].append(results[sample][fname][noise]['rnoiterssd'])
+                # mean[sample].append(results[sample][fname][noise]['rnoiters'])
+                # sd[sample].append(results[sample][fname][noise]['rnoiterssd'])
+                mean[sample].append(np.average(dumpr[sample][fname]))
+                sd[sample].append(np.std(dumpr[sample][fname]))
         if(len(axarray)>0):
             ax = plt.subplot2grid((totalrow,totalcol), (0,nnum),sharex=axarray[0],sharey=axarray[0])
             axarray.append(ax)
@@ -609,12 +643,14 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
             xlab.append("\\ref{fn:%s}"%(f))
             # xlab.append("\\ref{%s}"%(f))
             # xlab.append("%s"%(f))
-        ax.set_xticklabels(xlab,fontsize = 36)
+        ax.set_xticklabels(xlab,fontsize = 20)
+        plt.tick_params(labelsize=20)
         # ax.set_xlabel("Test functions",fontsize=22)
-        ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=40)
+        # ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=40)
+        ax.set_ylabel("Number of iterations",fontsize=24)
         ax.label_outer()
     l1 = ax.legend((legendarr),
-               loc='upper left', ncol=1,fontsize = 36,frameon=False)
+               loc='upper left', ncol=1,fontsize = 24,frameon=False)
     plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
     plt.tight_layout()
     # plt.savefig("../../log/iterations.png")

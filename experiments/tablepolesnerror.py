@@ -593,7 +593,31 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
                         l2allsd = results[fname][sample][noise][method]['l2allsd']
                         s+=checkfloat(fmtstr,l2allsd)
                 s+="\\\\\\cline{3-15}\\hline\n"
-    print(s)
+        print(s)
+    elif(usejson == 2):
+        dumpr = {}
+        thresholdvalarr = np.array([float(t) for t in tarr])
+        thresholdvalarr = np.sort(thresholdvalarr)
+        tval = thresholdvalarr[0]
+        for fnum,fname in enumerate(farr):
+            outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
+            if outfilejson:
+                with open(outfilejson, 'r') as fn:
+                    results = json.load(fn)
+            dumpr[fname] = {}
+            for sample in allsamples:
+                for noise in noisearr:
+                    dumpr[fname][noise] = {}
+                    for method in methodarr:
+                        dumpr[fname][noise][method] = {
+                            "E_rt_mean":results[fname][sample][noise][method][str(tval)]['l2count'],
+                            "E_rt_sd":results[fname][sample][noise][method][str(tval)]['l2countsd'],
+                            "Eprime_rt_mean":results[fname][sample][noise][method][str(tval)]['l2notcount'],
+                            "Eprime_rt_sd":results[fname][sample][noise][method][str(tval)]['l2notcountsd']
+                        }
+        import json
+        with open("results/plots/Jerrordata.json", "w") as f:
+            json.dump(dumpr, f,indent=4, sort_keys=True)
 
 
 
@@ -614,6 +638,7 @@ if __name__ == "__main__":
 
 # for fno in 4 7 17 18 19; do  name="f"$fno; nohup python tablepolesnerror.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
 # python tablepolesnerror.py f4,f7,f17,f18,f19 0,10-2,10-6 100 2x table 1
+# python tablepolesnerror.py f4,f8,f17,f18,f19 0,10-2,10-6 100 2x table 2
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)

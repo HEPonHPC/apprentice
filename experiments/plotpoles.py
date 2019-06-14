@@ -561,7 +561,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             # plt.text(4,3.35, "$\\epsilon = 10^{-6}$", fontsize=18)
             # plt.text(7,3.35, "$\\epsilon = 10^{-2}$", fontsize=18)
             # labels = ['LHS', 'd-LHS', 'SG']
-            labels = ['d-LHS']
+            labels = ['']
             for snum, sample in enumerate(allsamples):
                 # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
                 ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
@@ -674,7 +674,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
         # ffffff.text(0.33, 0.04, 'rapp', ha='center',fontsize = 18)
         # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right] \\mathrm{\\ where\\ P}\\ \\in \\mathrm{\\{fc,in\\}}$",fontsize=18)
-        ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right]$",fontsize=32)
+        ax.set_ylabel("$\\log_{10}\\left[\\mathrm{Avg}|W_{r,t}|\\right]$",fontsize=32)
         for snum, sample in enumerate(allsamples):
             # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
             ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
@@ -682,12 +682,12 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
 
         # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
         l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 32)
-        l2 = ffffff.text(0.19, 0.065, 'P = fc', ha='center',fontsize = 28)
-        l3 = ffffff.text(0.32, 0.065, 'P = in', ha='center',fontsize = 28)
-        l4 = ffffff.text(0.45, 0.065, 'P = fc', ha='center',fontsize = 28)
-        l5 = ffffff.text(0.58, 0.065, 'P = in', ha='center',fontsize = 28)
-        l6 = ffffff.text(0.71, 0.065, 'P = fc', ha='center',fontsize = 28)
-        l7 = ffffff.text(0.835, 0.065, 'P = in', ha='center',fontsize = 28)
+        l2 = ffffff.text(0.19, 0.065, 'face', ha='center',fontsize = 28)
+        l3 = ffffff.text(0.32, 0.065, 'inside', ha='center',fontsize = 28)
+        l4 = ffffff.text(0.45, 0.065, 'face', ha='center',fontsize = 28)
+        l5 = ffffff.text(0.58, 0.065, 'inside', ha='center',fontsize = 28)
+        l6 = ffffff.text(0.71, 0.065, 'face', ha='center',fontsize = 28)
+        l7 = ffffff.text(0.835, 0.065, 'inside', ha='center',fontsize = 28)
 
         legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
         l8 = ffffff.legend(legendarr,loc='upper center', ncol=3,bbox_to_anchor=(0.435, 0.88), fontsize = 32,borderaxespad=0.,shadow=False)
