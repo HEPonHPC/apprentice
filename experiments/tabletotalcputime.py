@@ -36,8 +36,8 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     # allsamples = ['mc','lhs','so','sg']
     # allsamples = ['lhs','splitlhs','sg']
     # allsamples = ['sg']
-    allsamples = ['splitlhs']
-    # allsamples = ['lhs','splitlhs']
+    # allsamples = ['splitlhs']
+    allsamples = ['lhs','splitlhs']
     import json
     from apprentice import tools
     results = {}
@@ -464,123 +464,123 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 
 
-    totalrow = 1
-    totalcol = 1
-    meankeyarr1 = ['papp','rapp','rapprd','rappsip','rfittime']
-    sdkeyarr1 = ['pappsd','rappsd','rapprdsd','rappsipsd','rmstimesd']
-    # color1 = ['#900C3F','#C70039','#FF5733','#FFC300','pink']
-    color1 = ["m", "c", "g", "b"]
-    # legendarr1 = ['Polynomial Approximation ','Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}: fit time','Algorithm \\ref{A:Polyak}: multistart time']
-    legendarr1 = ['$p(x)$','$r_1(x)$','$r_2(x)$' ,'$r_3(x)$: multistart time','$r_3(x)$: fit time']
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import ScalarFormatter
-    mpl.rc('text', usetex = True)
-    mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
+    # totalrow = 1
+    # totalcol = 1
+    # meankeyarr1 = ['papp','rapp','rapprd','rappsip','rfittime']
+    # sdkeyarr1 = ['pappsd','rappsd','rapprdsd','rappsipsd','rmstimesd']
+    # # color1 = ['#900C3F','#C70039','#FF5733','#FFC300','pink']
+    # color1 = ["m", "c", "g", "b"]
+    # # legendarr1 = ['Polynomial Approximation ','Algorithm \\ref{ALG:MVVandQR} without degree reduction','Algorithm \\ref{ALG:MVVandQR} with degree reduction' ,'Algorithm \\ref{A:Polyak}: fit time','Algorithm \\ref{A:Polyak}: multistart time']
+    # legendarr1 = ['$p(x)$','$r_1(x)$','$r_2(x)$' ,'$r_3(x)$: multistart time','$r_3(x)$: fit time']
+    # import matplotlib.pyplot as plt
+    # from matplotlib.ticker import ScalarFormatter
+    # mpl.rc('text', usetex = True)
+    # mpl.rc('font', family = 'serif', size=12)
+    # mpl.style.use("ggplot")
+    #
+    #
+    # mpl.rc('font',family='serif')
+    #
+    # ffffff = plt.figure(0,figsize=(15, 10))
+    # X111 = np.arange(len(farr)*len(noisearr))
+    # axarray = []
+    # width = 0.2
+    # ecolor = 'black'
+    # plt.rc('ytick',labelsize=20)
+    # plt.rc('xtick',labelsize=20)
+    # for snum, sample in enumerate(allsamples):
+    #     mean = {}
+    #     for type in meankeyarr1:
+    #         mean[type] = []
+    #     sd = {}
+    #     for type in sdkeyarr1:
+    #         sd[type] = []
+    #     for nnum,noise in enumerate(noisearr):
+    #         for fname in farr:
+    #             for type in meankeyarr1:
+    #                 mean[type].append(results[sample][fname][noise][type])
+    #                 # mean[type].append(np.ma.log10(results[sample][fname][noise][type]))
+    #             for type in sdkeyarr1:
+    #                 # print(results[sample][fname][noise][type])
+    #                 sd[type].append(results[sample][fname][noise][type])
+    #                 # sd[type].append(np.ma.log10(results[sample][fname][noise][type]))
+    #
+    #     if(len(axarray)>0):
+    #         ax = plt.subplot2grid((totalrow,totalcol), (snum,0),sharex=axarray[0],sharey=axarray[0])
+    #         axarray.append(ax)
+    #     else:
+    #         ax = plt.subplot2grid((totalrow,totalcol), (snum,0))
+    #         axarray.append(ax)
+    #     # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    #     # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    #     # ax.set_xlim(-.3,14.7)
+    #     # ax.spines['top'].set_visible(False)
+    #     # ax.spines['right'].set_visible(False)
+    #     # plt.axvspan(-.3, 3.7, alpha=0.5, color='pink')
+    #     # plt.axvspan(3.7, 9.7, alpha=0.5, color='lightgrey')
+    #     # plt.axvspan(9.7, 14.7, alpha=0.5, color='cyan')
+    #     alignarr = [0.5,0.5,0.5,0.2]
+    #     for typenum,type in enumerate(meankeyarr1):
+    #         sdkey = sdkeyarr1[typenum]
+    #         # print(mean[type])
+    #         if(sample == 'sg'):
+    #             ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], capsize=3,label=legendarr1[typenum])
+    #         else:
+    #             ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], alpha=alignarr[typenum],align='center',  ecolor=ecolor, capsize=3,label=legendarr1[typenum])
+    #             ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[sdkey]))
+    #         if(typenum == 3):
+    #             newtn = typenum + 1
+    #             newtype = meankeyarr1[newtn]
+    #             newsdkey = sdkeyarr1[newtn]
+    #             ax.bar(X111+typenum*width, np.array(mean[newtype]), width,color=color1[typenum], alpha=0.5,align='center',  ecolor=ecolor, capsize=3,label=legendarr1[newtn])
+    #             ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[newsdkey]))
+    #             break
+    #
+    #
+    #     if(snum==0):
+    #         l1 = ax.legend(
+    #             loc='upper left', ncol=1,fontsize = 20,framealpha=1,shadow=True,frameon=False)
+    #         l1.get_frame().set_facecolor('white')
+    #         noiselegendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
+    #         # l2 = ffffff.legend(noiselegendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
+    #     ax.set_xticks(X111 + (len(meankeyarr)-1)*width / 2)
+    #     ax.set_yscale("log")
+    #     xlab = []
+    #     for f in farr:
+    #         # print(f)
+    #         xlab.append("\\ref{fn:%s}"%(f))
+    #         # xlab.append("\\ref{%s}"%(f))
+    #         # xlab.append("%s"%(f))
+    #     # xlab1 = np.concatenate((xlab,xlab,xlab),axis=None)
+    #     xlab11= ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
+    #     ax.set_xticklabels(xlab11,fontsize = 20)
+    #
+    #     plt.rc('ytick',labelsize=20)
+    #     plt.rc('xtick',labelsize=20)
+    #     plt.tick_params(labelsize=20)
+    #     # ax.set_xlabel("Test functions",fontsize=22)
+    #     ax.set_ylabel("CPU time (sec)",fontsize=20)
+    #     # for axis in [ax.xaxis, ax.yaxis]:
+    #     #     axis.set_major_formatter(ScalarFormatter())
+    #
+    #
+    #     ax.label_outer()
+    #
+    #
+    #
+    #
+    #
+    #
+    # # plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+    #
+    # # ffffff.savefig("../../log/cputimeplot.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
+    # # ffffff.savefig("../../log/cputimeplot.png", bbox_extra_artists=(l1,), bbox_inches='tight')
+    # ffffff.savefig("../../log/cputimeplot.pdf", bbox_extra_artists=(l1,), bbox_inches='tight')
+    #
+    # plt.clf()
+    # plt.close('all')
 
-
-    mpl.rc('font',family='serif')
-
-    ffffff = plt.figure(0,figsize=(15, 10))
-    X111 = np.arange(len(farr)*len(noisearr))
-    axarray = []
-    width = 0.2
-    ecolor = 'black'
-    plt.rc('ytick',labelsize=20)
-    plt.rc('xtick',labelsize=20)
-    for snum, sample in enumerate(allsamples):
-        mean = {}
-        for type in meankeyarr1:
-            mean[type] = []
-        sd = {}
-        for type in sdkeyarr1:
-            sd[type] = []
-        for nnum,noise in enumerate(noisearr):
-            for fname in farr:
-                for type in meankeyarr1:
-                    mean[type].append(results[sample][fname][noise][type])
-                    # mean[type].append(np.ma.log10(results[sample][fname][noise][type]))
-                for type in sdkeyarr1:
-                    # print(results[sample][fname][noise][type])
-                    sd[type].append(results[sample][fname][noise][type])
-                    # sd[type].append(np.ma.log10(results[sample][fname][noise][type]))
-
-        if(len(axarray)>0):
-            ax = plt.subplot2grid((totalrow,totalcol), (snum,0),sharex=axarray[0],sharey=axarray[0])
-            axarray.append(ax)
-        else:
-            ax = plt.subplot2grid((totalrow,totalcol), (snum,0))
-            axarray.append(ax)
-        # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        # ax.set_xlim(-.3,14.7)
-        # ax.spines['top'].set_visible(False)
-        # ax.spines['right'].set_visible(False)
-        # plt.axvspan(-.3, 3.7, alpha=0.5, color='pink')
-        # plt.axvspan(3.7, 9.7, alpha=0.5, color='lightgrey')
-        # plt.axvspan(9.7, 14.7, alpha=0.5, color='cyan')
-        alignarr = [0.5,0.5,0.5,0.2]
-        for typenum,type in enumerate(meankeyarr1):
-            sdkey = sdkeyarr1[typenum]
-            # print(mean[type])
-            if(sample == 'sg'):
-                ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], capsize=3,label=legendarr1[typenum])
-            else:
-                ax.bar(X111+typenum*width, np.array(mean[type]), width,color=color1[typenum], alpha=alignarr[typenum],align='center',  ecolor=ecolor, capsize=3,label=legendarr1[typenum])
-                ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[sdkey]))
-            if(typenum == 3):
-                newtn = typenum + 1
-                newtype = meankeyarr1[newtn]
-                newsdkey = sdkeyarr1[newtn]
-                ax.bar(X111+typenum*width, np.array(mean[newtype]), width,color=color1[typenum], alpha=0.5,align='center',  ecolor=ecolor, capsize=3,label=legendarr1[newtn])
-                ax.vlines(X111+typenum*width, np.array(mean[type]),np.array(mean[type])+np.array(sd[newsdkey]))
-                break
-
-
-        if(snum==0):
-            l1 = ax.legend(
-                loc='upper left', ncol=1,fontsize = 20,framealpha=1,shadow=True,frameon=False)
-            l1.get_frame().set_facecolor('white')
-            noiselegendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
-            # l2 = ffffff.legend(noiselegendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
-        ax.set_xticks(X111 + (len(meankeyarr)-1)*width / 2)
-        ax.set_yscale("log")
-        xlab = []
-        for f in farr:
-            # print(f)
-            xlab.append("\\ref{fn:%s}"%(f))
-            # xlab.append("\\ref{%s}"%(f))
-            # xlab.append("%s"%(f))
-        # xlab1 = np.concatenate((xlab,xlab,xlab),axis=None)
-        xlab11= ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
-        ax.set_xticklabels(xlab11,fontsize = 20)
-
-        plt.rc('ytick',labelsize=20)
-        plt.rc('xtick',labelsize=20)
-        plt.tick_params(labelsize=20)
-        # ax.set_xlabel("Test functions",fontsize=22)
-        ax.set_ylabel("CPU time (sec)",fontsize=20)
-        # for axis in [ax.xaxis, ax.yaxis]:
-        #     axis.set_major_formatter(ScalarFormatter())
-
-
-        ax.label_outer()
-
-
-
-
-
-
-    # plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
-
-    # ffffff.savefig("../../log/cputimeplot.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
-    # ffffff.savefig("../../log/cputimeplot.png", bbox_extra_artists=(l1,), bbox_inches='tight')
-    ffffff.savefig("../../log/cputimeplot.pdf", bbox_extra_artists=(l1,), bbox_inches='tight')
-
-    plt.clf()
-    plt.close('all')
-
-    exit(1)
+    # exit(1)
 
 
 
@@ -591,19 +591,22 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
     # Iteration plot
     import matplotlib as mpl
-    mpl.use('pgf')
-    pgf_with_custom_preamble = {
-        "text.usetex": True,    # use inline math for ticks
-        "pgf.rcfonts": False,   # don't setup fonts from rc parameters
-        "pgf.preamble": [
-            "\\usepackage{amsmath}",         # load additional packages
-        ]
-    }
-    mpl.rcParams.update(pgf_with_custom_preamble)
-
+    mpl.rc('text', usetex = True)
+    mpl.rc('font', family = 'serif', size=12)
+    mpl.style.use("ggplot")
+    # mpl.use('pgf')
+    # pgf_with_custom_preamble = {
+    #     "text.usetex": True,    # use inline math for ticks
+    #     "pgf.rcfonts": False,   # don't setup fonts from rc parameters
+    #     "pgf.preamble": [
+    #         "\\usepackage{amsmath}",         # load additional packages
+    #     ]
+    # }
+    # mpl.rcParams.update(pgf_with_custom_preamble)
     color = ['#FFC300','#FF5733','#900C3F']
     X111 = np.arange(len(farr))
     ffffff = plt.figure(0,figsize=(15, 10))
+    # ffffff = plt.figure(0)
     plt.rc('ytick',labelsize=20)
     plt.rc('xtick',labelsize=20)
     totalrow = 1
@@ -611,7 +614,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     baseline = 0
     width = 0.4
     axarray = []
-    legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Sampling (d-LHS)', 'Sparse Grids (SG)']
+    legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Sampling (d-LHS)']
     for nnum,noise in enumerate(noisearr):
         mean ={}
         sd = {}
@@ -633,29 +636,33 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
         for snum, sample in enumerate(allsamples):
             # print(mean[type])
             if(sample == 'sg'):
-                ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], capsize=3)
+                ax.bar(X111+snum*width, np.array(mean[sample]), width,color=color[snum], capsize=3)
             else:
-                ax.bar(X111+snum*width, np.array(mean[sample])+baseline, width,color=color[snum], yerr=np.array(sd[sample]),align='center',  ecolor=ecolor, capsize=3)
+                ax.bar(X111+snum*width, np.array(mean[sample]), width,color=color[snum],align='center',  ecolor=ecolor, capsize=3,label=legendarr[snum])
+
+                ax.vlines(X111+snum*width, np.array(mean[sample]),np.array(mean[sample])+np.array(sd[sample]),label=None)
         ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
+
         xlab = []
         for f in farr:
             # print(f)
             xlab.append("\\ref{fn:%s}"%(f))
             # xlab.append("\\ref{%s}"%(f))
             # xlab.append("%s"%(f))
-        ax.set_xticklabels(xlab,fontsize = 20)
-        plt.tick_params(labelsize=20)
+        xlab = ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
+        ax.set_xticklabels(xlab,fontsize = 24)
+
+        plt.tick_params(labelsize=24)
         # ax.set_xlabel("Test functions",fontsize=22)
         # ax.set_ylabel("$\\log_{10}$ [Number of iterations]",fontsize=40)
-        ax.set_ylabel("Number of iterations",fontsize=24)
+        ax.set_ylabel("Number of iterations",fontsize=28)
         ax.label_outer()
-    l1 = ax.legend((legendarr),
-               loc='upper left', ncol=1,fontsize = 24,frameon=False)
-    plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
+    l1 = ax.legend(loc='upper left', ncol=1,fontsize = 28,frameon=False)
+    # plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
     plt.tight_layout()
     # plt.savefig("../../log/iterations.png")
     # ffffff.savefig("../../log/iterations.png", bbox_extra_artists=(l1,), bbox_inches='tight')
-    ffffff.savefig("../../log/iterations.pgf", bbox_extra_artists=(l1,), bbox_inches='tight')
+    ffffff.savefig("../../log/iterations.pdf", bbox_extra_artists=(l1,), bbox_inches='tight')
     plt.clf()
     plt.close('all')
 
@@ -723,6 +730,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
 # iterations
 # python tabletotalcputime.py  f4,f8,f9,f10,f14,f16,f17,f18,f20,f21,f22 0 2x latex
+# python tabletotalcputime.py  f4,f8,f17,f18,f19 0 2x latex
 
 if __name__ == "__main__":
     import os, sys

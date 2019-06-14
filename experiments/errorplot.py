@@ -42,7 +42,9 @@ def bar(ax, data, xloc, leglab=None):
         ax.vlines(x, y1, y1+e1)
         ax.vlines(x, y2, y2+e2)
 
-
+# python errorplot.py results/plots/Jerrordata.json 0 ../../log/error0.pdf
+# python errorplot.py results/plots/Jerrordata.json 10-2 ../../log/error10-2.pdf
+# python errorplot.py results/plots/Jerrordata.json 10-6 ../../log/error10-6.pdf
 if __name__=="__main__":
     import sys
     with open(sys.argv[1]) as f:

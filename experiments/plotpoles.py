@@ -463,7 +463,19 @@ def generatedata():
          outfile = "results/plots/poledata_inside"+str(dim)+"D.csv"
          np.savetxt(outfile, X_test, delimiter=",")
 
+def bar(ax, data, xloc, leglab=None):
+    col=["m", "c", "g", "b"]
+    for num, ds in enumerate(data):
+        y1 = ds['W_rt_102']
+        y2 = ds['W_rt_103']
 
+        x = xloc -1 + num*0.25
+        if leglab is None:
+            ax.bar(x, y1, width=0.25, alpha=0.2, color=col[num])
+            ax.bar(x, y2, width=0.25, alpha=0.5, color=col[num], hatch="//")
+        else:
+            ax.bar(x, y1, width=0.25, alpha=0.2, color=col[num])
+            ax.bar(x, y2, width=0.25, alpha=0.5, color=col[num], label=leglab[num], hatch="//")
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
@@ -493,592 +505,61 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     elif(usejson ==1):
         thresholdvalarr = np.array([float(t) for t in tarr])
         thresholdvalarr = np.sort(thresholdvalarr)
-        strdata = {}
-        for snum, sample in enumerate(allsamples):
-            strdata[sample] = {}
+        data = {}
+        methodarr = ['rapp','rapprd','rappsip']
+        xposarr  = ['resultscorner','resultsnotcorner']
+        sample = allsamples[0]
+        for position in xposarr:
+            data[position] = {}
             for noise in noisearr:
-                strdata[sample][noise] = ""
-        methodarr = ['rapp','rapprd', 'rappsip']
+                data[position][noise] = {}
+                for method in methodarr:
+                    data[position][noise][method] = {}
+                    meanarr = []
+                    meanp1arr = []
+                    for fnum,fname in enumerate(farr):
+                        outfilejson = "results/plots/Jpoleinfo"+fname+".json"
+                        if outfilejson:
+                            with open(outfilejson, 'r') as fn:
+                                results = json.load(fn)
+                        meanarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['no'])
+                        meanp1arr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['no'])
+                    data[position][noise][method]['W_rt_102'] = np.average(meanarr)
+                    data[position][noise][method]['W_rt_103'] = np.average(meanp1arr)
+
+        import matplotlib as mpl
         import matplotlib.pyplot as plt
-        ffffff = plt.figure(0,figsize=(25, 20))
-        totalrow = 2
-        totalcol = 1
-        baseline = 1
-        color100 = ['#FFC300','#FF5733','#900C3F']
-        color1k = ['yellow','wheat','r']
-        axarray = []
-        for pnum,position in enumerate(['resultscorner','resultsnotcorner']):
-            data = {}
 
-            width = 0.25
-            ecolor = 'black'
-            plt.rc('ytick',labelsize=14)
-            plt.rc('xtick',labelsize=14)
+        from matplotlib.ticker import MaxNLocator
+        mpl.rc('text', usetex = True)
+        mpl.rc('font', family = 'serif', size=12)
+        mpl.style.use("ggplot")
 
-            X111 = np.arange(len(noisearr)*len(methodarr))
-            for snum, sample in enumerate(allsamples):
-                data[sample] = {}
-                data[sample+"+1"] ={}
-                data[sample]['mean'] = []
-                data[sample]['sd'] = []
-                data[sample+"+1"]['mean'] = []
-                data[sample+"+1"]['sd'] = []
+        ax = plt.figure().gca()
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-                for noise in noisearr:
-                    for method in methodarr:
-                        meanarr = []
-                        meanp1arr = []
-                        for fnum,fname in enumerate(farr):
-                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
-                            if outfilejson:
-                                with open(outfilejson, 'r') as fn:
-                                    results = json.load(fn)
-                            Nin = results['resultsnotcorner'][fname]['npoints']
-                            Ncorner = results['resultscorner'][fname]['npoints']-1
-                            meanarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['no'])
-                            meanp1arr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['no'])
+        plt.ylabel("$\\mathrm{Avg}|W_{r,t}|$",fontsize=20)
 
+        legendlabels=["$r_1(x)$", "$r_2(x)$", "$r_3(x)$"]
 
-                        data[sample]['mean'].append(np.sum(np.array(meanarr)))
-                        # data[sample]['sd'].append(np.std(np.array(meanarr)))
-
-                        data[sample+"+1"]['mean'].append(np.sum(np.array(meanp1arr)))
-                        # data[sample+"+1"]['sd'].append(np.std(np.array(meanp1arr)))
-
-            if(len(axarray)>0):
-                ax = plt.subplot2grid((totalrow,totalcol), (pnum,0),sharex=axarray[0],sharey=axarray[0])
-                axarray.append(ax)
-            else:
-                ax = plt.subplot2grid((totalrow,totalcol), (pnum,0))
-                axarray.append(ax)
-            ax.set_xlim(-.3,8.7)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
-            plt.axvspan(2.7, 5.7, alpha=0.5, color='lightgrey')
-            plt.axvspan(5.7, 8.7, alpha=0.5, color='cyan')
-            # plt.text(1,3.35, "$\\epsilon = 0$", fontsize=18)
-            # plt.text(4,3.35, "$\\epsilon = 10^{-6}$", fontsize=18)
-            # plt.text(7,3.35, "$\\epsilon = 10^{-2}$", fontsize=18)
-            # labels = ['LHS', 'd-LHS', 'SG']
-            labels = ['']
-            for snum, sample in enumerate(allsamples):
-                # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-                ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
-                ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
+        for pnum, pos in enumerate(xposarr):
+            temp = [data[pos][noisearr[0]][m] for m in methodarr]
             if(pnum==0):
-                ffffff.legend(loc='upper center', ncol=3,bbox_to_anchor=(0.5, 1.2), fontsize = 20,borderaxespad=0.,shadow=False)
-            ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
-
-            xlab = [
-                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
-                'Algorithm \\ref{ALG:MVVandQR}' ,
-                'Algorithm \\ref{A:Polyak}',
-                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
-                'Algorithm \\ref{ALG:MVVandQR}' ,
-                'Algorithm \\ref{A:Polyak}',
-                'Algorithm \\ref{ALG:MVVandQR} w/o DR',
-                'Algorithm \\ref{ALG:MVVandQR}' ,
-                'Algorithm \\ref{A:Polyak}'
-            ]
-            xlab = np.concatenate((methodarr,methodarr,methodarr),axis=None)
+                bar(ax, temp, pnum, legendlabels)
+            else:
+                bar(ax, temp, pnum)
 
 
-            ax.label_outer()
-            ax.set_xticklabels(xlab,fontsize = 18)
-            if pnum == 0:
-                ax.set_ylabel("$\\log_{10}\\left[\\sum_{f} E\\left(W_{r,t}^{(face)}\\right)\\right]$",fontsize=18)
-            elif pnum == 1:
-                ax.set_ylabel("$\\log_{10}\\left[\\sum_{f} E\\left(W_{r,t}^{(in)}\\right)\\right]$",fontsize=18)
-        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
-        # plt.tight_layout()
-        # plt.show()
-        # plt.tight_layout()
-        plt.savefig("../../log/poles.png")
-        plt.clf()
-        plt.close('all')
-
-        xposarr = ['resultscorner','resultsnotcorner']
-        # FILTERED Pole plot
-        import matplotlib.pyplot as plt
-        ffffff = plt.figure(0,figsize=(25, 20))
-        totalrow = 1
-        totalcol = 1
-        baseline = 1
-        color100 = ['#FFC300','#FF5733','#900C3F']
-        color1k = ['yellow','wheat','r']
-        color100 = ['#FF5733','#900C3F','#FFC300']
-        color1k = ['wheat','r','yellow']
-        axarray = []
-
-
-        data = {}
-        width = 0.35
-        ecolor = 'black'
-        plt.rc('ytick',labelsize=14)
-        plt.rc('xtick',labelsize=14)
-
-        X111 = np.arange(len(noisearr)*len(methodarr)*len(xposarr))
-        for snum, sample in enumerate(allsamples):
-            data[sample] = {}
-            data[sample+"+1"] ={}
-            data[sample]['mean'] = []
-            data[sample]['sd'] = []
-            data[sample+"+1"]['mean'] = []
-            data[sample+"+1"]['sd'] = []
-
-            for noise in noisearr:
-                for position in xposarr:
-                    for method in methodarr:
-
-                        meanarr = []
-                        meanp1arr = []
-                        for fnum,fname in enumerate(farr):
-                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
-                            if outfilejson:
-                                with open(outfilejson, 'r') as fn:
-                                    results = json.load(fn)
-                            Nin = results['resultsnotcorner'][fname]['npoints']
-                            Ncorner = results['resultscorner'][fname]['npoints']-1
-                            meanarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['no'])
-                            meanp1arr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['no'])
-
-
-                        data[sample]['mean'].append(np.average(np.array(meanarr)))
-                        # data[sample]['sd'].append(np.std(np.array(meanarr)))
-
-                        data[sample+"+1"]['mean'].append(np.average(np.array(meanp1arr)))
-                        # data[sample+"+1"]['sd'].append(np.std(np.array(meanp1arr)))
-
-        if(len(axarray)>0):
-            ax = plt.subplot2grid((totalrow,totalcol), (0,0),sharex=axarray[0],sharey=axarray[0])
-            axarray.append(ax)
-        else:
-            ax = plt.subplot2grid((totalrow,totalcol), (0,0))
-            axarray.append(ax)
-
-        ax.set_xlim(-.3,17.7)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
-        plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
-        plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
-
-        methodlabel = ['$r_1(x)$','$r_2(x)$','$r_3(x)$']
-        xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
-
-        # xlab1 = []
-        # for i in range(9):
-        #     xlab1.append('face')
-        #     xlab1.append('in')
-
-        # ffffff.text(0.33, 0.04, 'rapp', ha='center',fontsize = 18)
-        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(W_{r,t}^{(P)}\\right)\\right] \\mathrm{\\ where\\ P}\\ \\in \\mathrm{\\{fc,in\\}}$",fontsize=18)
-        ax.set_ylabel("$\\log_{10}\\left[\\mathrm{Avg}|W_{r,t}|\\right]$",fontsize=32)
-        for snum, sample in enumerate(allsamples):
-            # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample]['mean']))+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($10^2\\leq t < 10^3$)")
-            ax.bar(X111+snum*width, np.log10(np.array(data[sample+"+1"]['mean']))+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($t\\geq 10^3$)")
-
-        # ffffff.legend(loc='upper center', ncol=3,fontsize = 20,borderaxespad=0.,shadow=False,bbox_to_anchor=(0.5, 0.99) )
-        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 32)
-        l2 = ffffff.text(0.19, 0.065, 'face', ha='center',fontsize = 28)
-        l3 = ffffff.text(0.32, 0.065, 'inside', ha='center',fontsize = 28)
-        l4 = ffffff.text(0.45, 0.065, 'face', ha='center',fontsize = 28)
-        l5 = ffffff.text(0.58, 0.065, 'inside', ha='center',fontsize = 28)
-        l6 = ffffff.text(0.71, 0.065, 'face', ha='center',fontsize = 28)
-        l7 = ffffff.text(0.835, 0.065, 'inside', ha='center',fontsize = 28)
-
-        legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
-        l8 = ffffff.legend(legendarr,loc='upper center', ncol=3,bbox_to_anchor=(0.435, 0.88), fontsize = 32,borderaxespad=0.,shadow=False)
-
-        # for i in range()
-        plt.tick_params(labelsize=28)
-        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
-        ax.set_xticklabels(xlab1,fontsize = 28)
-        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
-        # plt.show()
-        ffffff.savefig('../../log/poles2.pdf', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
-        # os.system('open ../../log/poles2.png')
-        plt.clf()
-        plt.close('all')
-        exit(1)
-
-
-        # FILTERED Error plot
-        import matplotlib.pyplot as plt
-        ffffff = plt.figure(0,figsize=(25, 20))
-        totalrow = 1
-        totalcol = 1
-        baseline = 0
-        color100 = ['#FFC300','#FF5733','#900C3F']
-        color1k = ['yellow','wheat','r']
-        axarray = []
-
-
-        data = {}
-        width = 0.23
-        ecolor = 'black'
-        plt.rc('ytick',labelsize=14)
-        plt.rc('xtick',labelsize=14)
-
-        X111 = np.arange(len(noisearr)*len(methodarr)*len(xposarr))
-        for snum, sample in enumerate(allsamples):
-            data[sample] = {}
-            data[sample+"+1"] = {}
-            data[sample]['l2all'] = {}
-            data[sample]['l2count'] = {}
-            data[sample+"+1"]['l2count'] = {}
-
-            data[sample]['l2all']['mean'] = []
-            data[sample]['l2count']['mean'] = []
-            data[sample+"+1"]['l2count']['mean'] = []
-
-            for noise in noisearr:
-                for position in xposarr:
-                    for method in methodarr:
-                        l2allarr = []
-                        l2countarr = []
-                        l2p1countarr = []
-                        for fnum,fname in enumerate(farr):
-                            outfilejson = "results/plots/Jpoleinfo"+fname+".json"
-                            if outfilejson:
-                                with open(outfilejson, 'r') as fn:
-                                    results = json.load(fn)
-                            Nin = results['resultsnotcorner'][fname]['npoints']
-                            Ncorner = results['resultscorner'][fname]['npoints']-1
-                            l2allarr.append(results[position][fname][sample][noise][method]['l2all'])
-                            l2countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[0])]['l2count'])
-                            l2p1countarr.append(results[position][fname][sample][noise][method][str(thresholdvalarr[1])]['l2count'])
-
-                        data[sample]['l2all']['mean'].append(np.average(np.array(l2allarr)))
-                        data[sample]['l2count']['mean'].append(np.average(np.array(l2countarr)))
-                        data[sample+"+1"]['l2count']['mean'].append(np.average(np.array(l2p1countarr)))
-
-        if(len(axarray)>0):
-            ax = plt.subplot2grid((totalrow,totalcol), (0,0),sharex=axarray[0],sharey=axarray[0])
-            axarray.append(ax)
-        else:
-            ax = plt.subplot2grid((totalrow,totalcol), (0,0))
-            axarray.append(ax)
-
-        ax.set_xlim(-.3,17.7)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.axvspan(-.3, 5.7, alpha=0.5, color='pink')
-        plt.axvspan(5.7, 11.7, alpha=0.5, color='lightgrey')
-        plt.axvspan(11.7, 17.7, alpha=0.5, color='cyan')
-
-        xlab1 = np.concatenate((methodlabel,methodlabel,methodlabel,methodlabel,methodlabel,methodlabel),axis=None)
-
-        # ax.set_ylabel("$\\log_{10}\\left[\\mathbb{E}\\left(error}\\right)\\right]$",fontsize=18)
-
-
-        for snum, sample in enumerate(allsamples):
-            l10l2all = np.log10(np.array(data[sample]['l2all']['mean']))
-            l10l2countp1 = np.log10(np.array(data[sample+"+1"]['l2count']['mean']))
-            l10l2count = np.log10(np.array(data[sample]['l2count']['mean']))
-            # ax.bar(X111+snum*width, np.array(data[sample]['mean'])+baseline, width,color=color[snum], yerr=np.array(data[sample]['sd']),align='center',  ecolor=ecolor, capsize=3)
-            ax.bar(X111+snum*width, l10l2all+baseline, width,color=color100[snum], capsize=3,label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(\\Delta_r)\\right]$)")
-            ax.bar(X111+snum*width, l10l2count+baseline, width,color=color1k[snum], capsize=3,hatch="//",label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(E_{r,10^2})\\right]$)")
-            # ax.bar(X111+snum*width, l10l2count+baseline, width,color=color1k[snum], capsize=3,label=labels[snum]+" ($\\log_{10}\\left[\\mathbb{E}(E_{r,10^2})\\right]$)")
-
-
-        l1 = ffffff.legend(loc='upper center', ncol=3,fontsize = 20)
-        # l2 = ffffff.text(0.19, 0.08, 'X = face', ha='center',fontsize = 18)
-        # l3 = ffffff.text(0.32, 0.08, 'X = in', ha='center',fontsize = 18)
-        # l4 = ffffff.text(0.45, 0.08, 'X = face', ha='center',fontsize = 18)
-        # l5 = ffffff.text(0.58, 0.08, 'X = in', ha='center',fontsize = 18)
-        # l6 = ffffff.text(0.71, 0.08, 'X = face', ha='center',fontsize = 18)
-        # l7 = ffffff.text(0.835, 0.08, 'X = in', ha='center',fontsize = 18)
-
-        legendarr = ['$\\epsilon=0$','$\\epsilon=10^{-6}$','$\\epsilon=10^{-2}$']
-        l2 = ffffff.legend(legendarr,loc='upper center', ncol=4,bbox_to_anchor=(0.435, 0.85), fontsize = 20,borderaxespad=0.,shadow=False)
-
-        # for i in range()
-
-        ax.set_xticks(X111 + (len(allsamples)-1)*width / 2)
-        ax.set_xticklabels(xlab1,fontsize = 18)
-        plt.gca().yaxis.set_major_formatter(mtick.FuncFormatter(lambda x,_: x-baseline))
-        # plt.show()
-        ffffff.savefig('../../log/poleerror.pdf', bbox_extra_artists=(l1,l2,), bbox_inches='tight')
-        # os.system('open ../../log/poles2.png')
-        plt.clf()
-        plt.close('all')
-        exit(1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        exit(0)
-
-
-    #     for snum, sample in enumerate(allsamples):
-    #         for noise in noisearr:
-    #             s= "\\multirow{2}{*}{\\ref{fn:%s}}&$|W_{r,t}^{cner}|/N$&%.1E"%(fname,Ncorner)
-    #
-    #             noisestr,noisepct = getnoiseinfo(noise)
-    #             for method in ['rapp','rapprd', 'rappsip']:
-    #                 for tval in thresholdvalarr:
-    #                     obj = results['resultscorner'][fname][sample][noise][method][str(tval)]
-    #                     if(obj['no'] == 0):
-    #                         s+="&0"
-    #                     else: s+="&%.1E"%(obj['no']/Ncorner)
-    #                     if(obj['nosd'] == 0):
-    #                         s+="&0"
-    #                     else: s+="&%.1E"%(obj['nosd']/Ncorner)
-    #
-    #
-    #             s+="\\\\\\cline{2-15}\n"
-    #             s+="&$|W_{r,t}^{in}|/N$&%.1E"%(Nin)
-    #
-    #             for method in ['rapp','rapprd', 'rappsip']:
-    #                 for tval in thresholdvalarr:
-    #                     obj = results['resultsnotcorner'][fname][sample][noise][method][str(tval)]
-    #                     if(obj['no'] == 0):
-    #                         s+="&0"
-    #                     else: s+="&%.1E"%(obj['no']/Nin)
-    #                     if(obj['nosd'] == 0):
-    #                         s+="&0"
-    #                     else: s+="&%.1E"%(obj['nosd']/Nin)
-    #             s+="\\\\\\cline{2-15}\n"
-    #             s+="\\hline\n"
-    #             strdata[sample][noise] += s
-    # for snum, sample in enumerate(allsamples):
-    #     for noise in noisearr:
-    #         print("sample = %s noise = %s"%(sample,noise))
-    #         print("\n%s\n\n\n"%(strdata[sample][noise]))
-    #
-    # exit(0)
-    #
-    # s = ""
-    # if(table_or_latex == "table"):
-    #     s+= "\t\t\t"
-    #     for noise in noisearr:
-    #         s+= "%s\t\t\t\t\t\t\t"%(noise)
-    #     s+="\n"
-    #     for noise in noisearr:
-    #         s += "\t\tRat Apprx\tRat Apprx SIP\t\t"
-    #     s+="\n\n"
-    #     for noise in noisearr:
-    #         for tval in thresholdvalarr:
-    #             s += "\t%s"%(int(tval))
-    #         s+="\t"
-    #         for tval in thresholdvalarr:
-    #             s += "\t%s"%(int(tval))
-    #         s+="\t"
-    #     s += "\n"
-    #     for fname in farr:
-    #         s += "%s\n"%(fname)
-    #         for pq in results[fname][noisearr[0]].keys():
-    #             s += "%s"%(pq)
-    #             for noise in noisearr:
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     sss = "-"
-    #                     if(results[fname][noise][pq][tvalstr]["rapp"] != "0"):
-    #                         sss= results[fname][noise][pq][tvalstr]["rapp"]
-    #                     s += "\t%s"%(sss)
-    #                 s+="\t"
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     sss = "-"
-    #                     if(results[fname][noise][pq][tvalstr]["rappsip"] != "0"):
-    #                         sss= results[fname][noise][pq][tvalstr]["rappsip"]
-    #                     s += "\t%s"%(sss)
-    #                 s+="\t"
-    #             s+="\n"
-    #
-    # elif(table_or_latex =="latex"):
-    #     for fname in farr:
-    #         for pq in results[fname][noisearr[0]].keys():
-    #             sspecific = ""
-    #             s+= '%'+" %s %s\n"%(fname,pq)
-    #             s+= "\\multirow{4}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
-    #             sspecific+= '%'+" %s %s\n"%(fname,pq)
-    #             sspecific += "\\multirow{4}{*}{\\ref{fn:%s}}&$|W_{r,t}|$"%(fname)
-    #             for noise in noisearr:
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     s+="&%s"%(results[fname][noise][pq][tvalstr]["rapp"])
-    #                     sspecific+="&%s"%(results[fname][noise][pq][tvalstr]["rapp"])
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     s+="&%s"%(results[fname][noise][pq][tvalstr]["rappsip"])
-    #                     sspecific+="&%s"%(results[fname][noise][pq][tvalstr]["rappsip"])
-    #             s+="\\\\\\cline{2-10}\n"
-    #             s+="&$E_{r,t}$"
-    #             sspecific+="\\\\\\cline{2-10}\n"
-    #             sspecific+="&$E_{r,t}$"
-    #             for noise in noisearr:
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2countrapp"] ==0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2countrappsip"] ==0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-    #             s+="\\\\\\cline{2-10}\n"
-    #             s+="&$E'_{r,t}$"
-    #             sspecific+="\\\\\\cline{2-10}\n"
-    #             sspecific+="&$E'_{r,t}$"
-    #             for noise in noisearr:
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2notcountrapp"] == 0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2notcountrappsip"] == 0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
-    #             s+="\\\\\\cline{2-10}\n"
-    #             s+="&$\\Delta_r$"
-    #             sspecific+="\\\\\\cline{2-10}\n"
-    #             sspecific+="&$\\Delta_r$"
-    #             for noise in noisearr:
-    #                 tvalstr = str(int(thresholdvalarr[0]))
-    #                 if(results[fname][noise][pq][tvalstr]["l2allrapp"]==0):
-    #                     s+="&\\multicolumn{2}{|c|}{0}"
-    #                     sspecific+="&\\multicolumn{2}{|c|}{0}"
-    #                 else:
-    #                     s+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
-    #                     sspecific+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
-    #                 if(results[fname][noise][pq][tvalstr]["l2allrappsip"]==0):
-    #                     s+="&\\multicolumn{2}{|c|}{0}"
-    #                     sspecific+="&\\multicolumn{2}{|c|}{0}"
-    #                 else:
-    #                     s+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
-    #                     sspecific+="&\\multicolumn{2}{|c|}{%.1E}"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
-    #             s+="\\\\\\cline{2-10}\n"
-    #             s+="\\hline\n\n"
-    #             sspecific+="\\\\\\cline{2-10}\n"
-    #             sspecific+="\\hline\n\n"
-    #             # if (fname=='f3' and pq == "p4_q3")\
-    #             #     or (fname=='f5' and pq == "p2_q3")\
-    #             #     or (fname=='f8' and pq == "p3_q3")\
-    #             #     or (fname=='f9' and pq == "p3_q7")\
-    #             #     or (fname=='f13' and pq == "p2_q7")\
-    #             #     or (fname=='f14' and pq == "p3_q6")\
-    #             #     or (fname=='f18' and pq == "p2_q3")\
-    #             #     or (fname=='f19' and pq == "p3_q3"):
-    #             #     print(sspecific)
-    #
-    # elif(table_or_latex =="latexall"):
-    #     for fname in farr:
-    #         for pq in results[fname][noisearr[0]].keys():
-    #             sspecific = ""
-    #             s+= '%'+" %s %s\n"%(fname,pq)
-    #             s+= "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
-    #             sspecific+= '%'+" %s %s\n"%(fname,pq)
-    #             sspecific+= "\\multirow{3}{*}{\\ref{fn:%s}}&$r$~(Algorithm~\\ref{A:Polyak})"%(fname)
-    #             for noise in noisearr:
-    #                 tvalstr = str(int(thresholdvalarr[0]))
-    #                 if(results[fname][noise][pq][tvalstr]["l2allrappsip"]==0):
-    #                     s+="&0"
-    #                     sspecific+="&0"
-    #                 else:
-    #                     s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
-    #                     sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrappsip"])
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2countrappsip"]==0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrappsip"])
-    #
-    #                     if(results[fname][noise][pq][tvalstr]["l2notcountrappsip"] ==0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrappsip"])
-    #
-    #             s+="\\\\\\cline{2-12}\n"
-    #             s+="&$r$ (Algorithm \\ref{ALG:MVVandQR})"
-    #             sspecific+="\\\\\\cline{2-12}\n"
-    #             sspecific+="&$r$ (Algorithm \\ref{ALG:MVVandQR})"
-    #             for noise in noisearr:
-    #                 tvalstr = str(int(thresholdvalarr[0]))
-    #                 if(results[fname][noise][pq][tvalstr]["l2allrapp"] == 0):
-    #                     s+="&0"
-    #                     sspecific+="&0"
-    #                 else:
-    #                     s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
-    #                     sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allrapp"])
-    #
-    #                 for tval in thresholdvalarr:
-    #                     tvalstr = str(int(tval))
-    #                     if(results[fname][noise][pq][tvalstr]["l2countrapp"] ==0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2countrapp"])
-    #                     if(results[fname][noise][pq][tvalstr]["l2notcountrapp"] == 0):
-    #                         s+="&0"
-    #                         sspecific+="&0"
-    #                     else:
-    #                         s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
-    #                         sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2notcountrapp"])
-    #             s+="\\\\\\cline{2-12}\n"
-    #             s+="&$r_{N=0}$ (Algorithm \\ref{A:Polyak})"
-    #             sspecific+="\\\\\\cline{2-12}\n"
-    #             sspecific+="&$r_{N=0}$ (Algorithm \\ref{A:Polyak})"
-    #             for noise in noisearr:
-    #                 tvalstr = str(int(thresholdvalarr[0]))
-    #                 if(results[fname][noise][pq][tvalstr]["l2allpapp"] == 0):
-    #                     s+="&0"
-    #                     sspecific+="&0"
-    #                 else:
-    #                     s+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
-    #                     sspecific+="&%.1E"%(results[fname][noise][pq][tvalstr]["l2allpapp"])
-    #                 s+="&\\multicolumn{4}{c|}{}"
-    #                 sspecific+="&\\multicolumn{4}{c|}{}"
-    #             s+="\\\\\\cline{2-12}\n"
-    #             s+="\\hline\n\n"
-    #             sspecific+="\\\\\\cline{2-12}\n"
-    #             sspecific+="\\hline\n\n"
-    #             if (fname=='f3' and pq == "p4_q3")\
-    #                 or (fname=='f5' and pq == "p2_q3")\
-    #                 or (fname=='f8' and pq == "p3_q3")\
-    #                 or (fname=='f9' and pq == "p3_q7")\
-    #                 or (fname=='f13' and pq == "p2_q7")\
-    #                 or (fname=='f14' and pq == "p3_q6")\
-    #                 or (fname=='f18' and pq == "p2_q3")\
-    #                 or (fname=='f19' and pq == "p3_q3"):
-    #                 print(sspecific)
-    #
-    # print(s)
+        xlabels = ['face','inside']
+        if(noisearr[0] == '0'):
+            plt.legend(loc='upper left',fontsize=18)
+        plt.yscale("log")
+        plt.ylim([10**-1,10**2.5])
+        plt.xticks([x - 0.85 for x in range(len(xposarr))], xlabels,fontsize=20)
+        plt.rc('ytick',labelsize=20)
+        plt.rc('xtick',labelsize=20)
+        plt.tick_params(labelsize=20)
+        plt.savefig("../../log/poles"+noisearr[0]+".pdf",bbox_inches='tight')
 
 
 if __name__ == "__main__":
@@ -1095,6 +576,11 @@ if __name__ == "__main__":
 
 # for fno in {1..5} {7..10} {12..22}; do  name="f"$fno; nohup python tablepoles.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
 # python plotpoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0,10-6,10-2 100,1000 2x table 1
+
+
+# python plotpoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0 100,1000 2x table 1
+# python plotpoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-2 100,1000 2x table 1
+ # python plotpoles.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-6 100,1000 2x table 1
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)
