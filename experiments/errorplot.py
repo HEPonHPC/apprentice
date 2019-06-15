@@ -33,11 +33,11 @@ def bar(ax, data, xloc, leglab=None):
 
         x = xloc -1 + num*0.15
         if leglab is None:
-            ax.bar(x, y1, width=0.15, alpha=0.2, color=col[num])
-            ax.bar(x, y2, width=0.15, alpha=0.5, color=col[num], hatch="//")
+            ax.bar(x, y1, width=0.15, alpha=0.4, color=col[num],bottom=y2,hatch='//')
+            ax.bar(x, y2, width=0.15, alpha=0.7, color=col[num])
         else:
-            ax.bar(x, y1, width=0.15, alpha=0.2, color=col[num])
-            ax.bar(x, y2, width=0.15, alpha=0.5, color=col[num], label=leglab[num], hatch="//")
+            ax.bar(x, y1, width=0.15, alpha=0.4, color=col[num],bottom=y2,hatch='//')
+            ax.bar(x, y2, width=0.15, alpha=0.7, color=col[num],label=leglab[num])
 
         ax.vlines(x, y1, y1+e1)
         ax.vlines(x, y2, y2+e2)
