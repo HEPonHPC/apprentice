@@ -385,21 +385,206 @@ def splitlhsnpoints():
 
 def plotsamplingstrategies():
 
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+
     folder = "results/exp1/benchmarkdata/f1_"
     lhsfile = folder+"lhs.txt"
     splilhsfile = folder+"splitlhs.txt"
     sgfile   = folder+"sg.txt"
     for file, name in zip([lhsfile,splilhsfile,sgfile],["LHS","d-LHS","SG"]):
         X,Y = tools.readData(file)
-        import matplotlib.pyplot as plt
+        mpl.rc('text', usetex = True)
+        mpl.rc('font', family = 'serif', size=12)
+        mpl.style.use("ggplot")
         plt.figure(0,figsize=(15, 10))
-        plt.scatter(X[:,0],X[:,1])
-        plt.xlabel("$x_1$",fontsize = 32)
-        plt.ylabel("$x_2$",fontsize = 32)
+        plt.scatter(X[:,0],X[:,1],s = 100)
+        plt.xlabel("$x_1$",fontsize = 44)
+        plt.ylabel("$x_2$",fontsize = 44)
         plt.tick_params(labelsize=28)
-        plt.savefig("results/plots/"+name+".pdf", bbox_inches='tight')
+        plt.savefig("../../log/"+name+".pdf", bbox_inches='tight')
         plt.clf()
         plt.close('all')
+
+def plotminimizeranderror(usejson = 0):
+    def getData(X_train, fn, noisepct):
+        """
+        TODO use eval or something to make this less noisy
+        """
+        from apprentice import testData
+        if fn=="f17":
+            Y_train = [testData.f17(x) for x in X_train]
+        else:
+            raise Exception("function {} not implemented, exiting".format(fn))
+
+        return Y_train
+
+
+    import json
+    import apprentice
+    from apprentice import RationalApproximationSIP
+    folder = "results"
+    samplearr = ['lhs','splitlhs','sg']
+    noise = "0"
+    fname = "f17"
+    noisestr,noisepct = getnoiseinfo(noise)
+    dim = 3
+    infile=[
+            "results/plots/poledata_corner"+str(dim)+"D.csv",
+            "results/plots/poledata_inside"+str(dim)+"D.csv"
+            ]
+
+
+
+    if(usejson == 0):
+        minarr  = [80,5,90]
+        maxarr  = [100,10,93]
+        X_testfc = np.loadtxt(infile[0], delimiter=',')
+        X_testin = np.loadtxt(infile[1], delimiter=',')
+        s = apprentice.Scaler(np.array(X_testfc, dtype=np.float64), a=minarr, b=maxarr)
+        X_testfc = s.scaledPoints
+
+        s = apprentice.Scaler(np.array(X_testin, dtype=np.float64), a=minarr, b=maxarr)
+        X_testin = s.scaledPoints
+
+        Y_testfc = np.array(getData(X_testfc,fname,0))
+        Y_testin = np.array(getData(X_testin,fname,0))
+
+        Y_testall = np.concatenate((Y_testfc,Y_testin), axis=None)
+
+
+        maxiterexp = [0,0,0]
+        for snum,sample in enumerate(samplearr):
+            maxiter = 0
+            for exp in ['exp1','exp2','exp3','exp4','exp5']:
+                file = "%s/%s/%s%s_%s_2x/outrasip/%s%s_%s_2x_p5_q5_ts2x.json"%(folder,exp,fname,noisestr,sample,fname,noisestr,sample)
+                if not os.path.exists(file):
+                    print("rappsipfile %s not found"%(file))
+                    exit(1)
+                if file:
+                    with open(file, 'r') as fn:
+                        datastore = json.load(fn)
+                if len(datastore['iterationinfo']) > maxiter:
+                    maxiter = len(datastore['iterationinfo'])
+                    maxiterexp[snum] = exp
+                if(sample == 'sg'):
+                    break
+
+
+        data = {}
+        for snum,sample in enumerate(samplearr):
+            data[sample]  = {}
+            exp = maxiterexp[snum]
+
+            file = "%s/%s/%s%s_%s_2x/outrasip/%s%s_%s_2x_p5_q5_ts2x.json"%(folder,exp,fname,noisestr,sample,fname,noisestr,sample)
+            if not os.path.exists(file):
+                print("rappsipfile %s not found"%(file))
+                exit(1)
+            if file:
+                with open(file, 'r') as fn:
+                    datastore = json.load(fn)
+
+            data[sample]['x'] = [i for i in range(len(datastore['iterationinfo']))]
+            data[sample]['minimizer'] = []
+            data[sample]['error'] = []
+            print('starting error calc for %s'%(sample))
+            for inum,iter in enumerate(datastore['iterationinfo']):
+                print('staring iter %d'%(inum))
+                data[sample]['minimizer'].append(iter['robOptInfo']['info'][0]['robustObj'])
+
+                pcoeff = iter['pcoeff']
+                qcoeff = iter['qcoeff']
+
+                if file:
+                    with open(file, 'r') as fn:
+                        tempds = json.load(fn)
+                tempds['pcoeff'] = pcoeff
+                tempds['qcoeff'] = qcoeff
+
+                rappsip = RationalApproximationSIP(tempds)
+
+                Y_pred_rappsipfc = rappsip.predictOverArray(X_testfc)
+                Y_pred_rappsipin = rappsip.predictOverArray(X_testin)
+
+                Y_pred_rappsipall = np.concatenate((Y_pred_rappsipfc,Y_pred_rappsipin), axis=None)
+                l2allrappsip = np.sum((Y_pred_rappsipall-Y_testall)**2)
+                data[sample]['error'].append(np.sqrt(l2allrappsip))
+                print('ending iter %d'%(inum))
+        print(data)
+        import json
+        with open('results/plots/Jminimizeranderror.json', "w") as f:
+            json.dump(data, f,indent=4, sort_keys=True)
+
+
+    elif(usejson == 1):
+        outfilejson = "results/plots/Jminimizeranderror.json"
+
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        import matplotlib.text as text
+        mpl.rc('text', usetex = True)
+        mpl.rc('font', family = 'serif', size=12)
+        mpl.style.use("ggplot")
+
+        f, axarr = plt.subplots(2,1, sharex=True, sharey=False, figsize=(15,8))
+        f.subplots_adjust(hspace=0)
+        f.subplots_adjust(wspace=0)
+
+        style  =['b--','r-.','g-']
+        linewidth = [1,1,2]
+        labelarr = ['LHS','d-LHS','SG']
+        marker = ['x','*','o']
+
+        index = 0
+        if outfilejson:
+            with open(outfilejson, 'r') as fn:
+                data = json.load(fn)
+        for snum,sample in enumerate(samplearr):
+            x = data[sample]['x']
+            y = data[sample]['minimizer']
+            x.insert(0,-1)
+            y.insert(0,-2.5)
+            x = np.array(x)+1
+            axarr[index].plot(x,y,style[snum],label=labelarr[snum],
+                lineWidth=linewidth[snum],markevery=(1,1),marker = marker[snum])
+        axarr[index].axhline(0,linestyle=":",linewidth='1',color='k')
+        axarr[index].legend(fontsize = 18,frameon=False)
+        axarr[index].set_ylabel('$min\\quad q(x)$',fontsize = 24)
+        axarr[index].tick_params(labelsize=20)
+
+        index = 1
+        if outfilejson:
+            with open(outfilejson, 'r') as fn:
+                data = json.load(fn)
+        for snum,sample in enumerate(samplearr):
+            x = data[sample]['x']
+            y = data[sample]['error']
+            x.insert(0,-1)
+            y.insert(0,10**2)
+            x = np.array(x)+1
+            axarr[index].plot(x,y,style[snum],label=labelarr[snum],
+                lineWidth=linewidth[snum],markevery=(1,1),marker = marker[snum])
+            if(sample == 'splitlhs'):
+                min = np.min(y)
+        axarr[index].axhline(min,linestyle=":",linewidth='1',color='k')
+        axarr[index].set_yscale('log')
+        axarr[index].legend(fontsize = 18,frameon=False)
+        axarr[index].set_xlabel('Iteration number',fontsize = 24)
+        axarr[index].set_ylabel('$\\Delta_r$',fontsize = 24)
+        axarr[index].tick_params(labelsize=20)
+
+
+
+        # plt.yscale("log")
+
+        plt.savefig("../../log/minimizererror.pdf", bbox_inches='tight')
+
+
+
+
+
+
+
 
 def plotfnamepoles():
     import json
@@ -705,6 +890,10 @@ if __name__ == "__main__":
     # plotsamplingstrategies()
     # plotfnamepoles()
     # runfacevsinner()
-    analyzefacevsinner()
+    # analyzefacevsinner()
+    # if len(sys.argv)==2:
+    #     plotminimizeranderror(int(sys.argv[1]))
+    # else:
+    #     plotminimizeranderror()
 
  ###########

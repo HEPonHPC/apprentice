@@ -887,6 +887,10 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
         X_l1=[]
         pparr=[]
         import json
+        import matplotlib as mpl
+        mpl.rc('text', usetex = True)
+        mpl.rc('font', family = 'serif', size=12)
+        mpl.style.use("ggplot")
         for exp in range(10,-6,-1):
             pp = 10**exp
             fndesc = fndesctemp + "_pp"+str(exp)
@@ -904,12 +908,13 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
             Y_l2.append(leastSqSplit['l2term'])
         if not os.path.exists(folderplus + "/plots/"):
             os.makedirs(folderplus + "/plots/",exist_ok = True)
-        plotfile = "%s/plots/Pplotreg_d%d_l%d.pdf"%(folderplus,dim,l)
+        plotfile = "../../log/Pplotreg_d%d_l%d.pdf"%(folderplus,dim,l)
         import matplotlib.pyplot as plt
         plt.figure(0,figsize=(15, 10))
-        plt.plot(X_l1,np.log10(Y_l2))
+        plt.plot(X_l1,Y_l2)
+        plt.yscale('log')
         plt.xlabel("$\\log10\\left[\\left(||p||_2^2 + ||q||_2^2\\right)\\right]$",fontsize = 20)
-        plt.ylabel("$\\log10\\left[\\sum_{k=0}^{K-1} \\left( f_k q(x^{(k)}) - p(x^{(k)}) \\right)^2\\right]$",fontsize = 20)
+        plt.ylabel("$\\sum_{k=0}^{K-1} \\left( f_k q(x^{(k)}) - p(x^{(k)}) \\right)^2$",fontsize = 20)
         plt.tick_params(labelsize=18)
         for num,x in enumerate(X_l1):
             plt.annotate("$\\sigma=$%.E"%(pparr[num]),(x,np.log10(Y_l2[num])),fontsize=18)
