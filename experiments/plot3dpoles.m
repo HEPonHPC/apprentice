@@ -23,6 +23,8 @@ c = get(gca,'ZTickLabel');
 set(gca,'XTickLabel',a,'fontsize',14)
 set(gca,'YTickLabel',b,'fontsize',14)
 set(gca,'ZTickLabel',c,'fontsize',14)
+ax = gca
+ax.GridAlpha = 0.9;
 pbaspect([1 1 1])
 
 hold off
