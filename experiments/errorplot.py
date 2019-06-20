@@ -43,6 +43,14 @@ def bar(ax, data, xloc, leglab=None):
         ax.vlines(x, y2, y2+e2)
 
 # python errorplot.py results/plots/Jerrordata.json 0 ../../log/error0.pdf
+
+
+
+
+
+
+
+
 # python errorplot.py results/plots/Jerrordata.json 10-2 ../../log/error10-2.pdf
 # python errorplot.py results/plots/Jerrordata.json 10-6 ../../log/error10-6.pdf
 if __name__=="__main__":
@@ -76,7 +84,7 @@ if __name__=="__main__":
     ax = plt.figure().gca()
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     # plt.xlabel("$m$")
-    plt.ylabel("$\\Delta_r\:,\\quad E_{r,t}\:,\\quad E^\\prime_{r,t}$",fontsize=20)
+    plt.ylabel("$\\quad E_{r,t}\:,\\quad E^\\prime_{r,t}$",fontsize=20)
     # plt.xlim((min(xi)-0.5,max(xi)+0.5))
     # plt.ylim((min(yi)-0.5,max(yi)+0.5))
 

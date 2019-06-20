@@ -614,7 +614,7 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     baseline = 0
     width = 0.4
     axarray = []
-    legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Sampling (d-LHS)']
+    legendarr = ['Latin Hypercube Sampling (LHS)', 'decoupled Latin Hypercube Design (d-LHD)']
     for nnum,noise in enumerate(noisearr):
         mean ={}
         sd = {}

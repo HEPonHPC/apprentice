@@ -532,7 +532,7 @@ def plotminimizeranderror(usejson = 0):
 
         style  =['b--','r-.','g-']
         linewidth = [1,1,2]
-        labelarr = ['LHS','d-LHS','SG']
+        labelarr = ['LHS','d-LHD','SG']
         marker = ['x','*','o']
 
         index = 0
@@ -891,9 +891,9 @@ if __name__ == "__main__":
     # plotfnamepoles()
     # runfacevsinner()
     # analyzefacevsinner()
-    # if len(sys.argv)==2:
-    #     plotminimizeranderror(int(sys.argv[1]))
-    # else:
-    #     plotminimizeranderror()
+    if len(sys.argv)==2:
+        plotminimizeranderror(int(sys.argv[1]))
+    else:
+        plotminimizeranderror()
 
  ###########
