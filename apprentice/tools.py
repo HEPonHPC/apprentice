@@ -1,3 +1,4 @@
+# Documentation?
 def fast_chi(lW2, lY, lRA, lE2, nb):
     s=0
     for i in range(nb):
@@ -343,6 +344,11 @@ class TuningObjective(object):
         self._E2 = np.array([1./e**2 for e in self._E])
         self._SCLR = RA[0]._scaler # Replace with min/max limits things
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
+        hdict = dict([(h, []) for h in self._hnames])
+        for b in self._binids:
+            hname, bid = b.split("#")
+            hdict[hname].append(bid)
+        self._hdict = hdict
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
 
