@@ -534,7 +534,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         from matplotlib.ticker import MaxNLocator
         mpl.rc('text', usetex = True)
         mpl.rc('font', family = 'serif', size=12)
-        mpl.style.use("ggplot")
+        mpl.rc('font', weight='bold')
+        mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+        # mpl.style.use("ggplot")
 
         ax = plt.figure().gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -551,7 +553,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
                 bar(ax, temp, pnum)
 
 
-        xlabels = ['face','inside']
+        xlabels = ['$face$','$inside$']
         if(noisearr[0] == '0'):
             plt.legend(loc='upper left',fontsize=18)
         plt.yscale("log")

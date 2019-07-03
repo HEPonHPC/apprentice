@@ -13,7 +13,9 @@ def mkPlot(data, f_out, norm=2):
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
+    mpl.rc('font', weight='bold')
+    mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+    # mpl.style.use("ggplot")
 
     plt.xlabel("$m$")
     plt.ylabel("$n$")
@@ -69,7 +71,9 @@ if __name__=="__main__":
     from matplotlib.ticker import MaxNLocator
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
+    mpl.rc('font', weight='bold')
+    mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+    # mpl.style.use("ggplot")
     if sys.argv[2].endswith("pgf"):
         mpl.use('pgf')
         pgf_with_custom_preamble = {
@@ -99,7 +103,7 @@ if __name__=="__main__":
         # break
 
     # xlabels=["\\ref{fn:%s}"%fn for fn in fns]
-    xlabels = ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
+    xlabels = ['$A.1.4$','$A.1.7$','$A.1.15$','$A.1.16$','$A.1.17$']
     if(sys.argv[2] == '0'):
         plt.legend(loc='upper left',fontsize=18)
     plt.yscale("log")

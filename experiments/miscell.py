@@ -396,9 +396,11 @@ def plotsamplingstrategies():
         X,Y = tools.readData(file)
         mpl.rc('text', usetex = True)
         mpl.rc('font', family = 'serif', size=12)
-        mpl.style.use("ggplot")
+        mpl.rc('font', weight='bold')
+        mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+        # mpl.style.use("ggplot")
         plt.figure(0,figsize=(15, 10))
-        plt.scatter(X[:,0],X[:,1],s = 100)
+        plt.scatter(X[:,0],X[:,1],s = 100,c='r')
         plt.xlabel("$x_1$",fontsize = 44)
         plt.ylabel("$x_2$",fontsize = 44)
         plt.tick_params(labelsize=28)
@@ -524,7 +526,9 @@ def plotminimizeranderror(usejson = 0):
         import matplotlib.text as text
         mpl.rc('text', usetex = True)
         mpl.rc('font', family = 'serif', size=12)
-        mpl.style.use("ggplot")
+        mpl.rc('font', weight='bold')
+        mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+        # mpl.style.use("ggplot")
 
         f, axarr = plt.subplots(2,1, sharex=True, sharey=False, figsize=(15,8))
         f.subplots_adjust(hspace=0)
@@ -532,7 +536,7 @@ def plotminimizeranderror(usejson = 0):
 
         style  =['b--','r-.','g-']
         linewidth = [1,1,2]
-        labelarr = ['LHS','d-LHD','SG']
+        labelarr = ['$LHS$','$\\mathrm{d-LHD}$','$SG$']
         marker = ['x','*','o']
 
         index = 0
@@ -569,7 +573,7 @@ def plotminimizeranderror(usejson = 0):
         axarr[index].axhline(min,linestyle=":",linewidth='1',color='k')
         axarr[index].set_yscale('log')
         axarr[index].legend(fontsize = 18,frameon=False)
-        axarr[index].set_xlabel('Iteration number',fontsize = 24)
+        axarr[index].set_xlabel('$\\mathrm{Iteration\\ number}$',fontsize = 24)
         axarr[index].set_ylabel('$\\Delta_r$',fontsize = 24)
         axarr[index].tick_params(labelsize=20)
 
