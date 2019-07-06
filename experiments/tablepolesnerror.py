@@ -540,10 +540,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     # allsamples = ['sg']
     # allsamples = ['lhs']
     # allsamples = ['mc','lhs','so','sg']
-    # allsamples = ['lhs','splitlhs','sg']
-    # allsampleslabels = ['SG','LHS','d-LHD']
-    allsamples = ['splitlhs']
-    allsampleslabels = ['d-LHD']
+    allsamples = ['lhs','splitlhs','sg']
+    allsampleslabels = ['SG','LHS','d-LHD']
+    # allsamples = ['splitlhs']
+    # allsampleslabels = ['d-LHD']
     s= ""
 
 
