@@ -2,6 +2,7 @@
 import numpy as np
 from apprentice import RationalApproximationSIP, RationalApproximation, PolynomialApproximation
 from apprentice import tools, readData
+import scipy
 import matplotlib.ticker as mtick
 import os
 
@@ -29,6 +30,22 @@ def getnoiseinfo(noise):
             return noisestr[i],noisepct[i]
 
 
+def getstats(data,metr):
+    def geomean(iterable):
+        a = np.array(iterable)
+        return a.prod()**(1.0/len(a))
+
+    if metr == 'amean': return np.average(data)
+    elif metr == 'gmean': return geomean(data)
+    elif metr == 'median': return np.median(data)
+    elif metr == 'range': return np.max(data) - np.min(data)
+    else:
+        print("metric not known")
+        exit(1)
+
+
+
+
 def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     print (farr)
     print (noisearr)
@@ -36,8 +53,10 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
     # allsamples = ['mc','lhs','so','sg']
     # allsamples = ['lhs','splitlhs','sg']
     # allsamples = ['sg']
-    allsamples = ['splitlhs']
+    # allsamples = ['splitlhs']
     # allsamples = ['lhs','splitlhs']
+    allsamples = ['sg','lhs','splitlhs']
+    allsampleslabels = ['SG','LHS','d-LHD']
     import json
     from apprentice import tools
     results = {}
@@ -250,6 +269,95 @@ def tabletotalcputime(farr,noisearr, ts, table_or_latex):
 
     # print(results)
 
+    #############################################
+    #iteration summary latex
+    #############################################
+    # python tabletotalcputime.py  f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0 2x latex
+    noise = noisearr[0]
+    metricarr = ['amean','gmean','median','range']
+    metricarrlabel = ['Arithmetic Mean','Geometric Mean','Median','Range']
+    stats = {}
+    s = ""
+    for mnum, metr in enumerate(metricarr):
+        s+="%s"%(metricarrlabel[mnum])
+        for snum,sample in enumerate(allsamples):
+            data = []
+            for fnum,fname in enumerate(farr):
+                data.append(results[sample][fname][noise]['rnoiters'])
+                if(fname == 'f20'):
+                    print(results[sample][fname][noise]['rnoiters'])
+
+            print(np.max(data),np.min(data))
+            stat = getstats(data,metr)
+            s+="&%.2f"%(stat)
+        s+="\n\\\\\\hline\n"
+    print(s)
+
+
+
+
+    #############################################
+    #cputime summary latex
+    #############################################
+    noise = noisearr[0]
+    metricarr = ['amean','gmean','median','range']
+    metricarrlabel = ['Arithmetic Mean','Geometric Mean','Median','Range']
+    methodarr = ['papp','rapp','rapprd','rfittime','rmstime']
+    stats = {}
+    sample = 'splitlhs'
+    s = ""
+
+
+    for mnum, metr in enumerate(metricarr):
+        s+="%s"%(metricarrlabel[mnum])
+        for menum,method in enumerate(methodarr):
+            data = []
+            for fnum,fname in enumerate(farr):
+                data.append(results[sample][fname][noise][method])
+
+
+            stat = getstats(data,metr)
+            s+="&%.2f"%(stat)
+        s+="\n\\\\\\hline\n"
+    print(s)
+
+    #############################################
+    #cputime and iteration electronic suppliment latex
+    #############################################
+    # python tabletotalcputime.py  f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0 2x latex
+    # python tabletotalcputime.py  f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-6 2x latex
+    # python tabletotalcputime.py  f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-2 2x latex
+    noise = noisearr[0]
+    s = ""
+    keyarr = ['rapp','rapprd','rfittime','rmstime','rnoiters','papp']
+
+    for fnum, fname in enumerate(farr):
+        s += "\\multirow{3}{*}{\\ref{fn:%s}}"%(fname)
+        for snum, sample in enumerate(allsamples):
+            s+="&%s"%(allsampleslabels[snum])
+            for knum, key in enumerate(keyarr):
+                statsarr = [key,key+'sd']
+                for stnum, stat in enumerate(statsarr):
+                    val = results[sample][fname][noise][stat]
+                    if sample == 'sg' and stnum == 1:
+                        s+="&-"
+                    elif val == int(val):
+                        s+="&%d"%(int(val))
+                    elif val < 10**-2 or val >10**2:
+                        s+="&%.2E"%(val)
+                    else:
+                        s+="&%.2f"%(val)
+            if snum < len(allsamples)-1:
+                s+="\n\\\\*  \\cline{2-14}\n"
+        s+="\n\\\\ \\hline\n"
+    print(s)
+
+
+
+
+
+
+    exit(1)
     import json
     with open("results/plots/Jiterations.json", "w") as f:
             json.dump(dumpr, f,indent=4, sort_keys=True)
