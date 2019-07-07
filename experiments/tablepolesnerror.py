@@ -444,11 +444,11 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
                     l2allarr = resdata[method]['l2all']
                     results[fname][sample][noise][method] = {}
                     if(len(l2allarr)!=0):
-                        results[fname][sample][noise][method]['l2all'] = getstats(l2allarr,'amean')
-                        results[fname][sample][noise][method]['l2allgm'] = getstats(l2allarr,'gmean')
-                        results[fname][sample][noise][method]['l2allmed'] = getstats(l2allarr,'median')
-                        results[fname][sample][noise][method]['l2allra'] = getstats(l2allarr,'range')
-                        results[fname][sample][noise][method]['l2allsd'] = np.std(l2allarr)
+                        results[fname][sample][noise][method]['l2all'] = float(getstats(l2allarr,'amean'))
+                        results[fname][sample][noise][method]['l2allgm'] = float(getstats(l2allarr,'gmean'))
+                        results[fname][sample][noise][method]['l2allmed'] = float(getstats(l2allarr,'median'))
+                        results[fname][sample][noise][method]['l2allra'] = float(getstats(l2allarr,'range'))
+                        results[fname][sample][noise][method]['l2allsd'] = float(np.std(l2allarr))
                     else:
                         results[fname][sample][noise][method]['l2all'] = missingmean
                         results[fname][sample][noise][method]['l2allgm'] = missingmean
@@ -463,17 +463,18 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
 
                             arr = resdata[method][str(tval)][key]
                             if(len(arr)!=0):
-                                results[fname][sample][noise][method][str(tval)][key] = getstats(arr,'amean')
-                                results[fname][sample][noise][method][str(tval)][key+'gm'] = getstats(arr,'gmean')
-                                results[fname][sample][noise][method][str(tval)][key+'med'] = getstats(arr,'median')
-                                results[fname][sample][noise][method][str(tval)][key+'ra'] = getstats(arr,'range')
-                                results[fname][sample][noise][method][str(tval)][key+'sd'] = np.std(arr)
+                                results[fname][sample][noise][method][str(tval)][key] = float(getstats(arr,'amean'))
+                                results[fname][sample][noise][method][str(tval)][key+'gm'] = float(getstats(arr,'gmean'))
+                                results[fname][sample][noise][method][str(tval)][key+'med'] = float(getstats(arr,'median'))
+                                results[fname][sample][noise][method][str(tval)][key+'ra'] = float(getstats(arr,'range'))
+                                results[fname][sample][noise][method][str(tval)][key+'sd'] = float(np.std(arr))
                             else:
                                 results[fname][sample][noise][method][str(tval)][key] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'gm'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'med'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'ra'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
+                        break
 
         print("done with fn: %s"%(fname))
 
