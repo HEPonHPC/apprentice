@@ -474,7 +474,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
                                 results[fname][sample][noise][method][str(tval)][key+'med'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'ra'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
-                        
+
 
         print("done with fn: %s"%(fname))
 
@@ -541,7 +541,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     # allsamples = ['sg']
     # allsamples = ['lhs']
     # allsamples = ['mc','lhs','so','sg']
-    allsamples = ['lhs','splitlhs','sg']
+    allsamples = ['sg','lhs','splitlhs']
     allsampleslabels = ['SG','LHS','d-LHD']
     # allsamples = ['splitlhs']
     # allsampleslabels = ['d-LHD']
@@ -691,7 +691,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             "\\Delta_r"
         ]
 
-
+        import math
         for fnum, fname in enumerate(farr):
             outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
             if outfilejson:
@@ -702,7 +702,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
             for snum, sample in enumerate(allsamples):
                 s+="&\\multirow{5}{*}{%s}"%(allsampleslabels[snum])
                 for wnum, wet in enumerate(WETarr):
-                    statsarr = [wetkeyarr[wnum],wetkeyarr[wnum]+'sd']
+                    statsarr = [
+                                    wetkeyarr[wnum],
+                                    wetkeyarr[wnum]+'med'
+                    ]
                     if wnum>0:
                         s+="&"
                     s+="&$%s$"%(wet)
@@ -712,11 +715,7 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
                                 val = results[fname][sample][noise][method][str(tval)][stat]
                             else:
                                 val = results[fname][sample][noise][method][stat]
-                            if stnum == 0:
-                                mean = val
-                            if stnum == 1 and val > mean:
-                                val/=100
-                            if sample == 'sg' and stnum == 1:
+                            if sample == 'sg' and stnum > 0:
                                 s+="&-"
                             elif method == 'papp' and wnum < 4:
                                 s+="&-"
