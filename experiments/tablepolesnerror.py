@@ -474,7 +474,7 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
                                 results[fname][sample][noise][method][str(tval)][key+'med'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'ra'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
-                        break
+                        
 
         print("done with fn: %s"%(fname))
 
