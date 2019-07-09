@@ -16,3 +16,6 @@ NLPproblem.summary
 *.sol
 *.out
 results_p4_q3_ts2x
+
+# PyCharm files
+*.idea
