@@ -382,7 +382,7 @@ class TuningObjective(object):
     def pnames(self): return self._SCLR.pnames
 
     def objective(self, x):
-        return fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
+        return fast_chi(self._W2, self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
