@@ -13,7 +13,9 @@ def mkPlot(data, f_out, norm=2):
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
+    mpl.rc('font', weight='bold')
+    mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+    # mpl.style.use("ggplot")
 
     plt.xlabel("$m$")
     plt.ylabel("$n$")
@@ -43,6 +45,14 @@ def bar(ax, data, xloc, leglab=None):
         ax.vlines(x, y2, y2+e2)
 
 # python errorplot.py results/plots/Jerrordata.json 0 ../../log/error0.pdf
+
+
+
+
+
+
+
+
 # python errorplot.py results/plots/Jerrordata.json 10-2 ../../log/error10-2.pdf
 # python errorplot.py results/plots/Jerrordata.json 10-6 ../../log/error10-6.pdf
 if __name__=="__main__":
@@ -61,7 +71,9 @@ if __name__=="__main__":
     from matplotlib.ticker import MaxNLocator
     mpl.rc('text', usetex = True)
     mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
+    mpl.rc('font', weight='bold')
+    mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+    # mpl.style.use("ggplot")
     if sys.argv[2].endswith("pgf"):
         mpl.use('pgf')
         pgf_with_custom_preamble = {
@@ -76,7 +88,7 @@ if __name__=="__main__":
     ax = plt.figure().gca()
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     # plt.xlabel("$m$")
-    plt.ylabel("$\\Delta_r\:,\\quad E_{r,t}\:,\\quad E^\\prime_{r,t}$",fontsize=20)
+    plt.ylabel("$\\quad E_{r,t}\:,\\quad E^\\prime_{r,t}$",fontsize=20)
     # plt.xlim((min(xi)-0.5,max(xi)+0.5))
     # plt.ylim((min(yi)-0.5,max(yi)+0.5))
 
@@ -91,7 +103,7 @@ if __name__=="__main__":
         # break
 
     # xlabels=["\\ref{fn:%s}"%fn for fn in fns]
-    xlabels = ['A.1.4','A.1.7','A.1.15','A.1.16','A.1.17']
+    xlabels = ['$A.1.4$','$A.1.7$','$A.1.15$','$A.1.16$','$A.1.17$']
     if(sys.argv[2] == '0'):
         plt.legend(loc='upper left',fontsize=18)
     plt.yscale("log")

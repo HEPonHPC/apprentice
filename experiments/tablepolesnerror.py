@@ -444,10 +444,16 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
                     l2allarr = resdata[method]['l2all']
                     results[fname][sample][noise][method] = {}
                     if(len(l2allarr)!=0):
-                        results[fname][sample][noise][method]['l2all'] = np.average(l2allarr)
-                        results[fname][sample][noise][method]['l2allsd'] = np.std(l2allarr)
+                        results[fname][sample][noise][method]['l2all'] = float(getstats(l2allarr,'amean'))
+                        results[fname][sample][noise][method]['l2allgm'] = float(getstats(l2allarr,'gmean'))
+                        results[fname][sample][noise][method]['l2allmed'] = float(getstats(l2allarr,'median'))
+                        results[fname][sample][noise][method]['l2allra'] = float(getstats(l2allarr,'range'))
+                        results[fname][sample][noise][method]['l2allsd'] = float(np.std(l2allarr))
                     else:
                         results[fname][sample][noise][method]['l2all'] = missingmean
+                        results[fname][sample][noise][method]['l2allgm'] = missingmean
+                        results[fname][sample][noise][method]['l2allmed'] = missingmean
+                        results[fname][sample][noise][method]['l2allra'] = missingmean
                         results[fname][sample][noise][method]['l2allsd'] = 0
 
                 for tval in thresholdvalarr:
@@ -457,11 +463,18 @@ def getresults(farr,noisearr, tarr, ts, allsamples):
 
                             arr = resdata[method][str(tval)][key]
                             if(len(arr)!=0):
-                                results[fname][sample][noise][method][str(tval)][key] = np.average(arr)
-                                results[fname][sample][noise][method][str(tval)][key+'sd'] = np.std(arr)
+                                results[fname][sample][noise][method][str(tval)][key] = float(getstats(arr,'amean'))
+                                results[fname][sample][noise][method][str(tval)][key+'gm'] = float(getstats(arr,'gmean'))
+                                results[fname][sample][noise][method][str(tval)][key+'med'] = float(getstats(arr,'median'))
+                                results[fname][sample][noise][method][str(tval)][key+'ra'] = float(getstats(arr,'range'))
+                                results[fname][sample][noise][method][str(tval)][key+'sd'] = float(np.std(arr))
                             else:
                                 results[fname][sample][noise][method][str(tval)][key] = missingmean
+                                results[fname][sample][noise][method][str(tval)][key+'gm'] = missingmean
+                                results[fname][sample][noise][method][str(tval)][key+'med'] = missingmean
+                                results[fname][sample][noise][method][str(tval)][key+'ra'] = missingmean
                                 results[fname][sample][noise][method][str(tval)][key+'sd'] = 0
+
 
         print("done with fn: %s"%(fname))
 
@@ -504,6 +517,18 @@ def checkfloat(fmtstr,fl):
     else:
         return " & -"
 
+def getstats(data,metr):
+    def geomean(iterable):
+        a = np.array(iterable)
+        return a.prod()**(1.0/len(a))
+
+    if metr == 'amean': return np.average(data)
+    elif metr == 'gmean': return geomean(data)
+    elif metr == 'median': return np.median(data)
+    elif metr == 'range': return np.max(data) - np.min(data)
+    else:
+        print("metric not known")
+        exit(1)
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
@@ -516,8 +541,10 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     # allsamples = ['sg']
     # allsamples = ['lhs']
     # allsamples = ['mc','lhs','so','sg']
-    # allsamples = ['lhs','splitlhs','sg']
-    allsamples = ['splitlhs']
+    allsamples = ['sg','lhs','splitlhs']
+    allsampleslabels = ['SG','LHS','d-LHD']
+    # allsamples = ['splitlhs']
+    # allsampleslabels = ['d-LHD']
     s= ""
 
 
@@ -619,6 +646,102 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         with open("results/plots/Jerrordata.json", "w") as f:
             json.dump(dumpr, f,indent=4, sort_keys=True)
 
+    elif(usejson == 3):
+        thresholdvalarr = np.array([float(t) for t in tarr])
+        thresholdvalarr = np.sort(thresholdvalarr)
+        tval = thresholdvalarr[0]
+        metricarr = ['amean','gmean','median','range']
+        metricarrlabel = ['Arithmetic Mean','Geometric Mean','Median','Range']
+        sample = 'splitlhs'
+        s = ""
+        for mnum, metr in enumerate(metricarr):
+            s+="%s"%(metricarrlabel[mnum])
+            for noise in noisearr:
+                for menum,method in enumerate(methodarr):
+                    data = []
+                    for fnum,fname in enumerate(farr):
+                        outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
+                        if outfilejson:
+                            with open(outfilejson, 'r') as fn:
+                                results = json.load(fn)
+                        data.append(results[fname][sample][noise][method]['l2all'])
+
+
+                    from sklearn import preprocessing
+                    minmaxscaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
+                    data = minmaxscaler.fit_transform(np.reshape(data,(-1,1)))
+                    stat = getstats(data,metr)
+                    s+="&%.2E"%(stat)
+            s+="\n\\\\\\hline\n"
+        print(s)
+    elif(usejson == 4):
+        # python tablepolesnerror.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 0 100,1000 2x table 4
+        # python tablepolesnerror.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-6 100,1000 2x table 4
+        # python tablepolesnerror.py f1,f2,f3,f4,f5,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f19,f20,f21,f22 10-2 100,1000 2x table 4
+        thresholdvalarr = np.array([float(t) for t in tarr])
+        thresholdvalarr = np.sort(thresholdvalarr)
+        tval = thresholdvalarr[0]
+        noise = noisearr[0]
+        wetkeyarr = ['no_face','no_inside','l2count','l2notcount','l2all']
+        WETarr = [
+            "|W^{(fc)}_{r,10^2}|",
+            "|W^{(in)}_{r,10^2}|",
+            "E_{r,10^2}",
+            "E'_{r,10^2}",
+            "\\Delta_r"
+        ]
+
+        import math
+        for fnum, fname in enumerate(farr):
+            outfilejson = "results/plots/Jpoleanderrorinfo"+fname+".json"
+            if outfilejson:
+                with open(outfilejson, 'r') as fn:
+                    results = json.load(fn)
+            number = len(allsamples) * 5
+            s += "\\multirow{%d}{*}{\\ref{fn:%s}}"%(number,fname)
+            for snum, sample in enumerate(allsamples):
+                s+="&\\multirow{5}{*}{%s}"%(allsampleslabels[snum])
+                for wnum, wet in enumerate(WETarr):
+                    statsarr = [
+                                    wetkeyarr[wnum],
+                                    wetkeyarr[wnum]+'med'
+                    ]
+                    if wnum>0:
+                        s+="&"
+                    s+="&$%s$"%(wet)
+                    for mnum, method in enumerate(['rapp','rapprd','rappsip','papp']):
+                        for stnum, stat in enumerate(statsarr):
+                            if wnum < 4:
+                                val = results[fname][sample][noise][method][str(tval)][stat]
+                            else:
+                                val = results[fname][sample][noise][method][stat]
+                            if sample == 'sg' and stnum > 0:
+                                s+="&-"
+                            elif method == 'papp' and wnum < 4:
+                                s+="&-"
+                            elif val == int(val):
+                                s+="&%d"%(int(val))
+                            elif val < 10**-2 or val >10**2:
+                                s+="&%.2E"%(val)
+                            else:
+                                s+="&%.2f"%(val)
+                    if wnum < len(WETarr)-1:
+                        s+="\n\\\\*  \\cline{3-11}\n"
+                if snum < len(allsamples)-1:
+                    s+="\n\\\\*  \\cline{2-11}\n"
+            s+="\n\\\\ \\hline\n"
+        print(s)
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -639,6 +762,7 @@ if __name__ == "__main__":
 # for fno in 4 7 17 18 19; do  name="f"$fno; nohup python tablepolesnerror.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
 # python tablepolesnerror.py f4,f7,f17,f18,f19 0,10-2,10-6 100 2x table 1
 # python tablepolesnerror.py f4,f8,f17,f18,f19 0,10-2,10-6 100 2x table 2
+# for fno in {1..3} 5 {9..10} {12..16} 20 21 22; do  name="f"$fno; nohup python tablepolesnerror.py $name 0,10-2,10-6 100,1000 2x table 0 > ../../log/"tablepoles_"$name".log" 2>&1 &  done
     if len(sys.argv) != 7:
         print("Usage: {} function noise thresholds ts table_or_latex_or_latexall usejson(0 or 1)".format(sys.argv[0]))
         sys.exit(1)

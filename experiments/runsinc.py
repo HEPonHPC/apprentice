@@ -890,7 +890,9 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
         import matplotlib as mpl
         mpl.rc('text', usetex = True)
         mpl.rc('font', family = 'serif', size=12)
-        mpl.style.use("ggplot")
+        mpl.rc('font', weight='bold')
+        mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+        # mpl.style.use("ggplot")
         for exp in range(10,-6,-1):
             pp = 10**exp
             fndesc = fndesctemp + "_pp"+str(exp)
@@ -911,13 +913,13 @@ def runsincnD_penaltyobjective(dim=2, level =4, type='run'):
         plotfile = "../../log/Pplotreg_d%d_l%d.pdf"%(dim,l)
         import matplotlib.pyplot as plt
         plt.figure(0,figsize=(15, 10))
-        plt.plot(X_l1,np.log10(Y_l2))
+        plt.plot(X_l1,np.log10(Y_l2),c='r')
         # plt.yscale('log')
         plt.xlabel("$\\sum_{j=0}^{\\alpha(M)-1} \\widehat{a}_j^2 + \\sum_{j=0}^{\\alpha(N)-1} \\widehat{b}_j^2$",fontsize = 22)
         plt.ylabel("$\\log10\\left[\\sum_{k=0}^{K-1} \\left( f_k q(x^{(k)}) - p(x^{(k)}) \\right)^2\\right]$",fontsize = 22)
         plt.tick_params(labelsize=22)
         for num,x in enumerate(X_l1):
-            plt.annotate("$\\sigma=$%.E"%(pparr[num]),(x,np.log10(Y_l2[num])),fontsize=20)
+            plt.annotate("$\\sigma=%.E$"%(pparr[num]),(x,np.log10(Y_l2[num])),fontsize=20,fontweight='bold')
         plt.savefig(plotfile,bbox_inches='tight')
         print(plotfile)
 

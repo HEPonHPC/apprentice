@@ -57,7 +57,8 @@ def monomialStructure(dim, order):
 def recurrence1D(X, structure):
     return X**structure
 
-@njit#(fastmath=True)
+# Autograd seems to have a problem with Numba. We will deal with this later.
+# @njit#(fastmath=True)
 def recurrence(X, structure):
     """
     Create the parameter combination vector for a particular structure,
@@ -65,11 +66,13 @@ def recurrence(X, structure):
     structure.
     """
     temp = X**structure
-    ret = np.zeros(structure.shape[0])
+    #Added this dtype since autograd.numpy.numpy_boxes.ArrayBox result needs to go into ret
+    ret = np.zeros(structure.shape[0],dtype ='object')
     for i in range(len(temp)):
-        _= 1.0
-        for t in temp[i]: _*=t
-        ret[i] = _
+        v = 1.0
+        for t in temp[i]:
+            v = v * t
+        ret[i] = v
     return ret
     # import sys
     # sys.exit(1)

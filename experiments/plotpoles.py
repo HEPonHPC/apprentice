@@ -468,14 +468,14 @@ def bar(ax, data, xloc, leglab=None):
     for num, ds in enumerate(data):
         y1 = ds['W_rt_102']
         y2 = ds['W_rt_103']
-
-        x = xloc -1 + num*0.25
+        width = 0.35
+        x = xloc -1 + num*width
         if leglab is None:
-            ax.bar(x, y1, width=0.25, alpha=0.2, color=col[num])
-            ax.bar(x, y2, width=0.25, alpha=0.5, color=col[num], hatch="//")
+            ax.bar(x, y1, width=width, alpha=0.2, color=col[num])
+            ax.bar(x, y2, width=width, alpha=0.5, color=col[num], hatch="//")
         else:
-            ax.bar(x, y1, width=0.25, alpha=0.2, color=col[num])
-            ax.bar(x, y2, width=0.25, alpha=0.5, color=col[num], label=leglab[num], hatch="//")
+            ax.bar(x, y1, width=width, alpha=0.2, color=col[num])
+            ax.bar(x, y2, width=width, alpha=0.5, color=col[num], label=leglab[num], hatch="//")
 
 def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
     print (farr)
@@ -506,7 +506,8 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         thresholdvalarr = np.array([float(t) for t in tarr])
         thresholdvalarr = np.sort(thresholdvalarr)
         data = {}
-        methodarr = ['rapp','rapprd','rappsip']
+        # methodarr = ['rapp','rapprd','rappsip']
+        methodarr = ['rapp','rapprd']
         xposarr  = ['resultscorner','resultsnotcorner']
         sample = allsamples[0]
         for position in xposarr:
@@ -533,7 +534,9 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
         from matplotlib.ticker import MaxNLocator
         mpl.rc('text', usetex = True)
         mpl.rc('font', family = 'serif', size=12)
-        mpl.style.use("ggplot")
+        mpl.rc('font', weight='bold')
+        mpl.rcParams['text.latex.preamble'] = [r'\usepackage{sfmath} \boldmath']
+        # mpl.style.use("ggplot")
 
         ax = plt.figure().gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -550,12 +553,12 @@ def tablepoles(farr,noisearr, tarr, ts, table_or_latex,usejson=0):
                 bar(ax, temp, pnum)
 
 
-        xlabels = ['face','inside']
+        xlabels = ['$face$','$inside$']
         if(noisearr[0] == '0'):
             plt.legend(loc='upper left',fontsize=18)
         plt.yscale("log")
         plt.ylim([10**-1,10**2.5])
-        plt.xticks([x - 0.85 for x in range(len(xposarr))], xlabels,fontsize=20)
+        plt.xticks([x - 0.825 for x in range(len(xposarr))], xlabels,fontsize=20)
         plt.rc('ytick',labelsize=20)
         plt.rc('xtick',labelsize=20)
         plt.tick_params(labelsize=20)
