@@ -1,3 +1,38 @@
+# https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
+
+
+def read_limitsandfixed(fname):
+    """
+    Read a text file e.g.
+    PARAM1  0         1   # interpreted as fixed param
+    PARAM2  0.54444       # interpreted as limits
+    """
+    limits, fixed = {}, {}
+    if fname is not None:
+        with open(fname) as f:
+            for l in f:
+                if not l.startswith("#"):
+                    temp = l.split()
+                    if len(temp) == 2:
+                        fixed[temp[0]] = float(temp[1])
+                    elif len(temp) == 3:
+                        limits[temp[0]] = (float(temp[1]), float(temp[2]))
+    return limits, fixed
+
+
+import re
+def sorted_nicely( l ):
+    """ Sorts the given iterable in the way that is expected.
+
+    Required arguments:
+    l -- The iterable to be sorted.
+
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key = alphanum_key)
+
+
 def fast_chi(lW2, lY, lRA, lE2, nb):
     s=0
     for i in range(nb):
@@ -281,7 +316,9 @@ def readTuneResult(fname):
 def readApprox(fname):
     import json, apprentice
     with open(fname) as f: rd = json.load(f)
-    binids = sorted(rd.keys())
+    # binids = sorted(rd.keys())
+    binids = sorted_nicely(rd.keys()) #sorted(rd.keys(), key=lambda item: (int(item.partition(' ')[0])
+                               # if item[0].isdigit() else float('inf'), item))
     APP = {}
     for b in binids:
         try:
@@ -296,7 +333,7 @@ def mkCov(yerrs):
 
 
 class TuningObjective(object):
-    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False):
+    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None):
         import apprentice
         import numpy as np
         matchers=apprentice.weights.read_pointmatchers(f_weights)
@@ -322,7 +359,7 @@ class TuningObjective(object):
             FMIN=[-1e101 for r in RA]
             FMAX=[ 1e101 for r in RA]
 
-        # TODO This needs to be a porperty
+        # TODO This needs to be a property
         # Filter here to use only certain bins/histos
         # TODO put the filtering in readApprox?
         dd = apprentice.tools.readExpData(f_data, [str(b) for b in  binids])
@@ -343,6 +380,13 @@ class TuningObjective(object):
         self._E2 = np.array([1./e**2 for e in self._E])
         self._SCLR = RA[0]._scaler # Replace with min/max limits things
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
+        self._bounds = self._SCLR.box
+        if limits is not None:
+            lim, fix = read_limitsandfixed(limits)
+            for num, pn in enumerate(self.pnames):
+                if pn in lim:
+                    self._bounds[num] = lim[pn]
+            # print("New bounds: {}".format(self._bounds))
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
 
@@ -376,7 +420,7 @@ class TuningObjective(object):
     def pnames(self): return self._SCLR.pnames
 
     def objective(self, x):
-        return fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
+        return self.fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
@@ -387,8 +431,18 @@ class TuningObjective(object):
 
     def minimize(self, nstart):
         from scipy import optimize
-        res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._SCLR.box)
+        res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
         return res
+
+    def fast_chi(self, lW2, lY, lRA, lE2, nb):
+        s=0
+        for i in range(nb):
+            s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+        return s
+
+
+    def __call__(self, x):
+        return self.objective(x)
 
 class Outer(TuningObjective):
 
