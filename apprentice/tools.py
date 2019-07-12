@@ -452,14 +452,3 @@ class TuningObjective(object):
     def __call__(self, x):
         return self.objective(x)
 
-class Outer(TuningObjective):
-
-    def setWeights(self, wdict):
-        for num, b in enumerate(self._binids):
-            for hn, w in wdict.items():
-                if hn in b:
-                    self._W2[num] = w*w
-
-    def __call__(self, x, nstart):
-        self.setWeights({hn : _x for hn, _x in zip(self.hnames, x)})
-        return self.minimize(nstart)
