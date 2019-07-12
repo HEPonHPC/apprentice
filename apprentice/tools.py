@@ -1,3 +1,4 @@
+import numpy as np
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
 
 
@@ -428,7 +429,7 @@ class TuningObjective(object):
     def pnames(self): return self._SCLR.pnames
 
     def objective(self, x):
-        return fast_chi(self._W2, self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
+        return fast_chi(np.sqrt(self._W2), self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
