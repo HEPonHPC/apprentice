@@ -442,13 +442,6 @@ class TuningObjective(object):
         res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
         return res
 
-    def fast_chi(self, lW2, lY, lRA, lE2, nb):
-        s=0
-        for i in range(nb):
-            s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
-        return s
-
-
     def __call__(self, x):
         return self.objective(x)
 
