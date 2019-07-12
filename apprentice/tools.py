@@ -369,7 +369,9 @@ class TuningObjective(object):
         # Also filter for not enveloped data
         good = []
         for num, bid in enumerate(binids):
-            if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
+            # good.append(num)
+            # if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
+            if weights[num]>0: good.append(num)
 
         # TODO --- upon calling a def filter() --- these should be properties
         self._RA     = [RA[g]     for g in good]
