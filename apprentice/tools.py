@@ -440,9 +440,14 @@ class TuningObjective(object):
 
     def minimize(self, nstart):
         from scipy import optimize
-        res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
-        return res
+        minobj = np.Infinity
+        finalres = None
+        for t in range(10): # TODO Parameterize the number of restarts
+            res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
+            if res["fun"] < minobj:
+                minobj = res["fun"]
+                finalres = res
+        return finalres
 
     def __call__(self, x):
         return self.objective(x)
-
