@@ -438,11 +438,11 @@ class TuningObjective(object):
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart):
+    def minimize(self, nstart,nrestart):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
-        for t in range(10): # TODO Parameterize the number of restarts
+        for t in range(nrestart):
             res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
             if res["fun"] < minobj:
                 minobj = res["fun"]
