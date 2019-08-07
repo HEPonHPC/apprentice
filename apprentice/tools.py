@@ -38,7 +38,7 @@ def sorted_nicely( l ):
 def fast_chi(lW2, lY, lRA, lE2, nb):
     s=0
     for i in range(nb):
-        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i] # errors are reciprocal
     return s
 
 def numNonZeroCoeff(app, threshold=1e-6):
@@ -384,10 +384,7 @@ class TuningObjective(object):
         self._E2 = np.array([1./e**2 for e in self._E])
         self._SCLR = RA[0]._scaler # Replace with min/max limits things
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
-        hdict = dict([(h, []) for h in self._hnames])
-        for b in self._binids:
-            hname, bid = b.split("#")
-            hdict[hname].append(bid)
+        hdict, _ = history_dict(self._binids, self._hnames)
         self._hdict = hdict
         self._bounds = self._SCLR.box
         if limits is not None:
@@ -451,3 +448,39 @@ class TuningObjective(object):
 
     def __call__(self, x):
         return self.objective(x)
+
+
+def history_dict(binids, hnames=None):
+    if hnames is None:
+        hnames = [b.split("#")[0] for b in binids]
+    hdict = dict([(h, []) for h in hnames])
+    for b in binids:
+        hname, bid = b.split("#")
+        hdict[hname].append(bid)
+    return hdict, hnames
+
+
+def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.):
+    """
+    Create in-silico data from rational approximation file corrupting the data with zero mean Gaussian noise.
+    :param approximation_file: Approximation json file.
+    :param p0: True parameter value.
+    :param eps: Variance factor (multiplied by the data value at the corresponding bin).
+    :param outfile: Output json file path.
+    :param eps_model: Variance factor for model error (zero mean Gaussian noise, default: 0)
+    :return: Experimental data json file.
+    """
+    import json
+    binids, RA = readApprox(approximation_file)
+    data = dict([(b, []) for b in binids])
+    for (bid, r) in zip(binids, RA):
+        mu = r(p0)
+        sigma2 = eps*mu
+        sigma2_model = eps_model*mu
+        d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
+        data[bid] = [d, sigma2]
+    if outfile is None:
+        outfile = 'test123.json'
+    with open(outfile, 'w') as f:
+        json.dump(data, f)
+
