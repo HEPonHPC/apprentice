@@ -475,8 +475,8 @@ def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.)
     data = dict([(b, []) for b in binids])
     for (bid, r) in zip(binids, RA):
         mu = r(p0)
-        sigma2 = eps*mu
-        sigma2_model = eps_model*mu
+        sigma2 = eps*abs(mu)
+        sigma2_model = eps_model*abs(mu)
         d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
         data[bid] = [d, sigma2]
     if outfile is None:
