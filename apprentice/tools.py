@@ -472,13 +472,24 @@ def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.)
     """
     import json
     binids, RA = readApprox(approximation_file)
+    hdict, _ = history_dict(binids)
+    hnames = hdict.keys()
+    if len(hnames) != len(p0) or len(hnames) != len(eps):
+        n_o = len(hnames)
+        raise TypeError("Lengths of p0, eps and number of observables have to be the same. There are {} observables.".format(n_o))
+    RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
     data = dict([(b, []) for b in binids])
-    for (bid, r) in zip(binids, RA):
-        mu = r(p0)
-        sigma2 = eps*abs(mu)
-        sigma2_model = eps_model*abs(mu)
-        d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
-        data[bid] = [d, sigma2]
+
+    for (h,p,e) in zip(hnames,p0,eps):
+        for i in hdict[h]:
+            bid = "{h}#{i}".format(h=h,i=i)
+            r = RA_dict[bid]
+            mu = r(p)
+            sigma2 = e*abs(mu)
+            sigma2_model = eps_model*abs(mu)
+            d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
+            data[bid] = [d, sigma2]
+
     if outfile is None:
         outfile = 'test123.json'
     with open(outfile, 'w') as f:
