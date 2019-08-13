@@ -41,6 +41,31 @@ def fast_chi(lW2, lY, lRA, lE2, nb):
         s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i] # errors are reciprocal
     return s
 
+def least_square(y_data,y_mod,sigma2,w):
+    return w/sigma2 * (y_mod-y_data)**2
+
+def least_squares(y_data,y_mod,sigma2,w,idxs):
+    """
+    Least squares calculation for problem at hand, i.e. length of individual arguments is number of total bins.
+    :param y_data: Data.
+    :param y_mod: Model evaluations at data locations.
+    :param sigma2: Measurement variances.
+    :param w: Weights.
+    :param idxs: Indices corresponding to observables
+    :return:
+    """
+    n_o = len(idxs) # number of observables
+    chi2 = np.zeros(n_o)
+    V = 0.
+    for i in range(n_o):
+        i1 = idxs[i][0]; i2 = idxs[i][-1]
+        chi2[i] = np.sum(np.array(least_square(y_data[i1:i2], y_mod[i1:i2], sigma2[i1:i2], 1.)))
+        V += w[i1]*chi2[i] # weights are for all the bins the same in one observable, thus we just take the first one
+    return V, chi2
+
+
+
+
 def numNonZeroCoeff(app, threshold=1e-6):
     """
     Determine the number of non-zero coefficients for an approximation app.
@@ -386,6 +411,8 @@ class TuningObjective(object):
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         hdict, _ = history_dict(self._binids, self._hnames)
         self._hdict = hdict
+        self._wdict = weights_dict(self._W2, self._hdict)
+        self._idxs = indices(self._hnames, self._hdict)
         self._bounds = self._SCLR.box
         if limits is not None:
             lim, fix = read_limitsandfixed(limits)
@@ -400,6 +427,7 @@ class TuningObjective(object):
         """
         Convenience function to update the bins weights.
         """
+        self._wdict = wdict
         for num, b in enumerate(self._binids):
             for hn, w in wdict.items():
                 if hn in b:
@@ -424,6 +452,14 @@ class TuningObjective(object):
 
     @property
     def pnames(self): return self._SCLR.pnames
+
+    def _objective_obs(self, x):
+        """
+        Return objective and individual contributions of observables.
+        :param x:
+        :return:
+        """
+        return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
     def objective(self, x):
         return fast_chi(np.sqrt(self._W2), self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
@@ -458,6 +494,37 @@ def history_dict(binids, hnames=None):
         hname, bid = b.split("#")
         hdict[hname].append(bid)
     return hdict, hnames
+
+def weights_dict(w2_bins, hdict):
+    """
+    Transform bin weights to weights dictionary.
+    :param w2_bins: Squared weights of bins.
+    :param hdict: History dictionary.
+    :return: Weights dictionary.
+    """
+    wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
+    i = 0
+    for (k,v) in zip(wdict.keys(),wdict.values()):
+        n = len(v)
+        wdict[k][:] = np.sqrt(np.array(w2_bins[i:i+n]))
+        i += n
+    return wdict
+
+def indices(hnames, dict):
+    """
+    Returns indices with indices corresponding to observables.
+    :param hnames: Names of observables. This is important as this determines the order of the observables! The dictionaries of the object, i.e. hdict and wdict, might be unordered. -> TODO: Use OrderedDict() instead?
+    :param dict: Either weights or history dict.
+    :return: Indices dictionary.
+    """
+    idxs = [[0,0] for _ in hnames]
+    i = 0
+    for (k,v) in zip(range(len(hnames)),dict.values()):
+        n = len(v)
+        idxs[k][:] = [i,i + n]
+        i += n
+    return idxs
+
 
 
 def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.):
