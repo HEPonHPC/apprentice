@@ -427,11 +427,23 @@ class TuningObjective(object):
         """
         Convenience function to update the bins weights.
         """
-        self._wdict = wdict
-        for num, b in enumerate(self._binids):
-            for hn, w in wdict.items():
-                if hn in b:
-                    self._W2[num] = w*w
+        if type(wdict) == dict:
+            self._wdict = {k:[] for k in wdict.keys()}
+            for num, b in enumerate(self._binids):
+                for hn, w in wdict.items():
+                    if hn in b:
+                        self._W2[num] = w*w
+                        self._wdict[hn].append(w)
+        else:
+            wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
+            self.setWeights(wdict2)
+
+    def weights_obs(self):
+        """
+        Get weights for individual observables.
+        :return: Weights of first bin in each observable.
+        """
+        return [w[0] for w in self._wdict.values()]
 
     def obsGoF(self, hname, x):
         """
