@@ -567,7 +567,7 @@ def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.)
             sigma2 = e*abs(mu)
             sigma2_model = eps_model*abs(mu)
             d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
-            data[bid] = [d, sigma2]
+            data[bid] = [d, np.sqrt(sigma2)]
 
     if outfile is None:
         outfile = 'test123.json'
