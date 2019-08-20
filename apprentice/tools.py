@@ -1,6 +1,6 @@
 import numpy as np
+from collections import OrderedDict
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
-
 
 def read_limitsandfixed(fname):
     """
@@ -427,15 +427,17 @@ class TuningObjective(object):
         """
         Convenience function to update the bins weights.
         """
-        if type(wdict) == dict:
-            self._wdict = {k:[] for k in wdict.keys()}
+        if type(wdict) == OrderedDict:
+            #self._wdict = {k:[] for k in wdict.keys()}
+            self._wdict = OrderedDict([(k,[]) for k in wdict.keys()])
             for num, b in enumerate(self._binids):
                 for hn, w in wdict.items():
                     if hn in b:
                         self._W2[num] = w*w
                         self._wdict[hn].append(w)
         else:
-            wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
+            #wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
+            wdict2 = OrderedDict([(hn,_x) for hn, _x in zip(self.hnames, wdict)])
             self.setWeights(wdict2)
 
     def weights_obs(self):
@@ -501,7 +503,7 @@ class TuningObjective(object):
 def history_dict(binids, hnames=None):
     if hnames is None:
         hnames = [b.split("#")[0] for b in binids]
-    hdict = dict([(h, []) for h in hnames])
+    hdict = OrderedDict([(h, []) for h in hnames])
     for b in binids:
         hname, bid = b.split("#")
         hdict[hname].append(bid)
@@ -514,7 +516,8 @@ def weights_dict(w2_bins, hdict):
     :param hdict: History dictionary.
     :return: Weights dictionary.
     """
-    wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
+    #wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
+    wdict = OrderedDict([(k,np.zeros(len(v))) for (k, v) in zip(hdict.keys(), hdict.values())])
     i = 0
     for (k,v) in zip(wdict.keys(),wdict.values()):
         n = len(v)
