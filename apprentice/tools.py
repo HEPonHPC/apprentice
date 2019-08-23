@@ -542,38 +542,47 @@ def indices(hnames, dict):
 
 
 
-def artificial_data_from_RA(approximation_file,p0,eps,outfile=None,eps_model=0.):
+def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None,model_bias=None):
     """
-    Create in-silico data from rational approximation file corrupting the data with zero mean Gaussian noise.
+    Create in-silico data from rational approximation file corrupting the data with zero mean Gaussian noise (lenghts of provided arguments must match the number of observables in the provided approximation file).
     :param approximation_file: Approximation json file.
     :param p0: True parameter value.
     :param eps: Variance factor (multiplied by the data value at the corresponding bin).
+    :param var: Variances of measurement errors.
     :param outfile: Output json file path.
-    :param eps_model: Variance factor for model error (zero mean Gaussian noise, default: 0)
-    :return: Experimental data json file.
+    :param model_bias: Bias for model error (shifts the mean value).
+    :return: Experimental data json file (data with corresponding standard deviation), expected values of data.
     """
     import json
     binids, RA = readApprox(approximation_file)
     hdict, _ = history_dict(binids)
     hnames = hdict.keys()
-    if len(hnames) != len(p0) or len(hnames) != len(eps):
-        n_o = len(hnames)
-        raise TypeError("Lengths of p0, eps and number of observables have to be the same. There are {} observables.".format(n_o))
+    n_o = len(hnames)
+    if eps is None:
+        eps = np.zeros(n_o)
+    if var is None:
+        var = np.zeros(n_o)
+    if model_bias is None:
+        model_bias = np.zeros(n_o)
+    if n_o != len(p0) or n_o != len(eps) or n_o != var or n_o != len(model_bias):
+        raise TypeError("Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
     RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
     data = dict([(b, []) for b in binids])
 
-    for (h,p,e) in zip(hnames,p0,eps):
+    Ey = [] # expected values of data
+
+    for (h,p,e,v,b) in zip(hnames,p0,eps,var,model_bias):
         for i in hdict[h]:
             bid = "{h}#{i}".format(h=h,i=i)
             r = RA_dict[bid]
             mu = r(p)
-            sigma2 = e*abs(mu)
-            sigma2_model = eps_model*abs(mu)
-            d = mu + np.random.normal(0.0, np.sqrt(sigma2_model)) + np.random.normal(0.0, np.sqrt(sigma2))
-            data[bid] = [d, np.sqrt(sigma2)]
+            sigma2_eps = e*abs(mu)
+            d = mu + b + np.random.normal(0.0, np.sqrt(sigma2_eps)) + np.random.normal(0.0, np.sqrt(v))
+            data[bid] = [d, np.sqrt(sigma2_eps)]
+            Ey.append(mu+b)
 
     if outfile is None:
-        outfile = 'test123.json'
+        outfile = 'data.json'
     with open(outfile, 'w') as f:
         json.dump(data, f)
 
