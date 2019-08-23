@@ -586,3 +586,4 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
     with open(outfile, 'w') as f:
         json.dump(data, f)
 
+    return Ey
