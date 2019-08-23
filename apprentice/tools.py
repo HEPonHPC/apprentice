@@ -587,3 +587,76 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
         json.dump(data, f)
 
     return Ey
+def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, restart_filter=100,seed = 54321, N=100, epsmodel = 0.):
+    np.random.seed(seed)
+    import json
+    with open(experimentaldatafile,'r') as f:
+        expdata = json.load(f)
+    binids, RA = readApprox(approximationfile)
+    hdict, _ = history_dict(binids)
+    hnames = hdict.keys()
+
+    if len(hnames) != len(p0):
+        n_o = len(hnames)
+        raise TypeError(
+            "Lengths of p0 and number of observables have to be the same. There are {} observables.".format(n_o))
+    if len(expdata.keys()) != len(binids) or len(bbdict.keys()) != len(binids):
+        n_b = len(binids)
+        raise TypeError(
+            "Number of keys in experimental data, bad bin and number of bins have to be the same. There are {} bins.".format(n_b))
+
+    RA_dict = dict([(b, r) for (b, r) in zip(binids, RA)])
+    data = dict([(b, []) for b in binids])
+
+    for obs,p in zip(hdict.keys(),p0):
+        for b in hdict[obs]:
+            bid = "{o}#{b}".format(o=obs, b=b)
+            r = RA_dict[bid]
+
+            sigma = expdata[bid][1]
+
+            if bbdict[bid]:
+                bool = int(np.random.uniform(0,2))
+                if bool:
+                    FEX = r.fmin(restart_filter)
+                    mult = -1.
+                else:
+                    FEX = r.fmax(restart_filter)
+                    mult = 1.
+
+                mu = np.random.uniform(FEX + (mult * 0.2 * FEX), FEX + (mult * 0.8 * FEX))
+            else:
+                mu = r(p)
+
+            sigmamodel = epsmodel * abs(mu)
+            d = [mu + np.random.normal(0.0, scale=sigmamodel) + np.random.normal(0.0, scale=sigma) for i in range(N)]
+            d = np.average(d)
+
+            data[bid] = [d,sigma]
+
+    return data
+
+if __name__ == "__main__":
+    import os,sys
+    approximationfile = "../../pyoo/test_data_min2_noisefree/approximation.json"
+    experimentaldatafile = "../../pyoo/test_data_min2_noisefree/experimental_data.json"
+    import json
+    with open(experimentaldatafile, 'r') as f:
+        expdata = json.load(f)
+    p = [2.4743870765622695,1.7068479984402454]
+    hnames = [b.split("#")[0] for b in expdata]
+    uniquehnames = np.unique(hnames)
+    p0 = [p] * len(uniquehnames)
+    bbdict = {}
+    for ono,obs in enumerate(uniquehnames):
+        for b in expdata:
+            if obs in b:
+                bbdict[b] = False
+
+
+    bbdict = {b: False for b in expdata}
+    data = generate_data_from_RA(approximationfile,experimentaldatafile,p0,bbdict)
+    sys.exit(0)
+
+
+
