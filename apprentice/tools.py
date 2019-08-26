@@ -553,6 +553,7 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
     :param model_bias: Bias for model error (shifts the mean value).
     :return: Experimental data json file (data with corresponding standard deviation), expected values of data.
     """
+    np.random.seed(456785)
     import json
     binids, RA = readApprox(approximation_file)
     hdict, _ = history_dict(binids)
@@ -564,7 +565,7 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
         var = np.zeros(n_o)
     if model_bias is None:
         model_bias = np.zeros(n_o)
-    if n_o != len(p0) or n_o != len(eps) or n_o != var or n_o != len(model_bias):
+    if n_o != len(p0) or n_o != len(eps) or n_o != len(var) or n_o != len(model_bias):
         raise TypeError("Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
     RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
     data = dict([(b, []) for b in binids])
@@ -578,7 +579,7 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
             mu = r(p)
             sigma2_eps = e*abs(mu)
             d = mu + b + np.random.normal(0.0, np.sqrt(sigma2_eps)) + np.random.normal(0.0, np.sqrt(v))
-            data[bid] = [d, np.sqrt(sigma2_eps)]
+            data[bid] = [d, np.sqrt(sigma2_eps + v)] if sigma2_eps + v > 0 else [d, 1.0]
             Ey.append(mu+b)
 
     if outfile is None:
