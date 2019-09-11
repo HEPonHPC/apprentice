@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+
+import apprentice
+import numpy as np
+
+import matplotlib, os, sys
+matplotlib.use(os.environ.get("MPL_BACKEND", "Agg"))
+import pymultinest
+import mpi4py
+# A bit of a hack to compactly have the script work with and without mpi
+rank = 0
+try:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+except:
+    pass
+
+
+
+
+
+if __name__ == "__main__":
+    import sys
+    from scipy import optimize
+    import time
+
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+
+    np.random.seed(rank)
+
+    from apprentice.tools import TuningObjective, Outer
+
+    import optparse, os, sys
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-o", dest="OUTDIR", default="appnest", help="Output directory (default: %default)")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+    op.add_option("-d", dest="DATA", default=None, help="Data file to compare to (default: %default)")
+    op.add_option("--tol", dest="TOL", default=0.1, type=float, help="Evidence tolerance (default: %default)")
+    op.add_option("--eff", dest="EFF", default=0.8, type=float, help="Sampling efficiency (default: %default)")
+    op.add_option("--seed", dest="SEED", default=1, type=int, help="Random seed for pymultinest run (default: %default)")
+    op.add_option("--points", dest="POINTS", default=400, type=int, help="Number of live points in PyMultinest (default: %default)")
+    op.add_option("--resume", dest="RESUME", default=False, action='store_true', help="Resume on previous run.")
+    op.add_option("--imp", dest="IMPORTANCE", default=False, action='store_true', help="Do importance sampling.")
+    op.add_option("--mm", dest="MM", default=False, action='store_true', help="Run in multimodeal mode.")
+    op.add_option("--update", dest="UPDATE", default=10000, type=int, help="Update interval (default: %default iterations)")
+    opts, args = op.parse_args()
+
+    if opts.WEIGHTS is None:
+        raise Exception("No weight file spefified -- use  -w on CL")
+    if opts.DATA is None:
+        raise Exception("No data file spefified -- use  -d on CL")
+
+    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0])
+    sys.stdout.flush()
+
+    PMIN = IO._SCLR.box[:,0]
+    PMAX = IO._SCLR.box[:,1]
+    PLEN=[PMAX[i] - PMIN[i] for i in range(len(PMAX))]
+    NP = len(PLEN)
+    PNAMES = IO.pnames
+
+    def scaleParam(p, idx):
+        return PMIN[idx] + p * PLEN[idx]
+
+    def myprior(cube, ndim, nparams):
+        for i in range(ndim):
+            cube[i] = scaleParam(cube[i], i)
+
+
+    from math import exp, log
+    from collections import OrderedDict
+    def loglike(cube, ndim, nparams):
+        PP = [cube[i] for i in range(ndim)]
+        loli = -0.5 * IO(PP)
+        return loli
+
+    # Create output directory
+    if rank==0:
+        if not os.path.exists(opts.OUTDIR):
+            os.makedirs(opts.OUTDIR)
+
+    import time
+    start_time = time.time()
+
+    if rank==0:
+        print("\nStart Multinest\n")
+        sys.stdout.flush()
+        if not opts.DEBUG:
+            print("\nTurn on progress messages with -v\n")
+            sys.stdout.flush()
+    pymultinest.run(loglike, myprior, NP, importance_nested_sampling = opts.IMPORTANCE, verbose = opts.DEBUG,
+            multimodal=opts.MM, resume=opts.RESUME, n_iter_before_update=opts.UPDATE,
+            evidence_tolerance=opts.TOL, sampling_efficiency = opts.EFF,
+            n_live_points = opts.POINTS, seed=opts.SEED,
+            outputfiles_basename='%s/apphood'%opts.OUTDIR, init_MPI=False)
+
+    if rank==0:
+        print("\nMultinest finished after %.2f seconds\n" % (time.time() - start_time))
+        a = pymultinest.Analyzer(n_params = NP, outputfiles_basename='%s/apphood'%opts.OUTDIR)
+        s = a.get_stats()
+
+        import json
+        # store name of parameters, always useful
+        with open('%sparams.json' % a.outputfiles_basename, 'w') as f:
+                json.dump(PNAMES, f, indent=2)
+        with open('%sparams.info' % a.outputfiles_basename, 'w') as f:
+            for p in PNAMES:
+                f.write("%s\n"%p)
+        # store derived stats
+        with open('%sstats.json' % a.outputfiles_basename, mode='w') as f:
+                json.dump(s, f, indent=2)
+
+
+        print("\nBest fit point:\n")
+        pbest = a.get_best_fit()["parameters"]
+        for n, p in zip(PNAMES, pbest):
+            print("\t{}\t{}".format(n,p))
+
+        # print("Global Evidence:\n\t%.15e +- %.15e" % ( s['nested sampling global log-evidence'], s['nested sampling global log-evidence error'] ))
+
+        print("\nDone! Output written to %s"%opts.OUTDIR)
+        print("You may wish to analyse the output with superplot --- https://arxiv.org/abs/1603.00555")
