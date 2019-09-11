@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     np.random.seed(rank)
 
-    from apprentice.tools import TuningObjective, Outer
+    from apprentice.tools import TuningObjective
 
     import optparse, os, sys
     op = optparse.OptionParser(usage=__doc__)
