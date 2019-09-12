@@ -540,12 +540,7 @@ def indices(hnames, dict):
         i += n
     return idxs
 
-def get_number_of_bins_per_observable(approximation_file):
-    import json
-    binids, RA = readApprox(approximation_file)
-    hdict, _ = history_dict(binids)
-    hnames = hdict.keys()
-    return [len(hdict[k]) for k in hnames]
+
 
 def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None,model_bias=None):
     """
@@ -564,26 +559,21 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
     hdict, _ = history_dict(binids)
     hnames = hdict.keys()
     n_o = len(hnames)
-    n_b = get_number_of_bins_per_observable(approximation_file)
     if eps is None:
         eps = np.zeros(n_o)
     if var is None:
         var = np.zeros(n_o)
     if model_bias is None:
-        model_bias = np.zeros(sum(n_b))
-    if n_o != len(p0) or n_o != len(eps) or n_o != len(var):
-        raise TypeError("Lengths of p0, eps, var (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
-    if sum(n_b) != len(model_bias):
-        raise TypeError(
-            "Lengths of model bias (if provided) and number of bins have to be the same. There are {} bins (for each observable).".format(
-                repr(n_b)))
+        model_bias = np.zeros(n_o)
+    if n_o != len(p0) or n_o != len(eps) or n_o != len(var) or n_o != len(model_bias):
+        raise TypeError("Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
     RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
     data = dict([(b, []) for b in binids])
 
     Ey = [] # expected values of data
 
-    for (h,p,e,v) in zip(hnames,p0,eps,var):
-        for i, b in zip(hdict[h], model_bias):
+    for (h,p,e,v,b) in zip(hnames,p0,eps,var,model_bias):
+        for i in hdict[h]:
             bid = "{h}#{i}".format(h=h,i=i)
             r = RA_dict[bid]
             mu = r(p)
