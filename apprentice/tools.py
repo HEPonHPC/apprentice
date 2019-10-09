@@ -1,5 +1,6 @@
+import numpy as np
+from collections import OrderedDict
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
-
 
 def read_limitsandfixed(fname):
     """
@@ -33,11 +34,37 @@ def sorted_nicely( l ):
     return sorted(l, key = alphanum_key)
 
 
+# Documentation?
 def fast_chi(lW2, lY, lRA, lE2, nb):
     s=0
     for i in range(nb):
-        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
+        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i] # errors are reciprocal
     return s
+
+def least_square(y_data,y_mod,sigma2,w):
+    return w/sigma2 * (y_mod-y_data)**2
+
+def least_squares(y_data,y_mod,sigma2,w,idxs):
+    """
+    Least squares calculation for problem at hand, i.e. length of individual arguments is number of total bins.
+    :param y_data: Data.
+    :param y_mod: Model evaluations at data locations.
+    :param sigma2: Measurement variances.
+    :param w: Weights.
+    :param idxs: Indices corresponding to observables
+    :return:
+    """
+    n_o = len(idxs) # number of observables
+    chi2 = np.zeros(n_o)
+    V = 0.
+    for i in range(n_o):
+        i1 = idxs[i][0]; i2 = idxs[i][-1]
+        chi2[i] = np.sum(np.array(least_square(y_data[i1:i2], y_mod[i1:i2], sigma2[i1:i2], 1.)))
+        V += w[i1]*chi2[i] # weights are for all the bins the same in one observable, thus we just take the first one
+    return V, chi2
+
+
+
 
 def numNonZeroCoeff(app, threshold=1e-6):
     """
@@ -382,6 +409,10 @@ class TuningObjective(object):
         self._E2 = np.array([1./e**2 for e in self._E])
         self._SCLR = RA[0]._scaler # Replace with min/max limits things
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
+        hdict, _ = history_dict(self._binids, self._hnames)
+        self._hdict = hdict
+        self._wdict = weights_dict(self._W2, self._hdict)
+        self._idxs = indices(self._hnames, self._hdict)
         self._bounds = self._SCLR.box
         if limits is not None:
             lim, fix = read_limitsandfixed(limits)
@@ -396,10 +427,25 @@ class TuningObjective(object):
         """
         Convenience function to update the bins weights.
         """
-        for num, b in enumerate(self._binids):
-            for hn, w in wdict.items():
-                if hn in b:
-                    self._W2[num] = w*w
+        if type(wdict) == OrderedDict:
+            #self._wdict = {k:[] for k in wdict.keys()}
+            self._wdict = OrderedDict([(k,[]) for k in wdict.keys()])
+            for num, b in enumerate(self._binids):
+                for hn, w in wdict.items():
+                    if hn in b:
+                        self._W2[num] = w*w
+                        self._wdict[hn].append(w)
+        else:
+            #wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
+            wdict2 = OrderedDict([(hn,_x) for hn, _x in zip(self.hnames, wdict)])
+            self.setWeights(wdict2)
+
+    def weights_obs(self):
+        """
+        Get weights for individual observables.
+        :return: Weights of first bin in each observable.
+        """
+        return [w[0] for w in self._wdict.values()]
 
     def obsGoF(self, hname, x):
         """
@@ -421,8 +467,16 @@ class TuningObjective(object):
     @property
     def pnames(self): return self._SCLR.pnames
 
+    def _objective_obs(self, x):
+        """
+        Return objective and individual contributions of observables.
+        :param x:
+        :return:
+        """
+        return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
+
     def objective(self, x):
-        return self.fast_chi(self._W2, self._Y, [self._RA[i](x) for i in range(len(self._binids))], self._E2 , len(self._binids))
+        return fast_chi(np.sqrt(self._W2), self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
@@ -431,29 +485,179 @@ class TuningObjective(object):
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart):
+    def minimize(self, nstart,nrestart):
         from scipy import optimize
-        res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
-        return res
-
-    def fast_chi(self, lW2, lY, lRA, lE2, nb):
-        s=0
-        for i in range(nb):
-            s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i]
-        return s
-
+        minobj = np.Infinity
+        finalres = None
+        for t in range(nrestart):
+            res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
+            if res["fun"] < minobj:
+                minobj = res["fun"]
+                finalres = res
+        return finalres
 
     def __call__(self, x):
         return self.objective(x)
 
-class Outer(TuningObjective):
 
-    def setWeights(self, wdict):
-        for num, b in enumerate(self._binids):
-            for hn, w in wdict.items():
-                if hn in b:
-                    self._W2[num] = w*w
+def history_dict(binids, hnames=None):
+    if hnames is None:
+        hnames = [b.split("#")[0] for b in binids]
+    hdict = OrderedDict([(h, []) for h in hnames])
+    for b in binids:
+        hname, bid = b.split("#")
+        hdict[hname].append(bid)
+    return hdict, hnames
 
-    def __call__(self, x, nstart):
-        self.setWeights({hn : _x for hn, _x in zip(self.hnames, x)})
-        return self.minimize(nstart)
+def weights_dict(w2_bins, hdict):
+    """
+    Transform bin weights to weights dictionary.
+    :param w2_bins: Squared weights of bins.
+    :param hdict: History dictionary.
+    :return: Weights dictionary.
+    """
+    #wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
+    wdict = OrderedDict([(k,np.zeros(len(v))) for (k, v) in zip(hdict.keys(), hdict.values())])
+    i = 0
+    for (k,v) in zip(wdict.keys(),wdict.values()):
+        n = len(v)
+        wdict[k][:] = np.sqrt(np.array(w2_bins[i:i+n]))
+        i += n
+    return wdict
+
+def indices(hnames, dict):
+    """
+    Returns indices with indices corresponding to observables.
+    :param hnames: Names of observables. This is important as this determines the order of the observables! The dictionaries of the object, i.e. hdict and wdict, might be unordered. -> TODO: Use OrderedDict() instead?
+    :param dict: Either weights or history dict.
+    :return: Indices dictionary.
+    """
+    idxs = [[0,0] for _ in hnames]
+    i = 0
+    for (k,v) in zip(range(len(hnames)),dict.values()):
+        n = len(v)
+        idxs[k][:] = [i,i + n]
+        i += n
+    return idxs
+
+
+
+def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None,model_bias=None):
+    """
+    Create in-silico data from rational approximation file corrupting the data with zero mean Gaussian noise (lenghts of provided arguments must match the number of observables in the provided approximation file).
+    :param approximation_file: Approximation json file.
+    :param p0: True parameter value.
+    :param eps: Variance factor (multiplied by the data value at the corresponding bin).
+    :param var: Variances of measurement errors.
+    :param outfile: Output json file path.
+    :param model_bias: Bias for model error (shifts the mean value).
+    :return: Experimental data json file (data with corresponding standard deviation), expected values of data.
+    """
+    np.random.seed(456785)
+    import json
+    binids, RA = readApprox(approximation_file)
+    hdict, _ = history_dict(binids)
+    hnames = hdict.keys()
+    n_o = len(hnames)
+    if eps is None:
+        eps = np.zeros(n_o)
+    if var is None:
+        var = np.zeros(n_o)
+    if model_bias is None:
+        model_bias = np.zeros(n_o)
+    if n_o != len(p0) or n_o != len(eps) or n_o != len(var) or n_o != len(model_bias):
+        raise TypeError("Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
+    RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
+    data = dict([(b, []) for b in binids])
+
+    Ey = [] # expected values of data
+
+    for (h,p,e,v,b) in zip(hnames,p0,eps,var,model_bias):
+        for i in hdict[h]:
+            bid = "{h}#{i}".format(h=h,i=i)
+            r = RA_dict[bid]
+            mu = r(p)
+            sigma2_eps = e*abs(mu)
+            d = mu + b + np.random.normal(0.0, np.sqrt(sigma2_eps)) + np.random.normal(0.0, np.sqrt(v))
+            data[bid] = [d, np.sqrt(sigma2_eps + v)] if sigma2_eps + v > 0 else [d, 1.0]
+            Ey.append(mu+b)
+
+    if outfile is None:
+        outfile = 'data.json'
+    with open(outfile, 'w') as f:
+        json.dump(data, f)
+
+    return Ey
+def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, restart_filter=100,seed = 54321, N=100, epsmodel = 0.):
+    np.random.seed(seed)
+    import json
+    with open(experimentaldatafile,'r') as f:
+        expdata = json.load(f)
+    binids, RA = readApprox(approximationfile)
+    hdict, _ = history_dict(binids)
+    hnames = hdict.keys()
+
+    if len(hnames) != len(p0):
+        n_o = len(hnames)
+        raise TypeError(
+            "Lengths of p0 and number of observables have to be the same. There are {} observables.".format(n_o))
+    if len(expdata.keys()) != len(binids) or len(bbdict.keys()) != len(binids):
+        n_b = len(binids)
+        raise TypeError(
+            "Number of keys in experimental data, bad bin and number of bins have to be the same. There are {} bins.".format(n_b))
+
+    RA_dict = dict([(b, r) for (b, r) in zip(binids, RA)])
+    data = dict([(b, []) for b in binids])
+
+    for obs,p in zip(hdict.keys(),p0):
+        for b in hdict[obs]:
+            bid = "{o}#{b}".format(o=obs, b=b)
+            r = RA_dict[bid]
+
+            sigma = expdata[bid][1]
+
+            if bbdict[bid]:
+                bool = int(np.random.uniform(0,2))
+                if bool:
+                    FEX = r.fmin(restart_filter)
+                    mult = -1.
+                else:
+                    FEX = r.fmax(restart_filter)
+                    mult = 1.
+
+                mu = np.random.uniform(FEX + (mult * 0.2 * FEX), FEX + (mult * 0.8 * FEX))
+            else:
+                mu = r(p)
+
+            sigmamodel = epsmodel * abs(mu)
+            d = [mu + np.random.normal(0.0, scale=sigmamodel) + np.random.normal(0.0, scale=sigma) for i in range(N)]
+            d = np.average(d)
+
+            data[bid] = [d,sigma]
+
+    return data
+
+if __name__ == "__main__":
+    import os,sys
+    approximationfile = "../../pyoo/test_data_min2_noisefree/approximation.json"
+    experimentaldatafile = "../../pyoo/test_data_min2_noisefree/experimental_data.json"
+    import json
+    with open(experimentaldatafile, 'r') as f:
+        expdata = json.load(f)
+    p = [2.4743870765622695,1.7068479984402454]
+    hnames = [b.split("#")[0] for b in expdata]
+    uniquehnames = np.unique(hnames)
+    p0 = [p] * len(uniquehnames)
+    bbdict = {}
+    for ono,obs in enumerate(uniquehnames):
+        for b in expdata:
+            if obs in b:
+                bbdict[b] = False
+
+
+    bbdict = {b: False for b in expdata}
+    data = generate_data_from_RA(approximationfile,experimentaldatafile,p0,bbdict)
+    sys.exit(0)
+
+
+
