@@ -316,9 +316,9 @@ def readTuneResult(fname):
 def readApprox(fname):
     import json, apprentice
     with open(fname) as f: rd = json.load(f)
-    # binids = sorted(rd.keys())
-    binids = sorted_nicely(rd.keys()) #sorted(rd.keys(), key=lambda item: (int(item.partition(' ')[0])
-                               # if item[0].isdigit() else float('inf'), item))
+    binids = sorted_nicely(rd.keys())
+    binids = [x for x in binids if not x.startswith("__")]
+
     APP = {}
     for b in binids:
         try:
