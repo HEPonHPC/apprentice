@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
   name = 'apprentice',
-  version = '0.2.0',
+  version = '0.4.0',
   description = 'The apprentice',
   url = 'https://xgitlab.cels.anl.gov/mkrishnamoorthy/apprentice',
   author = 'Mohan Krishnamoorthy, Holger Schulz',
@@ -17,7 +17,7 @@ setup(
     # 'sobol',
     # 'pyDOE'
   ],
-  scripts=[],
+  scripts=["bin/app-ls", "bin/app-tune", "bin/app-rox", "bin/app-nest", "app-rox-parallel", "app-predict"],
   extras_require = {
   },
   entry_points = {
