@@ -103,14 +103,16 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
-    def predict(self, X):
+    def predict(self, X, recurrence=None):
         """
         Evaluation of the numer poly at X.
         """
-        X=self._scaler.scale(np.array(X))
-        rec_p = np.array(self.recurrence(X, self._struct_p))
-        p=self._pcoeff.dot(rec_p)
-        return p
+        if recurrence is None:
+            X=self._scaler.scale(np.array(X))
+            rec_p = np.array(self.recurrence(X, self._struct_p))
+        else:
+            rec_p = recurrence
+        return self._pcoeff.dot(rec_p)
 
     def __call__(self, X):
         """
@@ -221,6 +223,41 @@ if __name__=="__main__":
     Y1  = [p1(p) for p in TX]
     Y2 =  [p2(p) for p in TX]
     Y3 =  [p3(p) for p in TX]
+
+
+    import autograd.numpy as np
+    from autograd import hessian, grad
+
+    def f(x):
+        return 2*x**2 +1
+
+    def fp(x):
+        return 4*x
+
+    X=np.linspace(0,10,10)
+    Y=f(X)
+    pp = PolynomialApproximation(X=[[x] for x in X], Y=Y, order=2, strategy=1)
+    pylab.clf()
+    pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
+
+    pylab.plot(X, [pp(x) for x in X], label="Polynomial approx m={} strategy 1".format(3))
+
+    g = grad(pp)
+    G = [g(x) for x in X]
+    FP = [fp(x) for x in X]
+
+    pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
+    pylab.plot(X, G, label="auto gradient")
+    pylab.legend()
+
+    pylab.show()
+
+
+
+
+    from IPython import embed
+    embed()
+
 
     pylab.plot(TX, Y1, label="Polynomial approx m={} strategy 1".format(3))
     pylab.plot(TX, Y2, label="Polynomial approx m={} strategy 2".format(3))
