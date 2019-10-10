@@ -1,7 +1,7 @@
 import numpy as np
 from numba import jit, njit
 
-@njit(fastmath=True, parallel=True)
+@njit
 def mono_next_grlex(m, x):
     #  Author:
     #
@@ -58,25 +58,25 @@ def recurrence1D(X, structure):
     return X**structure
 
 # Autograd seems to have a problem with Numba. We will deal with this later.
-# @njit#(fastmath=True)
+# @jit(parallel=True)
 def recurrence(X, structure):
     """
     Create the parameter combination vector for a particular structure,
     or in more mathy terms, the recurrence relation for X in a monomial basis
     structure.
     """
-    temp = X**structure
+    # temp = X**structure
     #Added this dtype since autograd.numpy.numpy_boxes.ArrayBox result needs to go into ret
-    ret = np.zeros(structure.shape[0],dtype ='object')
-    for i in range(len(temp)):
-        v = 1.0
-        for t in temp[i]:
-            v = v * t
-        ret[i] = v
-    return ret
+    # ret = np.zeros(structure.shape[0], dtype ='object')
+    # for i in range(len(temp)):
+        # v = 1.0
+        # for t in temp[i]:
+            # v = v * t
+        # ret[i] = v
+    # return ret
     # import sys
     # sys.exit(1)
-    # return np.prod(X**structure, axis=1)
+    return np.prod(X**structure, axis=1)
     # except:
         # return np.prod(X**structure, axis=0) # this is for order 0 things
 
