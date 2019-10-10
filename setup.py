@@ -17,7 +17,7 @@ setup(
     # 'sobol',
     # 'pyDOE'
   ],
-  scripts=["bin/app-ls", "bin/app-tune", "bin/app-rox", "bin/app-nest", "app-rox-parallel", "app-predict"],
+  scripts=["bin/app-ls", "bin/app-tune", "bin/app-rox", "bin/app-nest", "bin/app-rox-parallel", "bin/app-predict"],
   extras_require = {
   },
   entry_points = {
