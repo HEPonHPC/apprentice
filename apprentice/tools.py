@@ -340,6 +340,7 @@ def readTuneResult(fname):
     with open(fname) as f:
         return json.load(f)
 
+# TODO add load filtering
 def readApprox(fname):
     import json, apprentice
     with open(fname) as f: rd = json.load(f)
@@ -397,7 +398,7 @@ class TuningObjective(object):
         for num, bid in enumerate(binids):
             # good.append(num)
             # if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
-            if weights[num]>0: good.append(num)
+            if weights[num]>0 and E[num]>0: good.append(num)
 
         # TODO --- upon calling a def filter() --- these should be properties
         self._RA     = [RA[g]     for g in good]
@@ -422,6 +423,22 @@ class TuningObjective(object):
             # print("New bounds: {}".format(self._bounds))
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
+
+        self._ordersidentical = self.ordersIdentical()
+
+    def ordersIdentical(self):
+        m=self._RA[0].m
+        for r in self._RA[1:]:
+            if r.m != m: return False
+
+        # The try block deals with pure polynomials
+        try:
+            n=self._RA[0].n
+            for r in self._RA[1:]:
+                if r.n != n: return False
+        except:
+            pass
+        return True
 
     def setWeights(self, wdict):
         """
@@ -476,7 +493,7 @@ class TuningObjective(object):
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
     def objective(self, x):
-        return fast_chi(np.sqrt(self._W2), self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
+        return fast_chi(self._W2, self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
@@ -485,7 +502,7 @@ class TuningObjective(object):
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart,nrestart):
+    def minimize(self, nstart, nrestart=1):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
