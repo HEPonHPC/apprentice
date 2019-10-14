@@ -493,7 +493,14 @@ class TuningObjective(object):
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
     def objective(self, x):
-        return fast_chi(self._W2, self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
+        a = self._RA[0]
+        if hasattr(a, 'n'): # Is polynomial approximation
+            xs = a._scaler.scale(x)
+            rec_p = np.array(a.recurrence(xs, a._struct_p))
+            approxvals = [f.predict(x, recurrence=rec_p) for f in self._RA]
+        else:
+            approxvals = [f.predict(x) for f in self._RA]
+        return fast_chi(self._W2, self._Y, approxvals, self._E2 , len(self._binids))
 
     def startPoint(self, ntrials):
         import numpy as np
