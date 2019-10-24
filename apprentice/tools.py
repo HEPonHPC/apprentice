@@ -557,7 +557,6 @@ class TuningObjective(object):
 
         return fast_chi(self._W2, self._Y - vals, self._E2)## , len(self._binids))
 
-
     def startPoint(self, ntrials):
         import numpy as np
         _PP = np.random.uniform(low=self._SCLR._Xmin,high=self._SCLR._Xmax,size=(ntrials, self._SCLR.dim))
