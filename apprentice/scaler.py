@@ -183,12 +183,17 @@ class Scaler(object):
         """
         return np.column_stack((self._a, self._b))
 
-
     def drawSamples(self, nsamples):
         return np.random.uniform(low=self._Xmin, high=self._Xmax,size=(nsamples,self.dim))
 
     def drawSamples_scaled(self, nsamples):
         return np.random.uniform(low=self._a, high=self._b,size=(nsamples,self.dim))
+
+    def __eq__(self, other):
+        import numpy as np
+        return (self.dim == other.dim) and np.all(np.isclose(self._a, other._a)) and np.all(np.isclose(self._scaleTerm, other._scaleTerm)) and np.all(np.isclose(self._Xmin, other._Xmin))
+
+
 
 if __name__== "__main__":
     D=np.array([[1.,2.,3.],[4.,5.,6.],[7.,8.,9.],[1,4,7],[5,3,9]])
