@@ -34,12 +34,9 @@ def sorted_nicely( l ):
     return sorted(l, key = alphanum_key)
 
 
-# Documentation?
-def fast_chi(lW2, lY, lRA, lE2, nb):
-    s=0
-    for i in range(nb):
-        s += lW2[i]*(lY[i] - lRA[i])*(lY[i] - lRA[i])*lE2[i] # errors are reciprocal
-    return s
+# Standard chi2. w are the squared weights, d is the differences and e are the 1/error^2 erms
+def fast_chi(w,d,e):
+    return np.sum(w*d*d*e)
 
 def least_square(y_data,y_mod,sigma2,w):
     return w/sigma2 * (y_mod-y_data)**2
@@ -341,7 +338,7 @@ def readTuneResult(fname):
         return json.load(f)
 
 # TODO add load filtering
-def readApprox(fname):
+def readApprox(fname, set_structures=True):
     import json, apprentice
     with open(fname) as f: rd = json.load(f)
     binids = sorted_nicely(rd.keys())
@@ -352,7 +349,7 @@ def readApprox(fname):
         try:
             APP[b]=apprentice.RationalApproximation(initDict=rd[b])
         except:
-            APP[b]=apprentice.PolynomialApproximation(initDict=rd[b])
+            APP[b]=apprentice.PolynomialApproximation(initDict=rd[b], set_structures=set_structures)
     return binids, [APP[b] for b in binids]
 
 def mkCov(yerrs):
@@ -361,84 +358,127 @@ def mkCov(yerrs):
 
 
 class TuningObjective(object):
-    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None):
+    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
         import apprentice
         import numpy as np
-        matchers=apprentice.weights.read_pointmatchers(f_weights)
-        binids, RA = apprentice.tools.readApprox(f_approx)
-        if debug: print("Initially we have {} bins".format(len(binids)))
+        self._debug = debug
+        binids, RA = apprentice.tools.readApprox(f_approx, set_structures = False)
+        if self._debug: print("Initially we have {} bins".format(len(binids)))
         hnames = [b.split("#")[0] for b in binids]
         bnums  = [int(b.split("#")[1]) for b in binids]
 
-        self._debug = debug
+        self._dim = RA[0].dim
 
-        weights = []
-        for hn, bnum in zip(hnames, bnums):
-            pathmatch_matchers = [(m,wstr) for m,wstr in matchers.items() if m.match_path(hn)]
-            posmatch_matchers  = [(m,wstr) for (m,wstr) in pathmatch_matchers if m.match_pos(bnum)]
-            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0 #< NB. using last match
-            weights.append(w)
+        # Initial weights
+        weights = self.initWeights(f_weights, hnames, bnums)
 
-        # TODO This should be passed from the outside for performance
-        if restart_filter is not None:
-            FMIN = [r.fmin(restart_filter) for r in RA]
-            FMAX = [r.fmax(restart_filter) for r in RA]
-        else:
-            FMIN=[-1e101 for r in RA]
-            FMAX=[ 1e101 for r in RA]
-
-        # TODO This needs to be a property
         # Filter here to use only certain bins/histos
-        # TODO put the filtering in readApprox?
         dd = apprentice.tools.readExpData(f_data, [str(b) for b in  binids])
         Y  = np.array([dd[b][0] for b in binids])
         E  = np.array([dd[b][1] for b in binids])
-        # Also filter for not enveloped data
+        # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
         for num, bid in enumerate(binids):
-            # good.append(num)
-            # if FMIN[num]<= Y[num] and FMAX[num]>= Y[num] and weights[num]>0: good.append(num)
             if weights[num]>0 and E[num]>0: good.append(num)
 
-        # TODO --- upon calling a def filter() --- these should be properties
+        # TODO This needs some re-enginerring to allow fow multiple filterings
         self._RA     = [RA[g]     for g in good]
         self._binids = [binids[g] for g in good]
         self._E      = E[good]
         self._Y      = Y[good]
         self._W2     = np.array([w*w for w in np.array(weights)[good]])
 
+
         self._E2 = np.array([1./e**2 for e in self._E])
-        self._SCLR = RA[0]._scaler # Replace with min/max limits things
+        self._SCLR = self._RA[0]._scaler # Here we quietly assume already that all scalers are identical
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
+        self._bounds = self._SCLR.box
+
+        if limits is not None: self.setLimits(limits)
+
+        # FIXME This should never be in the main class
         hdict, _ = history_dict(self._binids, self._hnames)
         self._hdict = hdict
         self._wdict = weights_dict(self._W2, self._hdict)
         self._idxs = indices(self._hnames, self._hdict)
-        self._bounds = self._SCLR.box
-        if limits is not None:
-            lim, fix = read_limitsandfixed(limits)
-            for num, pn in enumerate(self.pnames):
-                if pn in lim:
-                    self._bounds[num] = lim[pn]
-            # print("New bounds: {}".format(self._bounds))
+
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
 
-        self._ordersidentical = self.ordersIdentical()
+        if cache_recursions and self.scalersIdentical():
+            print("Warning, you are using an experimental feature.")
+            self.use_cache=True
+            self.prepareCache()
+            self._PC = np.zeros((len(self._RA), np.max([r._pcoeff.shape[0] for r in self._RA])))
+            for num, r in enumerate(self._RA):
+                self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
 
-    def ordersIdentical(self):
-        m=self._RA[0].m
+            # Denominator
+            nmax = np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
+            if nmax>0:
+                self._hasRationals=True
+                self._QC = np.zeros((len(self._RA), nmax))
+                for num, r in enumerate(self._RA):
+                    if hasattr(r, "n"):
+                        self._QC[num][:r._qcoeff.shape[0]] = r._qcoeff
+                    else:
+                        self._QC[num][0] = None
+                self._mask = np.where(np.isfinite(self._QC[:,0]))
+            else:
+                self._hasRationals=False
+            del self._RA
+
+        else:
+            self.use_cache=False
+            for r in self._RA:
+                r.setStructures()
+
+    def prepareCache(self):
+        import apprentice
+        orders =  []
+        for r in self._RA:
+            orders.append(r.m)
+            if hasattr(r, "n"):
+                orders.append(r.n)
+
+        omax = max(orders)
+        self._structure = apprentice.monomialStructure(self.dim, omax)
+        if self.dim==1:
+            self.recurrence = apprentice.monomial.recurrence1D
+        else:
+            self.recurrence = apprentice.monomial.recurrence
+
+    def setCache(self, x):
+        import apprentice
+        xs = self._SCLR.scale(x)
+        self._maxrec = self.recurrence(xs, self._structure)
+
+    def scalersIdentical(self):
+        """
+        Sanity check to test if caching is possible
+        """
+        s=self._RA[0]._scaler
         for r in self._RA[1:]:
-            if r.m != m: return False
-
-        # The try block deals with pure polynomials
-        try:
-            n=self._RA[0].n
-            for r in self._RA[1:]:
-                if r.n != n: return False
-        except:
-            pass
+            if s!=r._scaler:
+                return False
         return True
+
+    def setLimits(self, fname):
+        lim, fix = read_limitsandfixed(fname)
+        for num, pn in enumerate(self.pnames):
+            if pn in lim:
+                self._bounds[num] = lim[pn]
+
+    def initWeights(self, fname, hnames, bnums):
+        import apprentice
+        matchers=apprentice.weights.read_pointmatchers(fname)
+        weights=[]
+        for hn, bnum in zip(hnames, bnums):
+            pathmatch_matchers = [(m,wstr) for m,wstr in matchers.items() if m.match_path(hn)]
+            posmatch_matchers  = [(m,wstr) for (m,wstr) in pathmatch_matchers if m.match_pos(bnum)]
+            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0 #< NB. using last match
+            weights.append(w)
+        return weights
 
     def setWeights(self, wdict):
         """
@@ -456,6 +496,16 @@ class TuningObjective(object):
             #wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
             wdict2 = OrderedDict([(hn,_x) for hn, _x in zip(self.hnames, wdict)])
             self.setWeights(wdict2)
+
+    def filterEnvelope(self):
+        # TODO This should be passed from the outside for performance
+        # if restart_filter is not None:
+            # FMIN = [r.fmin(restart_filter) for r in RA]
+            # FMAX = [r.fmax(restart_filter) for r in RA]
+        # else:
+            # FMIN=[-1e101 for r in RA]
+            # FMAX=[ 1e101 for r in RA]
+        pass
 
     def weights_obs(self):
         """
@@ -482,6 +532,9 @@ class TuningObjective(object):
     def hnames(self): return self._hnames
 
     @property
+    def dim(self): return self._dim
+
+    @property
     def pnames(self): return self._SCLR.pnames
 
     def _objective_obs(self, x):
@@ -493,7 +546,17 @@ class TuningObjective(object):
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
     def objective(self, x):
-        return fast_chi(self._W2, self._Y, [f(x) for f in self._RA], self._E2 , len(self._binids))
+        if not self.use_cache:
+            vals = np.array([f(x) for f in self._RA])
+        else:
+            self.setCache(x)
+            vals = np.sum(self._maxrec * self._PC, axis=1) # This is the numerator
+            if self._hasRationals:
+                den   = np.sum(self._maxrec * self._QC, axis=1)
+                vals[self._mask] /= den[self._mask]
+
+        return fast_chi(self._W2, self._Y - vals, self._E2)## , len(self._binids))
+
 
     def startPoint(self, ntrials):
         import numpy as np
