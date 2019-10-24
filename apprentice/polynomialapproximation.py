@@ -18,7 +18,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1, scale_min=-1, scale_max=1, pnames=None):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1, scale_min=-1, scale_max=1, pnames=None, set_structures=True):
         """
         Multivariate polynomial approximation
 
@@ -32,9 +32,9 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             order    --- int being the order of the polynomial
         """
         if initDict is not None:
-            self.mkFromDict(initDict)
+            self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
-            self.mkFromJSON(fname)
+            self.mkFromJSON(fname, set_structures=set_structures)
         elif X is not None and Y is not None:
             self._m=order
             self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
@@ -103,15 +103,13 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
-    def predict(self, X, recurrence=None):
+    # FIXME two differently named functions
+    def predict(self, X):
         """
         Evaluation of the numer poly at X.
         """
-        if recurrence is None:
-            X=self._scaler.scale(np.array(X))
-            rec_p = np.array(self.recurrence(X, self._struct_p))
-        else:
-            rec_p = recurrence
+        X=self._scaler.scale(np.array(X))
+        rec_p = np.array(self.recurrence(X, self._struct_p))
         return self._pcoeff.dot(rec_p)
 
     def __call__(self, X):
@@ -144,12 +142,12 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         with open(fname, "w") as f:
             json.dump(self.asDict, f)
 
-    def mkFromJSON(self, fname):
+    def mkFromJSON(self, fname, set_structures=True):
         import json
         d = json.load(open(fname))
-        self.mkFromDict(d)
+        self.mkFromDict(d, set_structures=set_structures)
 
-    def mkFromDict(self, pdict):
+    def mkFromDict(self, pdict, set_structures=True):
         self._pcoeff     = np.array(pdict["pcoeff"])
         self._m = int(pdict["m"])
         self._dim=int(pdict["dim"])
@@ -160,7 +158,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self._trainingsize = int(pdict["trainingsize"])
         except:
             pass
-        self.setStructures()
+        if set_structures:
+            self.setStructures()
 
     def fmin(self, multistart=None):
         from scipy import optimize
