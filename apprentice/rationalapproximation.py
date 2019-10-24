@@ -19,7 +19,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class RationalApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None):
+    def __init__(self, X=None, Y=None, order=(2,1), fname=None, initDict=None, strategy=1, scale_min=-1, scale_max=1, pnames=None, set_structures=True):
         """
         Multivariate rational approximation f(x)_mn =  g(x)_m/h(x)_n
 
@@ -31,9 +31,9 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             order --- tuple (m,n) m being the order of the numerator polynomial --- if omitted: auto
         """
         if initDict is not None:
-            self.mkFromDict(initDict)
+            self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
-            self.mkFromJSON(fname)
+            self.mkFromJSON(fname, set_structures=set_structures)
         elif X is not None and Y is not None:
             self._m=order[0]
             self._n=order[1]
@@ -205,7 +205,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         with open(fname, "w") as f:
             json.dump(self.asDict, f)
 
-    def mkFromDict(self, pdict):
+    def mkFromDict(self, pdict, set_structures=True):
         self._pcoeff = np.array(pdict["pcoeff"])
         self._qcoeff = np.array(pdict["qcoeff"])
         self._m      = int(pdict["m"])
@@ -218,12 +218,12 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             self._trainingsize = int(pdict["trainingsize"])
         except:
             pass
-        self.setStructures()
+        if set_structures: self.setStructures()
 
-    def mkFromJSON(self, fname):
+    def mkFromJSON(self, fname, set_structures=True):
         import json
         d = json.load(open(fname))
-        self.mkFromDict(d)
+        self.mkFromDict(d, set_structures=set_structures)
 
     def fmin(self, multistart=None):
         from scipy import optimize
