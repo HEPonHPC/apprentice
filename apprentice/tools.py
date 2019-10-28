@@ -381,7 +381,7 @@ class TuningObjective(object):
         for num, bid in enumerate(binids):
             if weights[num]>0 and E[num]>0: good.append(num)
 
-        # TODO This needs some re-enginerring to allow fow multiple filterings
+        # TODO This needs some re-engineering to allow fow multiple filterings
         self._RA     = [RA[g]     for g in good]
         self._binids = [binids[g] for g in good]
         self._E      = E[good]
@@ -545,17 +545,34 @@ class TuningObjective(object):
         """
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
-    def objective(self, x):
+    # TODO this is quite noisy now --- would be nice to figure out a unified calling signature
+    def objective(self, x, sel=None):
         if not self.use_cache:
-            vals = np.array([f(x) for f in self._RA])
+            if sel is None:
+                vals = np.array([f(x) for f in self._RA])
+            else:
+                vals = [self._RA[i](x) for i in sel]
         else:
             self.setCache(x)
-            vals = np.sum(self._maxrec * self._PC, axis=1) # This is the numerator
+            if sel is None:
+                vals = np.sum(self._maxrec * self._PC, axis=1) # This is the numerator
+            else:
+                vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
-                den   = np.sum(self._maxrec * self._QC, axis=1)
-                vals[self._mask] /= den[self._mask]
+                if sel is None:
+                    den   = np.sum(self._maxrec * self._QC, axis=1)
+                    vals[self._mask] /= den[self._mask]
+                else:
+                    den   = np.sum(self._maxrec * self._QC[sel], axis=1)
+                    vals[self._mask[sel]] /= den[self._mask[sel]]
 
-        return fast_chi(self._W2, self._Y - vals, self._E2)## , len(self._binids))
+        if sel is None:
+            return fast_chi(self._W2, self._Y - vals, self._E2)## , len(self._binids))
+        else:
+            return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])## , len(self._binids))
+
+    def obsBins(self, hname):
+        return [i for i, item in enumerate(self._binids) if item.startswith(hname)]
 
     def startPoint(self, ntrials):
         import numpy as np
@@ -564,12 +581,12 @@ class TuningObjective(object):
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart, nrestart=1):
+    def minimize(self, nstart, nrestart=1, sel=None):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
         for t in range(nrestart):
-            res = optimize.minimize(self.objective, self.startPoint(nstart), bounds=self._bounds)
+            res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds)
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
