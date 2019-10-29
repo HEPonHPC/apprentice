@@ -545,31 +545,17 @@ class TuningObjective(object):
         """
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
-    # TODO this is quite noisy now --- would be nice to figure out a unified calling signature
-    def objective(self, x, sel=None):
+    def objective(self, x, sel=slice(None,None,None)):
         if not self.use_cache:
-            if sel is None:
-                vals = np.array([f(x) for f in self._RA])
-            else:
-                vals = [self._RA[i](x) for i in sel]
+            vals = [self._RA[i](x) for i in sel]
         else:
             self.setCache(x)
-            if sel is None:
-                vals = np.sum(self._maxrec * self._PC, axis=1) # This is the numerator
-            else:
-                vals = np.sum(self._maxrec * self._PC[sel], axis=1)
+            vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
-                if sel is None:
-                    den   = np.sum(self._maxrec * self._QC, axis=1)
-                    vals[self._mask] /= den[self._mask]
-                else:
-                    den   = np.sum(self._maxrec * self._QC[sel], axis=1)
-                    vals[self._mask[sel]] /= den[self._mask[sel]]
+                den   = np.sum(self._maxrec * self._QC[sel], axis=1)
+                vals[self._mask[sel]] /= den[self._mask[sel]]
 
-        if sel is None:
-            return fast_chi(self._W2, self._Y - vals, self._E2)## , len(self._binids))
-        else:
-            return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])## , len(self._binids))
+        return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])## , len(self._binids))
 
     def obsBins(self, hname):
         return [i for i, item in enumerate(self._binids) if item.startswith(hname)]
@@ -581,7 +567,7 @@ class TuningObjective(object):
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart, nrestart=1, sel=None):
+    def minimize(self, nstart, nrestart=1, sel=slice(None,None,None)):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
