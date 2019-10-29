@@ -426,8 +426,6 @@ class TuningObjective(object):
                 self._mask = np.where(np.isfinite(self._QC[:,0]))
             else:
                 self._hasRationals=False
-            del self._RA
-
         else:
             self.use_cache=False
             for r in self._RA:
@@ -545,7 +543,8 @@ class TuningObjective(object):
         """
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
-    def objective(self, x, sel=slice(None,None,None)):
+    def objective(self, x, sel=slice(None,None,None), unbiased=False):
+        import numpy as np
         if not self.use_cache:
             vals = [self._RA[i](x) for i in sel]
         else:
@@ -555,10 +554,23 @@ class TuningObjective(object):
                 den   = np.sum(self._maxrec * self._QC[sel], axis=1)
                 vals[self._mask[sel]] /= den[self._mask[sel]]
 
-        return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])## , len(self._binids))
+        if unbiased:
+            return fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
+        else:
+            return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])
 
     def obsBins(self, hname):
         return [i for i, item in enumerate(self._binids) if item.startswith(hname)]
+
+    def obswiseObjective(self, x, unbiased=False):
+        return [self.objective(x, sel=self.obsBins(hn), unbiased=unbiased) for hn in self._hnames]
+
+    def XisbetterthanY(self, x, y):
+        lchix = self.obswiseObjective(x, unbiased=True)
+        lchiy = self.obswiseObjective(y, unbiased=True)
+
+        comp = [lx<ly for lx, ly in zip(lchix, lchiy)]
+        return comp.count(True) > comp.count(False)
 
     def startPoint(self, ntrials):
         import numpy as np
