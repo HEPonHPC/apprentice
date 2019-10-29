@@ -358,11 +358,11 @@ def mkCov(yerrs):
 
 
 class TuningObjective(object):
-    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
+    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True, set_structures = False):
         import apprentice
         import numpy as np
         self._debug = debug
-        binids, RA = apprentice.tools.readApprox(f_approx, set_structures = False)
+        binids, RA = apprentice.tools.readApprox(f_approx, set_structures = set_structures)
         if self._debug: print("Initially we have {} bins".format(len(binids)))
         hnames = [b.split("#")[0] for b in binids]
         bnums  = [int(b.split("#")[1]) for b in binids]
