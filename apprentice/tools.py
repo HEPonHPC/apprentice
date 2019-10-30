@@ -547,7 +547,8 @@ class TuningObjective(object):
     def objective(self, x, sel=slice(None,None,None), unbiased=False):
         import numpy as np
         if not self.use_cache:
-            vals = [self._RA[i](x) for i in sel]
+            RR = self._RA[sel]
+            vals = [f(x) for f in RR]
         else:
             self.setCache(x)
             vals = np.sum(self._maxrec * self._PC[sel], axis=1)
