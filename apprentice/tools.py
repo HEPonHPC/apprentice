@@ -615,6 +615,33 @@ class TuningObjective(object):
                 finalres = res
         return finalres
 
+    def minimize_mpi(self, nstart, nrestart=10, sel=slice(None,None,None)):
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        import apprentice as app
+        rankWork = app.tools.chunkIt([_ for _ in range(nrestart)], comm.Get_size()) if rank==0 else []
+        rankWork = comm.scatter(rankWork, root=0)
+        np.random.seed(rank)
+
+        from scipy import optimize
+        R   = [optimize.minimize(lambda x: self.objective(x, sel=sel), self.startPoint(nstart), bounds=self._bounds) for _ in rankWork]
+        X   = [r.x.tolist() for r in R]
+        FUN = [r.fun.tolist() for r in R]
+        ibest = np.argmin(FUN)
+        X   = comm.gather(X[ibest],   root=0)
+        FUN = comm.gather(FUN[ibest], root=0)
+
+        xbest, fbest = None, None
+        if rank == 0:
+            ibest = np.argmin(FUN)
+            xbest = X[ibest]
+            fbest = FUN[ibest]
+            comm.bcast(xbest, root=0)
+            comm.bcast(fbest, root=0)
+
+        return xbest, fbest
+
     def __call__(self, x):
         return self.objective(x)
 
