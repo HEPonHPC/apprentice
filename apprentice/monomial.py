@@ -76,6 +76,7 @@ def recurrence(X, structure):
     # return ret
     # import sys
     # sys.exit(1)
+    import autograd.numpy as np
     return np.prod(X**structure, axis=1)
     # except:
         # return np.prod(X**structure, axis=0) # this is for order 0 things

@@ -565,6 +565,7 @@ class TuningObjective(object):
             return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])
 
     def calc_f_val(self,x, sel=slice(None,None,None)):
+        import autograd.numpy as np
         if not self.use_cache:
             if isinstance(sel, list) or type(sel).__module__ == np.__name__:
                 vals = [self._RA[i](x) for i in sel]
@@ -572,7 +573,6 @@ class TuningObjective(object):
                 RR = self._RA[sel]
                 vals = [f(x) for f in RR]
         else:
-            self.setCache(x)
             self.setCache(x)
             vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
