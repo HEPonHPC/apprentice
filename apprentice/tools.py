@@ -552,7 +552,7 @@ class TuningObjective(object):
         import numpy as np
         if not self.use_cache:
             if isinstance(sel,list) or type(sel).__module__ == np.__name__:
-                vals = [self._RA[i](x) for i in sel]
+                vals = [r(x) for r in self._RA[sel]]
             else:
                 RR = self._RA[sel]
                 vals = [f(x) for f in RR]
