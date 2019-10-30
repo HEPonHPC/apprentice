@@ -379,7 +379,11 @@ class TuningObjective(object):
         # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
         for num, bid in enumerate(binids):
-            if weights[num]>0 and E[num]>0: good.append(num)
+            if weights[num]>0 and E[num]>0:
+                if cache_recursions and RA[0]._scaler!=RA[num]._scaler:
+                    print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
+                    continue
+                good.append(num)
 
         # TODO This needs some re-engineering to allow fow multiple filterings
         self._RA     = [RA[g]     for g in good]
