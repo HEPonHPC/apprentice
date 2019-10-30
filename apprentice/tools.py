@@ -409,7 +409,7 @@ class TuningObjective(object):
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
 
-        if cache_recursions and self.scalersIdentical():
+        if cache_recursions:
             print("Warning, you are using an experimental feature.")
             self.use_cache=True
             self.prepareCache()
