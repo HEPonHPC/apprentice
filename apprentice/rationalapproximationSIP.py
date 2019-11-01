@@ -325,7 +325,7 @@ class RationalApproximationSIP():
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
-                options={'maxiter': 100000, 'ftol': 1e-6, 'disp': False})
+                options={'maxiter': 1000, 'ftol': 1e-6, 'disp': False})
         # self.Nfeval=0
         # ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
         #         jac=fast_jac, method = 'SLSQP', constraints=cons,callback=self.callbackF,
@@ -484,7 +484,7 @@ class RationalApproximationSIP():
             else:
                 raise Exception("strategy %i not implemented"%self.strategy)
 
-        maxIterations = 10000 # hardcode for now. Param later?
+        maxIterations = 1000 # hardcode for now. Param later?
         maxRestarts = 100    # hardcode for now. Param later?
         threshold = 0.02
         self._iterationinfo = []
@@ -1036,31 +1036,32 @@ class RationalApproximationSIP():
         d={}
         d['pcoeff']                 = self._pcoeff.tolist()
         d['qcoeff']                 = self._qcoeff.tolist()
-        d['iterationinfo']    = self._iterationinfo
         d['dim']              = self._dim
         d['m'] = self._m
         d['n'] = self._n
-        d['M'] = self._M
-        d['N'] = self._N
-        d["log"] = {"fittime":self._fittime}
-        d['strategy'] = self._strategy
-        d['uniqueid'] = self._uniqueid
-        d['roboptstrategy'] = self._roboptstrategy
-        if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
-            d['localoptsolver'] = self._localoptsolver
-        else: d['localoptsolver'] = "N/A"
-        d['fitstrategy'] = self._fitstrategy
-        d['trainingscale'] = self._trainingscale
-        d['trainingsize'] = self._trainingsize
-
-        if(self.strategy ==1 or self.strategy==2):
-            d['chosenppenalty'] = self._ppenaltybin
-            d['chosenqpenalty'] = self._qpenaltybin
-
-
-        if(self.strategy==2 or self.strategy==0):
-            d['lambda'] = self._penaltyparam
         d["scaler"] = self._scaler.asDict
+        if self._debug:
+            d['M'] = self._M
+            d['N'] = self._N
+            d['iterationinfo']    = self._iterationinfo
+            d["log"] = {"fittime":self._fittime}
+            d['strategy'] = self._strategy
+            d['uniqueid'] = self._uniqueid
+            d['roboptstrategy'] = self._roboptstrategy
+            if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
+                d['localoptsolver'] = self._localoptsolver
+            else: d['localoptsolver'] = "N/A"
+            d['fitstrategy'] = self._fitstrategy
+            d['trainingscale'] = self._trainingscale
+            d['trainingsize'] = self._trainingsize
+
+            if(self.strategy ==1 or self.strategy==2):
+                d['chosenppenalty'] = self._ppenaltybin
+                d['chosenqpenalty'] = self._qpenaltybin
+
+
+            if(self.strategy==2 or self.strategy==0):
+                d['lambda'] = self._penaltyparam
         return d
 
     @property
