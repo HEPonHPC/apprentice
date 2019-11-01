@@ -60,56 +60,23 @@ def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
         ret[ts] = mysum - 1.0
     return ret
 
-@njit(fastmath=True, parallel=True)
+@njit
 def fast_robustSample(coeff, q_ipo, M, N):
-    # c=""
-    mysum=0.0
-    for i in range(M, M+N):
-        mysum += coeff[i]*q_ipo[i-M]
-        # c+= " {}*coeff[{}]".format(q_ipo[i-M], i)
-    # c+=" -1"
-    # print(c)
-    return mysum - 1.0
+    return np.sum(coeff[M:M+N] * q_ipo, axis=1) - 1.0
 
-
-@njit(fastmath=True, parallel=True)
+@njit
 def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
-    mysum = 0.0
+    return np.sum(np.square(Y * np.sum(coeff[M:M+N] * ipoq, axis=1) - np.sum(coeff[:M] * ipop, axis=1)))
 
-    # s=""
-    for index in range(trainingsize):
-        p_ipo = ipop[index]
-        q_ipo = ipoq[index]
-
-        # sp = ""
-        myP = 0.0
-        for i in range(M):
-            myP += coeff[i]*p_ipo[i]
-            # sp+= " + coeff[{}]*({})".format(i+1, p_ipo[i])
-
-        # sq = ""
-        myQ = 0.0
-        for i in range(M, M+N):
-            myQ += coeff[i]*q_ipo[i-M]
-            # sq+= " + coeff[{}]*({})".format(i+1, q_ipo[i-M])
-
-        mysum += (Y[index] * myQ - myP)**2
-        # s+= "({} * ({}) - ({}))**2".format(Y[index], sq, sp)
-    # print(s)
-    # import sys
-    # sys.exit(1)
-    return mysum
-
-@njit(fastmath=True, parallel=True)
+@njit
 def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
+    f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
     h = 1.5e-8
     jac = np.zeros_like(coeff)
-    f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
-    for i in range(len(coeff)):
-        x_d = np.copy(coeff)
-        x_d[i] += h
-        f_d = fast_leastSqObj(x_d, trainingsize, ipop, ipoq, M, N, Y)
-        jac[i] = (f_d - f_0) / h
+    for num in range(len(coeff)):
+        temp=np.zeros_like(coeff)
+        temp[num]+=h
+        jac[num]=(fast_leastSqObj(coeff+temp, trainingsize, ipop, ipoq, M, N, Y) -f_0)/h
     return jac
 
 # from sklearn.base import BaseEstimator, RegressorMixin
@@ -164,6 +131,7 @@ class RationalApproximationSIP():
                                 required for strategy 1 and 2
 
         """
+        self._debug = kwargs["debug"] if kwargs.get("debug") is not None else  False
         import os
         if len(args) == 0:
             pass
@@ -324,7 +292,7 @@ class RationalApproximationSIP():
 
     """
     Test function that uses fmin_slsqp for fitting. The function is slow  but
-    is good for debugging - Do not reomve
+    is good for debugging - Do not remove
     """
     def scipyfit2(self,coeffs0):
         from scipy.optimize import fmin_slsqp
@@ -353,8 +321,8 @@ class RationalApproximationSIP():
 
     def scipyfit(self, coeffs0, cons):
         start = timer()
-        ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
-        ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
+        ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
+        ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
                 options={'maxiter': 100000, 'ftol': 1e-6, 'disp': False})
@@ -373,7 +341,7 @@ class RationalApproximationSIP():
 
         coeffs = ret.get('x')
         leastSq = ret.get('fun')
-        return coeffs,leastSq,optstatus
+        return coeffs, leastSq, optstatus
 
     # Does 1 fitting for now
     def pyomofit(self,iterationNo,solver='filter'):
@@ -489,14 +457,12 @@ class RationalApproximationSIP():
         if(self.strategy ==1 or self.strategy == 2):
             p_penaltyIndex, q_penaltyIndex = self.createPenaltyIndexArr()
 
-        cons = np.empty(self.trainingsize, "object")
+        cons = np.empty(0, "object")
         coeffs0 = []
 
         if(self._fitstrategy == 'scipy'):
-            for trainingIndex in range(self.trainingsize):
-                q_ipo = self._ipo[trainingIndex][1]
-                cons[trainingIndex] = {'type': 'ineq', 'fun':fast_robustSample, 'args':(q_ipo, self.M, self.N)}
-                # cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
+            ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
+            cons = np.append(cons, {'type': 'ineq', 'fun':fast_robustSample, 'args':(ipoq, self.M, self.N)})
 
             if(self.strategy == 0):
                 coeffs0 = np.ones((self.M+self.N))
@@ -529,7 +495,6 @@ class RationalApproximationSIP():
 
             if(self._fitstrategy == 'scipy'):
                 coeffs,leastSq,optstatus = self.scipyfit(coeffs0, cons)
-                # coeffs,leastSq,optstatus = self.scipyfit2(coeffs0)
             elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
                 coeffs,leastSq,optstatus = self.pyomofit(iter-1,self._fitstrategy)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
@@ -1114,7 +1079,7 @@ class RationalApproximationSIP():
 
     def printDebug(self, msg):
         import datetime
-        print("[d%d p%d q%d ts%s] [[%s]] %s"%(self._dim,self._m,self._n,self._trainingscale, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), msg))
+        if self._debug: print("[d%d p%d q%d ts%s] [[%s]] %s"%(self._dim,self._m,self._n,self._trainingscale, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), msg))
 
 if __name__=="__main__":
     import sys
