@@ -405,6 +405,10 @@ class TuningObjective(object):
         self._hdict = hdict
         self._wdict = weights_dict(self._W2, self._hdict)
         self._idxs = indices(self._hnames, self._hdict)
+        self._windex = []
+        for inum, i in enumerate(self._idxs):
+            for j in range(i[0], i[1]):
+                self._windex.append(inum)
 
 
         if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
