@@ -4,186 +4,21 @@ from numba import jit
 import apprentice as app
 import numpy as np
 
-def readObs(fname):
-    with open(fname) as f:
-        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
-    return r
-
-
-def numZeroCoeff(app, threshold=1e-6):
-    """
-    Determine the number of non-zero coefficients for an approximation app.
-    """
-    n=0
-    for p in app._pcoeff:
-        if abs(p)<threshold: n+=1
-
-    if hasattr(app, '_qcoeff'):
-        for q in app._qcoeff:
-            if abs(q)<threshold: n+=1
-
-    return n
-
 def regularise(app, threshold=1e-6):
-
     pc = np.zeros_like(app._pcoeff)
     for num, c in enumerate(app._pcoeff):
-        if abs(c)>threshold:
-            pc[num] = c
+        if abs(c)>threshold: pc[num] = c
     app._pcoeff=pc
 
     if hasattr(app, "qcoeff"):
         qc = np.zeros_like(app._qcoeff)
         for num, c in enumerate(app._qcoeff):
-            if abs(c)>threshold:
-                qc[num] = c
+            if abs(c)>threshold: qc[num] = c
         app._qcoeff=qc
-
-
-def getBestOrder(data, orders, strategy):
-    data=np.array(data)
-    pareto = paretoFront(data)
-    if strategy == "pareto":
-        corner = findCornerIndex(pareto)
-    else:
-        corner = np.argmin(pareto[:,1])
-        # A bit ugly but we need to make a connection between the orders and the norms
-    for num, (nc, l) in enumerate(data):
-        if nc == pareto[corner][0] and np.isclose(l, pareto[corner][1]):
-            break
-
-    return orders[num], corner
-
-def paretoFront(data):
-    """
-    Return the pareto front of a 2D array, "data".
-    """
-    data=np.array(data)
-    b_pareto = is_pareto_efficient_dumb(data)
-    _pareto = data[b_pareto] # Pareto points
-    pareto = _pareto[_pareto[:,0].argsort()]# Pareto points, sorted in x
-    return pareto
-
-def findCornerIndex(data, cte_0=-0.9238795325112867, cos_max=-2):
-    """
-    data --- 2D array
-    This algorithm finds the best point according to "cite here"
-    in the pareto front. Return value is the index (i.e. row)
-    of that point in the input array
-    """
-    data=np.array(data)
-
-    # Start paramters
-    cte=cte_0
-    cosmax=cos_max
-    corner=len(data)-1
-
-    # Operate in double logarithmic space -- TODO really necessary?
-    ldata=np.log10(data)
-
-    # This is the ABC algorithm
-
-    C = ldata[corner]
-    for k in range(0,len(ldata)-2):
-        B = ldata[k]
-        for j in range(k,len(ldata)-2):
-            A=ldata[j+1]
-            _a = area(A,C,B)
-            _t = angle(A,C,B)
-            if _t>cte and _t> cosmax and _a<0:
-                corner = j+1
-                cosmax = _t
-    return corner
-
-def angle(A,B,C):
-    """
-    Find angle at A.
-    A,B,C --- are the points of a triangle in a 2D space.
-    """
-    ca = [A[0]-C[0], A[1]-C[1]]
-    ab = [B[0]-A[0], B[1]-A[1]]
-
-    l1=np.linalg.norm(ca)
-    l2=np.linalg.norm(ab)
-    import math
-    top= np.dot(ca,ab)
-    return math.acos(top/l1/l2)
-
-def area(A,B,C):
-    """
-    A,B,C --- are the points of a triangle in a 2D space.
-    This code return the area.
-    """
-    return 0.5 *( ( B[0] - A[0] )*(A[1] - C[1]) -  (A[0] - C[0])*(B[1] - A[1]) )
-
-# Very slow for many datapoints.  Fastest for many costs, most readable
-# https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
-def is_pareto_efficient_dumb(costs):
-    """
-    Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
-    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
-    """
-    is_efficient = np.ones(costs.shape[0], dtype = bool)
-    for i, c in enumerate(costs):
-        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
-    return is_efficient
-
-def partialPoly(R, Punscaled, coord, denom=True):
-    """
-    Partial of denominator or numerator polynomial of rational approx
-    by coordinate coord evaluated at (unscaled) parameter point.
-    """
-    import numpy as np
-    structure = R._struct_q if denom else R._struct_p
-    coeffs    = R._qcoeff   if denom else R._pcoeff
-    P = R._scaler.scale(Punscaled)
-    grad = [0] # Derivative of constant term
-
-    if R.dim==1:
-        for s in structure[1:]: # Start with the linear terms
-            grad.append((s*P[0]**(s-1))/(R._scaler._Xmax[0] - R._scaler._Xmin[0])*2)
-
-    else:
-        for s in structure[1:]: # Start with the linear terms
-            if s[coord] == 0: # The partial derivate evaluates to 0 if you do "d/dx of  y"
-                grad.append(0)
-                continue
-            temp = 1.0
-            for i in range(len(s)): # x,y,z,...
-                if i==coord:
-                    temp*=s[i]
-                    temp*=P[i]**(s[i]-1)/(R._scaler._Xmax[i] - R._scaler._Xmin[i])*2 # Jacobian factor of 2/(b - a) here since we scaled into [-1,1]
-                else:
-                    temp*=P[i]**s[i]
-            grad.append(temp)
-    return np.dot(grad, coeffs)
-
-def gradient(R, Punscaled, denom=True):
-    """
-    Gradeitn of denominator or numerator polynomial of rational approx
-    evaluated at (unscaled) parameter point.
-    """
-    return [partialPoly(R, Punscaled, i, denom=denom) for i in range(R.dim)]
-
-def denomAbsMin(rapp, box, center):
-    from scipy import optimize
-    return optimize.minimize(lambda x:abs(rapp.denom(x)), center, bounds=box)
-
-def denomMin(rapp, box, center):
-    from scipy import optimize
-    return optimize.minimize(lambda x:rapp.denom(x), center, bounds=box)
-
-def denomMax(rapp, box, center):
-    import numpy as np
-    from scipy import optimize
-    return optimize.minimize(lambda x:-rapp.denom(x), center, bounds=box)
 
 def denomMinMS(rapp, multistart=10):
     box=rapp._scaler.box_scaled
     from scipy import optimize
-
-
     opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
@@ -192,394 +27,65 @@ def denomMinMS(rapp, multistart=10):
 def denomMaxMS(rapp, multistart=10):
     box=rapp._scaler.box_scaled
     from scipy import optimize
-
     opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
     return X[np.argmin(Y)]
 
-
-def denomMinMLSL(rapp, box, center, popsize=4, maxeval=1000):
-    import numpy as np
-
-    def my_func(x, grad):
-        if grad.size > 0:
-            _grad = fast_grad(x, rapp)
-            for _i in range(grad.size): grad[_i] = grad[_i]
-        return rapp.denom(x)
-
-    import nlopt
-    locopt = nlopt.opt(nlopt.LD_MMA, center.size)
-    glopt = nlopt.opt(nlopt.GD_MLSL_LDS, center.size)
-    glopt.set_min_objective(my_func)
-    glopt.set_lower_bounds(np.array([b[0] for b in box]))
-    glopt.set_upper_bounds(np.array([b[1] for b in box]))
-    glopt.set_local_optimizer(locopt)
-    glopt.set_population(popsize)
-    glopt.set_maxeval(maxeval)
-    xmin = glopt.optimize(center)
-    return xmin
-
-def denomMaxMLSL(rapp, box, center, popsize=10, maxeval=10000):
-    import numpy as np
-
-    def my_func(x, grad):
-        if grad.size > 0:
-            _grad = fast_grad(x, rapp)#gradient(rapp, x)
-            for _i in range(grad.size): grad[_i] = grad[_i]
-        return rapp.denom(x)
-
-    import nlopt
-
-    locopt = nlopt.opt(nlopt.LD_MMA, center.size)
-    glopt = nlopt.opt(nlopt.GD_MLSL_LDS, center.size)
-    glopt.set_max_objective(my_func)
-    glopt.set_lower_bounds(np.array([b[0] for b in box]))
-    glopt.set_upper_bounds(np.array([b[1] for b in box]))
-    glopt.set_local_optimizer(locopt)
-    glopt.set_population(popsize)
-    glopt.set_maxeval(maxeval)
-    xmax = glopt.optimize(center)
-    return xmax
-
-
-@jit
-def fast_grad(x, app):
-    h = 1.5e-8
-    jac = np.zeros_like(x)
-    f_0 = app.denom(x)
-    for i in range(len(x)):
-        x_d = np.copy(x)
-        x_d[i] += h
-        f_d = app.denom(x_d)
-        jac[i] = (f_d - f_0) / h
-    return jac
-
-# TODO check if xmin/max in scaled world
 def denomChangesSignMS(rapp, multistart=10):
     xmin = denomMinMS(rapp, multistart)
     xmax = denomMaxMS(rapp, multistart)
     bad  = rapp.denom(xmin) * rapp.denom(xmax) <0
-    if bad:
-        return True, xmin, xmax
-    else:
-        return False, xmin, xmax
+    if bad: return True,  xmin, xmax
+    else:   return False, xmin, xmax
 
-def denomChangesSign(rapp, box, center, popsize=4, maxeval=1000):
-    # xmin_mlsl = denomMinMLSL(rapp, box, center, popsize, maxeval)
-    # xmax_mlsl = denomMaxMLSL(rapp, box, center, popsize, maxeval)
-    xmin = denomMin(rapp, box, center)["x"]
-    xmax = denomMax(rapp, box, center)["x"]
-    # DD=[rapp.Q(t) for t in rapp._scaler.drawSamples(10000)]
-    bad      = rapp.denom(xmin)      * rapp.denom(xmax) <0
-    if bad:
-        return True, xmin, xmax
-    else:
-        return False, xmin, xmax
-
-    # # bad_mlsl = rapp.denom(xmin_mlsl) * rapp.denom(xmax_mlsl) <0
-    # print("std: {} mlsl: {}".format(bad, bad_mlsl))
-    # if bad or bad_mlsl:
-        # return True, xmin, xmax
-    # else:
-        # return False, xmin, xmax
-
-def mkPlotParetoSquare(data, f_out):
-    """
-    Awesome
-    """
-
-    # Data preparation
-    pareto_orders = []
-
-    mMax = np.max(data[:,0])
-    nMax = np.max(data[:,1])
-    vMax = np.max(data[:,2])
-
-    pdists = []
-    p3D = is_pareto_efficient_dumb(data)
-
-    vmin=1e99
-    i_winner=-1
-    for num, (m,n,v,a,b) in enumerate(data):
-        if p3D[num]:
-            # This is the old approach of using the area
-            nc = m+n
-            test = v*(m+n)
-            if test < vmin:
-                vmin=test
-                i_winner=num
-
-
-    winner = (data[i_winner][3], data[i_winner][4])
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    mpl.rc('text', usetex = True)
-    mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
-    # plt.clf()
-    cmapname   = 'viridis'
-    from matplotlib.ticker import MaxNLocator
-    ax = plt.figure().gca()
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-    plt.scatter(winner[0], winner[1], marker = '*', c = "magenta",s=400, alpha = 1)
-
-    d_pareto = data[p3D]
-    d_other = data[np.logical_not(p3D)]
-    plt.scatter(d_pareto[:,3], d_pareto[:,4], marker = '*', s=200, c = np.log10(d_pareto[:,2]), cmap = cmapname, alpha = 1.0)
-    plt.scatter(d_other[:,3],   d_other[:,4], marker = 's', c = np.log10(d_other[:,2]), cmap = cmapname, alpha = 1.0)
-    plt.xlabel("$m$")
-    plt.ylabel("$n$")
-    plt.xlim((min(data[:,3])-0.5,max(data[:,3])+0.5))
-    plt.ylim((min(data[:,4])-0.5,max(data[:,4])+0.5))
-    b=plt.colorbar()
-    b.set_label("$\log_{{10}}\\frac{{L_2^\\mathrm{{test}}}}{{N_\mathrm{{non-zero}}}}$")
-
-    plt.savefig(f_out)
-    plt.close('all')
-
-
-def raNorm(ra, X, Y, norm=2):
-    nrm = 0
-    for num, x in enumerate(X):
-        nrm+= abs(ra.predict(x) - Y[num])**norm
-    return nrm
-
-def raNormInf(ra, X, Y):
-    nrm = 0
-    for num, x in enumerate(X):
-        nrm = max(nrm,abs(ra.predict(x) - Y[num]))
-    return nrm
-
-
-def mkBestRACPL(X, Y, pnames=None, train_fact=2, split=0.6, norm=2, m_max=None, n_max=None, m_min=0, n_min=0, f_plot=None, seed=1234, allow_const=False, debug=0, mode="la", strategy="lowest"):#, strategy="pareto"):
-    """
-    """
-    _N, _dim = X.shape
-    np.random.seed(seed)
-
-
-    # Split dataset in training and test sample
-    i_train = sorted(list(np.random.choice(range(_N), int(np.ceil(split*_N)))))
-    i_test = [i for i in range(_N) if not i in i_train]
-
-    N_train = len(i_train)
-    N_test  = len(i_test)
-
-    orders = sorted(app.tools.possibleOrders(N_train, _dim, mirror=True))
+def getOrders(datashape, omin, omax, allow_const=False):
+    npoints, dim = datashape
+    M, N=[int(x) for x in omin.split(",")]
+    m_min = None if M<0 else M
+    n_min = None if N<0 else N
+    M, N=[int(x) for x in omax.split(",")]
+    m_max = None if M<0 else M
+    n_max = None if N<0 else N
+    import apprentice as app
+    orders = sorted(app.tools.possibleOrders(npoints, dim, mirror=True))
     if not allow_const: orders=orders[1:]
     if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
     if m_max is not None: orders = [ o for o in orders if o[0] <= m_max]
     if n_min>0: orders = [ o for o in orders if o[1] >= n_min]
     if m_min>0: orders = [ o for o in orders if o[0] >= m_min]
+    return orders
 
-
-    # Discard those orders where we do not have enough training points if train_fact>1
-    if train_fact>1:
-        _temp = []
-        for o in orders:
-            if o[1]>0:
-                if train_fact*app.tools.numCoeffsRapp(_dim, o) <= N_train:
-                    _temp.append(o)
-            else:
-                if train_fact*app.tools.numCoeffsPoly(_dim, o[0]) <= N_train:
-                    _temp.append(o)
-        orders = sorted(_temp)
-
-    APP = []
-    APPfull = []
-
-    import time
-    t1=time.time()
-    for o in orders:
-        m, n = o
-        if n == 0:
-            i_train_o = np.random.choice(i_train, int(train_fact*app.tools.numCoeffsPoly(_dim, m)))
-            APP.append(    app.PolynomialApproximation(X[i_train_o], Y[i_train_o], order=m, pnames=pnames))
-        else:
-            i_train_o = np.random.choice(i_train, int(train_fact*app.tools.numCoeffsRapp(_dim, (m,n))))
-            if mode=="onb":
-                APP.append(    app.RationalApproximationONB(X[i_train_o], Y[i_train_o], order=(m,n), strategy=2, pnames=pnames, tol=-1))
-            elif mode=="la":
-                APP.append(    app.RationalApproximation(   X[i_train_o], Y[i_train_o], order=(m,n), strategy=2, pnames=pnames)        )
-            elif mode=="sip":
-                APP.append(    app.RationalApproximationSIP(X[i_train_o], Y[i_train_o], m=m, n=n, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames))
-            else:
-                print("haeh?")
-    t2=time.time()
-
-    threshold=1e-6
-
-
-    print("Calculating {} approximations took {} seconds".format(len(orders), t2-t1))
-    for a in APP: regularise(a)
-
-    L2      = [np.sqrt(raNorm(app, X, Y, 2))               for app in APP]
-    Linf    = [raNormInf(app, X, Y)                        for app in APP]
-    NNZ     = [app.tools.numNonZeroCoeff(app, 1e-6) for app in APP]
-    VAR     = [l/m for l, m in zip(L2, NNZ)]
-
-    ncN, ncM = [], []
-
-    NC = []
-    for m,n in orders:
-        ncM.append(app.tools.numCoeffsPoly(_dim, m))
-        ncN.append(app.tools.numCoeffsPoly(_dim, n))
-        if n==0:
-            NC.append(app.tools.numCoeffsPoly(_dim, m))
-        else:
-            NC.append(app.tools.numCoeffsRapp(_dim, (m,n)))
-
-    # Check for poles
-    has_pole = []
-    for num, (m,n) in enumerate(orders):
-        if n==0: has_pole.append(False)
-        else:
-            has_pole.append(denomChangesSignMS(APP[num], 100)[0])
-
-    NNC = []
-    for num , n in enumerate(NC):
-        NNC.append(n-NNZ[num])
-
-    CMP = [a*b for a,b in zip(NNZ, L2)]
-
-    # dec_data = [(a,b) for a, b in zip(NC, VAR)]
-    dec_data = [(a,b) for a, b in zip(NC, L2)]
-
-    o_win, i_win = getBestOrder(dec_data, orders, strategy=strategy)
-    print("Winner: m={} n={} with L2={} and Loo={}".format(o_win[0], o_win[1], L2[i_win], Linf[i_win]))
-
-    if f_plot:
-        mkPlotResults(dec_data,  "NCVAR_{}".format(f_plot),  orders, has_pole, ly="$\\frac{L_2^\\mathrm{test}}{N_\mathrm{non-zero}}$", lx="$N_\\mathrm{coeff}$", logy=True, logx=True)
-
-    if o_win[1] == 0:
-        return app.PolynomialApproximation(X, Y, order=o_win[0], pnames=pnames)
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debug=False, testforPoles=100):
+    M, N = order
+    import apprentice as app
+    if N==0:
+        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames)
+        hasPole=False
     else:
-        if mode=="onb":
-            return app.RationalApproximationONB(X, Y, order=o_win, strategy=1, pnames=pnames, tol=-1)
-        elif mode=="la":
-            return app.RationalApproximation(X, Y, order=o_win, strategy=1, pnames=pnames)
+        if mode == "la":    _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+        elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol)
+        elif mode == "sip":
+            try:
+                _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+            except:
+                return None, True
+        elif mode == "lasip":
+            try:
+                _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+            except:
+                return None, True
+            has_pole = denomChangesSignMS(_app, 100)[0]
+            if has_pole:
+                try:
+                    _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ss', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+                except:
+                    return None, True
         else:
-            return app.RationalApproximationSIP(X, Y, m=o_win[0], n=o_win[1], trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames)
+            raise Exception("Specified mode {} does not exist, choose la|onb|sip".format(mode))
+        hasPole = denomChangesSignMS(_app, testforPoles)[0]
 
-
-
-def mkPlotResults(data, f_out, orders=None, has_pole=None, lx="$x$", ly="$y$", logy=True, logx=True):
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    plt.clf()
-    mpl.rc('text', usetex = True)
-    mpl.rc('font', family = 'serif', size=12)
-    mpl.style.use("ggplot")
-
-
-    plt.xlabel(lx)
-    plt.ylabel(ly)
-    if logx: plt.xscale("log")
-    if logy: plt.yscale("log")
-
-    pareto = paretoFront(data)
-    best_order, corner = getBestOrder(data, orders, strategy="pareto")
-
-    plt.scatter(pareto[:     ,0], pareto[:     ,1]  , marker = 'o', c = "silver", s=100, alpha = 1.0)
-    plt.scatter(pareto[corner,0], pareto[corner,1]  , marker = '*', c = "gold"  , s=444, alpha = 1.0)
-
-    # This is really just for text labels
-    data=np.array(data)
-    b_pareto = is_pareto_efficient_dumb(data)
-
-    c, txt   = [], []
-    for num, (m,n) in enumerate(orders):
-        if n==0:
-            c.append("b")
-        else:
-            c.append("r")
-        if b_pareto[num]:
-            txt.append("({},{})".format(m,n))
-        else:
-            txt.append("\\tiny({},{})".format(m,n))
-            # txt.append("")
-
-    for num, d in enumerate(data):
-        if has_pole[num]:
-            plt.scatter(d[0], d[1],c=c[num], marker="x")
-        else:
-            plt.scatter(d[0], d[1],c=c[num])
-    for num, t in enumerate(txt): plt.annotate(t, (data[num][0], data[num][1]))
-
-    plt.savefig(f_out)
-    plt.close('all')
-
-def readTailor(fname):
-    with open(fname) as f:
-        _L=[l.strip() for l in f]
-        L=[l for l in _L if len(l) >0 and not l.startswith("#")]
-
-    defs = {}
-    for l in L:
-        b, m, n = l.split()
-        defs[b] = (int(m), int(n))
-    return defs
-
-def readObsNames(fname):
-    with h5py.File(fname, "r") as f:
-        return np.unique([x.decode().split("#")[0] for x in f.get("index")[:] ])
-
-def indexMap(fname, lsub):
-    """
-    """
-    import numpy as np
-    import h5py
-
-    with h5py.File(fname, "r") as f: II = [x.decode() for x in f.get("index")[:] ]
-    if len(lsub)==0: lsub = np.unique([x.split("#")[0] for x in II])
-    return {ls : np.where(np.char.find(II, ls)>-1)[0] for ls in lsub}
-
-def readIndex(fname):
-    import h5py
-    with h5py.File(fname, "r") as f:
-        return [x.decode() for x in f.get("index")[:] ]
-
-
-
-
-def readH53(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
-    """
-    Read X,Y, erros values etc from HDF5 file.
-    By default, only the first object is read.
-    The X and Y-value dataset names depend on the file of course, so we allow
-    specifying what to use. yfield can be values|errors with the test files.
-    Returns a list of tuples of arrays : [ (X1, Y1, E1), (X2, Y2, E2), ...]
-    The X-arrays are n-dimensional, the Y-arrays are always 1D
-    """
-    import numpy as np
-    import h5py
-
-    ret = []
-    f = h5py.File(fname, "r")
-
-    # Read parameters
-    _X=np.array(f.get(xfield))
-    Y = f.get(yfield1)[:][idx]
-    E = f.get(yfield2)[:][idx]
-
-    # Read y-values
-    for i in range(len(idx)):
-        _Y=Y[i]
-        _E=E[i]
-        USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
-        ret.append([ _X[USE], _Y[USE], _E[USE] ])
-    # for i in idx:
-        # _Y=np.atleast_1d(f.get(yfield1)[i])
-        # _E=np.atleast_1d(f.get(yfield2)[i])
-        # USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
-        # ret.append([ _X[USE], _Y[USE], _E[USE] ])
-
-    f.close()
-
-    return ret
+    return _app, hasPole
 
 
 if __name__ == "__main__":
@@ -593,21 +99,16 @@ if __name__ == "__main__":
     op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
     op.add_option("--ordermax", dest="ORDERMAX", default="-1,-1", help="Max orders (default: %default)")
     op.add_option("--ordermin", dest="ORDERMIN", default="0,0", help="Min orders (default: %default)")
-    op.add_option("--plotprefix", dest="PLOTPREFIX", default=None, help="Prefix for plot output (default: %default)")
-    op.add_option("--split", dest="SPLIT", default=0.6, type=float, help="Fraction of training sample (default: %default)")
-    op.add_option("--train", dest="TRAIN", default=1.5, type=float, help="Oversampling factor (default: %default)")
     op.add_option("--mode", dest="MODE", default="la", help="Base algorithm  --- la | onb | sip --- (default: %default)")
-    op.add_option("--pareto", dest="PARETO", default="pareto", help="Pareto strategy --- pareto | low --- (default: %default)")
     op.add_option("--onbtol", dest="TOL", type=float, default=-1, help="ONB tolerance -1 means don't do degree reduction (default: %default)")
     op.add_option("--log", dest="ISLOG", action='store_true', default=False, help="input data is logarithmic --- affects how we filter (default: %default)")
-    op.add_option("--tailor", dest="TAILOR", default=None, help="File for tailored approximations (default: %default)")
+    op.add_option("--msg", dest="MSGEVERY", default=25, type=int, help="Verbosity of progress (default: %default)")
+    op.add_option("--fitter", dest="FITTER", default="scipy", help="Fitter scipy | filter (default: %default)")
+    op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
     opts, args = op.parse_args()
-
 
     rank=0
     size=1
-    nobj=-1
-    USEOBJ=None
     try:
         from mpi4py import MPI
         comm = MPI.COMM_WORLD
@@ -619,7 +120,7 @@ if __name__ == "__main__":
         pass
 
 
-    if opts.MODE not in ["la", "onb", "sip"]:
+    if opts.MODE not in ["la", "onb", "sip", "lasip"]:
         print("Error: specified mode {} no known".format(opts.MODE))
         sys.exit(1)
 
@@ -633,89 +134,93 @@ if __name__ == "__main__":
     # Prevent overwriting of input data
     assert(args[0]!=opts.OUTPUT)
 
-    # This reads the data
-    import time
-    t0   = time.time()
-
     pnames = app.tools.readPnamesH5(args[0], xfield="params") if rank==0 else []
     pnames = comm.bcast(pnames, root=0)
-    observables = list(set(readObs(opts.WEIGHTS))) if opts is not None else readObsNames(args[0]) if rank==0 else []
+    if rank==0:
+        observables = list(set(app.tools.readObs(opts.WEIGHTS))) if opts.WEIGHTS is not None else app.tools.readObsNames(args[0])
+    else: observables = []
     observables = comm.bcast(observables, root=0)
-    t1   = time.time()
-    sys.stdout.flush()
-    rankObs = app.tools.chunkIt(observables, size) if rank==0 else []
-    rankObs = comm.scatter(rankObs, root=0)
 
-    im = indexMap(args[0], rankObs)
-    t2   = time.time()
-    _IDX = np.concatenate(list(im.values()))
-    IDX = comm.gather(_IDX, root=0)
-    IDX = comm.bcast(IDX, root=0)
-    IDX = np.sort(np.concatenate(list(IDX)))
+    if rank == 0:
+        im = app.tools.indexMap(args[0], observables)
+        _IDX = np.sort(np.concatenate(list(im.values())))
+    else: _IDX = []
+
+    IDX = comm.bcast(_IDX, root=0)
     rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else []
     rankIdx = comm.scatter(rankIdx, root=0)
-    t3   = time.time()
 
+    binids = app.tools.readIndex(args[0]) if rank==0 else []
+    binids = comm.bcast(binids, root=0)
 
-    DATA = readH53(args[0], rankIdx)
-    t4   = time.time()
-    if rank==0:
-        print("readObs  took {} seconds".format(t1-t0))
-        print("indexMap took {} seconds".format(t2-t1))
-        print("rest     took {} seconds".format(t3-t2))
-        print("readH53  took {} seconds".format(t4-t3))
+    DATA = app.tools.readH53(args[0], rankIdx)
+    comm.barrier()
+    print("[{}] will proceed to calculate approximations for {} objects)".format(rank, len(rankIdx)))
     sys.stdout.flush()
 
     apps = []
     M,N=[int(x) for x in opts.ORDER.split(",")]
 
-
+    import time
+    t4   = time.time()
     import datetime
     for num, (_X, _Y, _E) in  enumerate(DATA):
-        if rank==0:
-            if ((num+1)%25 ==0):
+        if rank==0 or rank==size-1:
+            if ((num+1)%opts.MSGEVERY ==0):
                 now = time.time()
                 tel = now - t4
                 ttg = tel*(len(DATA)-num)/(num+1)
                 eta = now + ttg
                 eta = datetime.datetime.fromtimestamp(now + ttg)
-                print("[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})".format(rank, num+1, len(DATA), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')  ))
+                sys.stdout.write("{}[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(80*" " if rank>0 else "", rank, num+1, len(DATA), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')) ,)
                 sys.stdout.flush()
-        USE = np.where( (_E>=0) )
-        X=_X[USE]
-        Y=_Y[USE]
+        USE = np.where( (_Y>0) ) if opts.ISLOG else np.where( (_E>=0) )
+        X = _X[USE]
+        Y =  np.log10(_Y[USE]) if opts.ISLOG else _Y[USE]
 
-        if N==0:
-            apps.append(app.PolynomialApproximation(X, Y, order=M, pnames=pnames))
+        if opts.ORDER is None:
+            myOrders = getOrders(X.shape, opts.ORDERMIN, opts.ORDERMAX)
         else:
-            if opts.MODE == "la":
-                _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
-            elif opts.MODE == "onb":
-                _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=opts.TOL)
-            elif opts.MODE == "sip":
-                _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames)
-                hasPole=denomChangesSignMS(_app, 100)[0]
-            else: print("HMMM")
+            myOrders = [[int(x) for x in opts.ORDER.split(",")]]
 
-            apps.append(_app)
+        if len(X) == 0:
+            print("No data to calculate approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            import sys
+            sys.stdout.flush()
+            continue
+        if len(X) < app.tools.numCoeffsRapp(len(X[0]),order=myOrders[0]):
+            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping".format(binids[rankIdx[num]], len(X), app.tools.numCoeffsRapp(len(X[0]),order=myOrders[0])))
+            import sys
+            sys.stdout.flush()
+            continue
+
+        temp, hasPole = calcApprox(X, Y, myOrders[0], pnames, opts.MODE, fitter=opts.FITTER, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
+        if temp is None:
+            print("Unable to calculate approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            import sys
+            sys.stdout.flush()
+            continue
+        else:
+            if hasPole:
+                print("Warning: pole detected in {}".format(binids[rankIdx[num]]))
+                import sys
+                sys.stdout.flush()
+        apps.append(temp)
+
 
     DD = [(i, a.asDict) for a, i  in zip(apps,rankIdx)]
     APPS = comm.gather(DD, root=0)
     t5   = time.time()
     if rank==0:
-        print("approximation took {} seconds".format(t5-t4))
+        print()
+        print("Approximation calculation took {} seconds".format(t5-t4))
         sys.stdout.flush()
     if rank==0:
-        binids = readIndex(args[0])
+        binids = app.tools.readIndex(args[0])
         JD = {}
         for rankApps in APPS:
             for idx, app in rankApps:
                 JD[binids[idx]] = app
-        # JD = { x : y.asDict for x, y in zip(_binids, ras) }
-        t6   = time.time()
-        print("jd prep took {} seconds".format(t6-t5))
-        sys.stdout.flush()
-
 
         with h5py.File(args[0], "r") as f:
             if "xmin" in f and "xmax" in f:
@@ -731,151 +236,6 @@ if __name__ == "__main__":
 
         import json
         with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
-        t7   = time.time()
-        print("write out took {} seconds".format(t7-t6))
-        sys.stdout.flush()
-
-        # with open(opts.OUTPUT, "a") as f: json.dump(, f, indent=4)
-
-
         print("Done --- {} approximations written to {}".format(len(JD), opts.OUTPUT))
 
-    exit(1)
-
-
-
-                # allJobs=pyrapp.chunkIt(USEOBJ, size) # A list of lists of approximately the same length
-    im = indexMap(args[0], observables)
-    t2   = time.time()
-
-    USE = np.sort(np.concatenate(list(im.values())))
-    # Here: MPI
-    DATA = readH53(args[0], USE)
-    t3   = time.time()
-    idx  = [i for i in range(len(DATA))]
-    # idx = [i for i in range(len(DATA))]
-    # idx = range(312, 339)
-    # idx = range(162, 163)
-    # idx = range(0, 27)
-    # idx = [i for i in range(len(DATA))]
-
-    with h5py.File(args[0], "r") as f:
-        binids = [s.decode() for s in f.get("index")[idx]]
-    t2 = time.time()
-    if opts.DEBUG: print("Data preparation took {} seconds".format(t2-t1))
-
-
-    _binids = []
-
-    ras = []
-
-    data={}
-
-    # Data preparation
-    for num, (_X, _Y, _E) in  enumerate(DATA):
-
-        if opts.ISLOG:
-            USE = np.where(np.logical_not(np.isinf(_E) ))
-        else:
-            USE = np.where( (_E>=0) )
-        X=_X[USE]
-        Y=_Y[USE]
-        E=_E[USE]
-
-        if len(observables)!=0:
-            test=binids[num].split("#")[0]
-            if not test in observables: continue
-        data[binids[num]] = [X,Y,E]
-    if opts.TAILOR is not None:
-        tailors = readTailor(opts.TAILOR)
-        for bname, o in tailors.items():
-            X,Y,E = data[bname]
-            m,n = o
-            if n==0: ras.append(app.PolynomialApproximation(X, Y, order=m, pnames=pnames))
-            else:
-                if   opts.MODE == "la":  ras.append(app.RationalApproximation(   X, Y, order=o, pnames=pnames))
-                elif opts.MODE == "onb": ras.append(app.RationalApproximationONB(X, Y, order=o, pnames=pnames, tol=-1))
-                elif opts.MODE == "sip": ras.append(app.RationalApproximationSIP(X, Y, m=m, n=n, trainingscale="Cp", roboptstrategy = 'ms',
-                    localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames))
-                else: print("Huh?")
-
-            _binids.append(bname)
-
-    else:
-        t1=time.time()
-        for num, (_X, _Y, _E) in  enumerate(DATA):
-            t11=time.time()
-
-            if opts.ISLOG:
-                USE = np.where(np.logical_not(np.isinf(_E) ))
-            else:
-                USE = np.where( (_E>=0) )
-            X=_X[USE]
-            Y=_Y[USE]
-
-            if len(observables)!=0:
-                test=binids[num].split("#")[0]
-                if not test in observables: continue
-            _binids.append(binids[num])
-
-
-
-            if opts.ORDER is None:
-                M,N=[int(x) for x in opts.ORDERMAX.split(",")]
-                if M<0: M=None
-                if N<0: N=None
-                if opts.PLOTPREFIX is not None:
-                    fplot="{}_{}.pdf".format(opts.PLOTPREFIX, binids[num].replace("/","_").replace("#","_"))
-                else: fplot=None
-
-                Mmin,Nmin=[int(x) for x in opts.ORDERMIN.split(",")]
-                app = mkBestRACPL(X, Y, m_max=M, n_max=N, n_min=Nmin, m_min=Mmin, pnames=pnames, split=opts.SPLIT, train_fact=opts.TRAIN, f_plot=fplot, mode=opts.MODE, strategy=opts.PARETO)
-                ras.append(app)
-            else:
-                M,N=[int(x) for x in opts.ORDER.split(",")]
-                if N==0:
-                    ras.append(app.PolynomialApproximation(X, Y, order=M, pnames=pnames))
-                else:
-                    hasPole=False
-                    if opts.MODE == "la":
-                        # for s in [2,1,3]:
-                        for s in [2]:#,1,3]:
-                            _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=s)
-                            hasPole=denomChangesSignMS(_app, 100)[0]
-                            if hasPole:
-                                print("Pole found, trying next strategy")
-                            else:
-                                break
-                        if hasPole:
-                            print("Giving up")
-                    elif opts.MODE == "onb":
-                        _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=opts.TOL)
-                        hasPole=denomChangesSignMS(_app, 100)[0]
-                    elif opts.MODE == "sip":
-                        # from IPython import embed
-                        # embed()
-                        _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = 'filter', strategy=0, pnames=pnames)
-                        hasPole=denomChangesSignMS(_app, 100)[0]
-                    else: print("WTF?")
-
-                    ras.append(_app)
-            t22=time.time()
-            if opts.DEBUG: print("Approximation {}/{} took {} seconds".format(num+1,len(binids), t22-t11))
-
-
-        t2=time.time()
-        if opts.DEBUG: print("Approximation took {} seconds".format(t2-t1))
-
-    print("Testing for poles:")
-    for bid, app in zip(_binids, ras):
-        if hasattr(app, "n"):
-            if denomChangesSignMS(app, 100)[0]:
-                print("Pole found in {}".format(bid))
-            else:
-                print("No pole found in {}!".format(bid))
-    JD = { x : y.asDict for x, y in zip(_binids, ras) }
-
-    import json
-    with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
-
-    print("Done --- approximation of {} objects written to {}".format(len(idx), opts.OUTPUT))
+    exit(0)
