@@ -2,6 +2,12 @@ import numpy as np
 from collections import OrderedDict
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
 
+def pInBox(P, box):
+    for i in range(len(P)):
+        if P[i] < box[i][0]: return False
+        if P[i] > box[i][1]: return False
+    return True
+
 def read_limitsandfixed(fname):
     """
     Read a text file e.g.
@@ -20,6 +26,10 @@ def read_limitsandfixed(fname):
                         limits[temp[0]] = (float(temp[1]), float(temp[2]))
     return limits, fixed
 
+def readObs(fname):
+    with open(fname) as f:
+        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
+    return r
 
 import re
 def sorted_nicely( l ):
@@ -208,6 +218,61 @@ def readH52(fname, idx=[0], xfield="params", yfield1="values", yfield2="errors")
     f.close()
 
     return ret
+
+def readH53(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
+    """
+    Read X,Y, erros values etc from HDF5 file.
+    By default, only the first object is read.
+    The X and Y-value dataset names depend on the file of course, so we allow
+    specifying what to use. yfield can be values|errors with the test files.
+    Returns a list of tuples of arrays : [ (X1, Y1, E1), (X2, Y2, E2), ...]
+    The X-arrays are n-dimensional, the Y-arrays are always 1D
+    """
+    import numpy as np
+    import h5py
+
+    ret = []
+    f = h5py.File(fname, "r")
+
+    # Read parameters
+    _X=np.array(f.get(xfield))
+    Y = f.get(yfield1)[:][idx]
+
+    if yfield2 in f:
+        E = f.get(yfield2)[:][idx]
+        # Read y-values
+        for i in range(len(idx)):
+            _Y=Y[i]
+            _E=E[i]
+            USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
+            ret.append([ _X[USE], _Y[USE], _E[USE] ])
+    else:
+        for i in range(len(idx)):
+            _Y=Y[i]
+            ret.append([_X, _Y, np.zeros(len(_Y))])
+
+    f.close()
+    return ret
+
+def indexMap(fname, lsub):
+    """
+    """
+    import numpy as np
+    import h5py
+
+    with h5py.File(fname, "r") as f: II = [x.decode() for x in f.get("index")[:] ]
+    if len(lsub)==0: lsub = np.unique([x.split("#")[0] for x in II])
+    return {ls : np.where(np.char.find(II, ls)>-1)[0] for ls in lsub}
+
+def readIndex(fname):
+    import h5py
+    with h5py.File(fname, "r") as f:
+        return [x.decode() for x in f.get("index")[:] ]
+
+def readObsNames(fname):
+    import h5py
+    with h5py.File(fname, "r") as f:
+        return np.unique([x.decode().split("#")[0] for x in f.get("index")[:] ])
 
 def readPnamesH5(fname, xfield):
     """
