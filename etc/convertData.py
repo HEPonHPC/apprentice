@@ -19,4 +19,4 @@ if __name__ == "__main__":
             ddict[binid]=(H.bins[b].val, H.bins[b].err)
 
     import json
-    with open(sys.argv[2], "w") as f: json.dump(ddict, f)
+    with open(sys.argv[2], "w") as f: json.dump(ddict, f, indent=4)
