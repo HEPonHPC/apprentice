@@ -1,6 +1,7 @@
 import numpy as np
 import apprentice
 
+
 #https://medium.com/pythonhive/python-decorator-to-measure-the-execution-time-of-methods-fa04cb6bb36d
 def timeit(method):
     import time
@@ -195,6 +196,27 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             nrm+= p*p
         return np.sqrt(nrm)
 
+
+    def gradient(self, X):
+        from apprentice import monomial
+        import numpy as np
+        struct = np.array(self._struct_p, dtype=np.float)
+        X = self._scaler.scale(np.array(X))
+
+        if self.dim==1:
+            struct[1:]=self._scaler.jacfac[0]*struct[1:]*np.power(X, struct[1:]-1)
+            return np.dot(np.atleast_2d(struct),self._pcoeff)
+
+        DER2=np.zeros((self.dim, len(struct)))
+        _RR = np.power(X, struct)
+        for coord in range(self.dim):
+            nonzero=np.where(struct[:,coord]!=0)
+            RR=np.copy(_RR[nonzero])
+            RR[:,coord]=self._scaler.jacfac[coord]*struct[nonzero][:,coord] * np.power(X[coord], struct[nonzero][:,coord]-1)
+            DER2[coord][nonzero] = np.prod(RR, axis=1)
+
+        return np.sum(DER2 * self._pcoeff, axis=1)
+
 if __name__=="__main__":
 
     import sys
@@ -233,7 +255,8 @@ if __name__=="__main__":
     def fp(x):
         return 4*x
 
-    X=np.linspace(0,10,10)
+    X=np.linspace(0,10,11)
+    # X=np.linspace(-1,1,11)
     Y=f(X)
     pp = PolynomialApproximation(X=[[x] for x in X], Y=Y, order=2, strategy=1)
     pylab.clf()
@@ -241,12 +264,15 @@ if __name__=="__main__":
 
     pylab.plot(X, [pp(x) for x in X], label="Polynomial approx m={} strategy 1".format(3))
 
+    myg = [pp.gradient(x) for x in X]
+
     g = grad(pp)
     G = [g(x) for x in X]
     FP = [fp(x) for x in X]
 
     pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
     pylab.plot(X, G, label="auto gradient")
+    pylab.plot(X, myg, label="manual gradient")
     pylab.legend()
 
     pylab.show()
@@ -254,8 +280,6 @@ if __name__=="__main__":
 
 
 
-    from IPython import embed
-    embed()
 
 
     pylab.plot(TX, Y1, label="Polynomial approx m={} strategy 1".format(3))
