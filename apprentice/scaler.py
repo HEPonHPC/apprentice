@@ -67,6 +67,7 @@ class Scaler(object):
         self._Xmax = np.amax(X, axis=0)
         self._scaleTerm = (self._b - self._a)/(self._Xmax - self._Xmin)
         self._scaledPoints = self.scale(X)
+        self._jacfac = (self.box_scaled[:,1] - self.box_scaled[:,0])/(self.box[:,1] - self.box[:,0])
 
     def mkFromDict(self, ScalerDict):
         """
@@ -81,6 +82,7 @@ class Scaler(object):
         self._scaleTerm = np.array(ScalerDict["scaleTerm"])
         self._a        = np.array(ScalerDict["a"])
         self._b        = np.array(ScalerDict["b"])
+        self._jacfac = (self.box_scaled[:,1] - self.box_scaled[:,0])/(self.box[:,1] - self.box[:,0])
         if "pnames" in ScalerDict: self._pnames  = ScalerDict["pnames"]
 
     def mkFromFile(self, fname):
@@ -141,6 +143,10 @@ class Scaler(object):
         Convert a point from the scaled world back to the real world.
         """
         return self._Xmin + (x-self._a)/self._scaleTerm
+
+    @property
+    def jacfac(self):
+        return self._jacfac
 
     def __str__(self):
         s="Scaler --- translating {}-dimensional points into {}x{}".format(self._dim, self._a, self._b)
