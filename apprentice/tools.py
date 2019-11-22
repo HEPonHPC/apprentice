@@ -315,6 +315,43 @@ def readApprentice(fname):
         app = apprentice.PolynomialApproximation(fname=fname)
     return app
 
+def gradientRecursionSlow(dim, struct, X, jacfac):
+    DER=[]
+    for coord in range(dim):
+        der = [0.]
+        for s in struct[1:]: # Start with the linear terms
+            if s[coord] == 0:
+                der.append(0.)
+                continue
+            term = 1.0
+            for i in range(len(s)):
+                if i==coord:
+                    term *= s[i]*jacfac[i]
+                    term *= X[i]**(s[i]-1)
+                else:
+                    term *= X[i]**s[i]
+            der.append(term)
+        DER.append(der)
+    return DER
+
+def gradientRecursion(X, struct, jacfac):
+    """
+    X ... scaled point
+    struct ... polynomial structure
+    jacfac ... jacobian factor
+    returns array suitbale for multiplication with coefficient vector
+    """
+    import numpy as np
+    dim=len(X)
+    REC=np.zeros((dim, len(struct)))
+    _RR = np.power(X, struct)
+    for coord in range(dim):
+        nonzero=np.where(struct[:,coord]!=0)
+        RR=np.copy(_RR[nonzero])
+        RR[:,coord]=jacfac[coord]*struct[nonzero][:,coord] * np.power(X[coord], struct[nonzero][:,coord]-1)
+        REC[coord][nonzero] = np.prod(RR, axis=1)
+    return REC
+
 def getPolyGradient(coeff, X, dim=2, n=2):
     from apprentice import monomial
     import numpy as np
@@ -423,7 +460,20 @@ def mkCov(yerrs):
 
 
 class TuningObjective(object):
-    def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
+
+    def __init__(self, *args, **kwargs):
+        if type(args[0])==str:
+            print("Calling mkfrom files")
+            self.mkFromFiles(*args, **kwargs)
+        else:
+            print("Calling mkfrom self")
+            self.mkReduced(self, discard)
+
+    def mkReduced(self, keep):
+        pass
+
+    def mkFromFiles(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
+    # def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
         import apprentice
         import numpy as np
         self._debug = debug
@@ -569,15 +619,18 @@ class TuningObjective(object):
             wdict2 = OrderedDict([(hn,_x) for hn, _x in zip(self.hnames, wdict)])
             self.setWeights(wdict2)
 
-    def filterEnvelope(self):
-        # TODO This should be passed from the outside for performance
-        # if restart_filter is not None:
-            # FMIN = [r.fmin(restart_filter) for r in RA]
-            # FMAX = [r.fmax(restart_filter) for r in RA]
-        # else:
-            # FMIN=[-1e101 for r in RA]
-            # FMAX=[ 1e101 for r in RA]
-        pass
+    def envelope(self, nmultistart=10, sel=None):
+        for r in self._RA: r.setStructures()
+
+        FMIN = self.fmin(nmultistart=nmultistart, sel=sel)
+        FMAX = self.fmax(nmultistart=nmultistart, sel=sel)
+        return FMIN, FMAX
+
+    def fmin(self, nmultistart=10, sel=None):
+        return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmin(nmultistart) for num in sel]
+
+    def fmax(self, nmultistart=10, sel=None):
+        return [(i % 10 == 0 and print(i)) or r.fmax(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmax(nmultistart) for num in sel]
 
     def weights_obs(self):
         """
