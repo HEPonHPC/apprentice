@@ -48,6 +48,10 @@ def sorted_nicely( l ):
 def fast_chi(w,d,e):
     return np.sum(w*d*d*e)
 
+def fast_grad(w,d,e,g):
+    v=-2*w*d*e
+    return np.sum(g*v.reshape((v.shape[0],1)), axis=0)
+
 def least_square(y_data,y_mod,sigma2,w):
     return w/sigma2 * (y_mod-y_data)**2
 
@@ -671,7 +675,6 @@ class TuningObjective(object):
         return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
 
     def objective(self, x, sel=slice(None,None,None), unbiased=False):
-        import numpy as np
         if not self.use_cache:
             if isinstance(sel,list) or type(sel).__module__ == np.__name__:
                 vals = [r(x) for r in self._RA[sel]]
@@ -689,6 +692,17 @@ class TuningObjective(object):
             return fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
         else:
             return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])
+
+    def gradient(self, x, sel=slice(None,None,None), unbiased=False):
+        self.setCache(x)
+        vals = np.sum(self._maxrec * self._PC[sel], axis=1)
+        X  = self._SCLR.scale(x)
+        JF = self._SCLR.jacfac
+        struct = self._structure
+        GR = gradientRecursion(X, struct, JF)
+        temp=np.sum(self._PC.reshape((self._PC.shape[0],1,self._PC.shape[1]))*GR,axis=2)
+
+        return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], temp)
 
     def calc_f_val(self,x, sel=slice(None,None,None)):
         import autograd.numpy as np
@@ -720,18 +734,25 @@ class TuningObjective(object):
         return comp.count(True) > comp.count(False)
 
     def startPoint(self, ntrials):
+        if ntrials==0:
+            if self._debug: print("StartPoint: {}".format(self._SCLR.center))
+            return self._SCLR.center
         import numpy as np
         _PP = np.random.uniform(low=self._SCLR._Xmin,high=self._SCLR._Xmax,size=(ntrials, self._SCLR.dim))
         _CH = [self.objective(p) for p in _PP]
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart, nrestart=1, sel=slice(None,None,None)):
+    def minimize(self, nstart, nrestart=1, sel=slice(None,None,None), use_grad=False, method="L-BFGS-B"):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
         for t in range(nrestart):
-            res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds)
+            if use_grad:
+                if self._debug: print("using gradient")
+                res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds, jac=self.gradient, method=method)
+            else:
+                res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds, method=method)
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
