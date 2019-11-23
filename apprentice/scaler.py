@@ -196,7 +196,6 @@ class Scaler(object):
         return np.random.uniform(low=self._a, high=self._b,size=(nsamples,self.dim))
 
     def __eq__(self, other):
-        import numpy as np
         return (self.dim == other.dim) and np.all(np.isclose(self._a, other._a)) and np.all(np.isclose(self._scaleTerm, other._scaleTerm)) and np.all(np.isclose(self._Xmin, other._Xmin))
 
 
