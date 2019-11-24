@@ -198,7 +198,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
 
     def gradient(self, X):
-        from apprentice import monomial
         import numpy as np
         struct = np.array(self._struct_p, dtype=np.float)
         X = self._scaler.scale(np.array(X))
@@ -207,15 +206,10 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             struct[1:]=self._scaler.jacfac[0]*struct[1:]*np.power(X, struct[1:]-1)
             return np.dot(np.atleast_2d(struct),self._pcoeff)
 
-        DER2=np.zeros((self.dim, len(struct)))
-        _RR = np.power(X, struct)
-        for coord in range(self.dim):
-            nonzero=np.where(struct[:,coord]!=0)
-            RR=np.copy(_RR[nonzero])
-            RR[:,coord]=self._scaler.jacfac[coord]*struct[nonzero][:,coord] * np.power(X[coord], struct[nonzero][:,coord]-1)
-            DER2[coord][nonzero] = np.prod(RR, axis=1)
+        from apprentice.tools import gradientRecursion
+        GREC = gradientRecursion(X, struct, self._scaler.jacfac)
 
-        return np.sum(DER2 * self._pcoeff, axis=1)
+        return np.sum(GREC * self._pcoeff, axis=1)
 
 if __name__=="__main__":
 
