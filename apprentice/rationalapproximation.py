@@ -173,6 +173,31 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         X=self._scaler.scale(np.array(X))
         return self.P(X)/self.Q(X)
 
+
+    def gradient(self, X):
+        import numpy as np
+        struct_p = np.array(self._struct_p, dtype=np.float)
+        struct_q = np.array(self._struct_q, dtype=np.float)
+        X = self._scaler.scale(np.array(X))
+        p = self.P(X)
+        q = self.Q(X)
+
+        if self.dim==1:
+            # p'
+            struct_p[1:]=self._scaler.jacfac[0]*struct_p[1:]*np.power(X, struct_p[1:]-1)
+            pprime = np.dot(np.atleast_2d(struct_p),self._pcoeff)
+            # q'
+            struct_q[1:]=self._scaler.jacfac[0]*struct_q[1:]*np.power(X, struct_q[1:]-1)
+            qprime = np.dot(np.atleast_2d(struct_q),self._qcoeff)
+        else:
+            from apprentice.tools import gradientRecursion
+            GRECP = gradientRecursion(X, struct_p, self._scaler.jacfac)
+            pprime = np.sum(GRECP * self._pcoeff, axis=1)
+            GRECQ = gradientRecursion(X, struct_q, self._scaler.jacfac)
+            qprime = np.sum(GRECQ * self._qcoeff, axis=1)
+
+        return pprime/q - p/q/q*qprime
+
     def __call__(self, X):
         """
         Operator version of predict.
@@ -272,7 +297,7 @@ if __name__=="__main__":
             return (10*x)/(x**3 - 4* x + 5)
         NR = 1
         np.random.seed(555)
-        X = np.random.rand(NX, dim)
+        X = sorted(np.random.rand(NX, dim))
         Y = np.array([anthonyFunc(*x) for x in X])
         return X, Y
 
@@ -280,6 +305,36 @@ if __name__=="__main__":
 
     import pylab
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
+    pp=RationalApproximation(X,Y, order=(1,3))
+    myg = [pp.gradient(x) for x in X]
+
+    # import time
+    # t0=time.time()
+    # for _ in range(10000): pp.gradient(5)
+    # t1=time.time()
+    # print(t1-t0)
+
+    import autograd.numpy as np
+    from autograd import hessian, grad
+    g = grad(pp)
+    # t2=time.time()
+    # for _ in range(10000): g(5.)
+    # t3=time.time()
+    # print("{} vs. {}, ratio {}".format(t1-t0, t3-t2, (t3-t2)/(t1-t0)))
+    G = [g(x) for x in X]
+    myg = [pp.gradient(x) for x in X]
+
+    pylab.plot(X, [pp(x) for x in X], label="Rational approx")
+    # pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
+    pylab.plot(X, G, label="auto gradient")
+    pylab.plot(X, myg, label="manual gradient")
+    # pylab.plot(X, myg, label="manual gradient")
+    pylab.legend()
+
+    pylab.show()
+    exit(0)
+
+
     TX = sorted(X)
     for s in range(1,4):
         r=RationalApproximation(X,Y, order=(5,5), strategy=s)
@@ -287,6 +342,9 @@ if __name__=="__main__":
         YW = [r(p) for p in TX]
 
         pylab.plot(TX, YW, label="Rational approx m={} n={} strategy {}".format(2,2,s))
+
+
+
 
     # Store the last and restore immediately, plot to see if all is good
     r.save("rapptest.json")
