@@ -19,12 +19,14 @@ The following datasets are created:
     * xmax   --- (NBIN * NRUNS) size array
 """
 
+
 def read_histos(path):
     "Load histograms from a YODA-supported file type, into a dict of path -> yoda.Histo[DataBin]"
     histos = {}
     try:
         import yoda
         s2s = []
+        types = []
         aos = yoda.read(path, asdict=False)
         for ao in aos:
             import os
@@ -33,15 +35,18 @@ def read_histos(path):
             if os.path.basename(ao.path).startswith("_"):
                 continue
             ##
+            types.append(ao.type)
             s2s.append(ao.mkScatter())
         del aos #< pro-active YODA memory clean-up
-        for s2 in filter(lambda x:x.dim==2, s2s): # Filter for Scatter1D
-            bins = [(p.xMin, p.xMax, p.y, p.yErrAvg) for p in s2.points]
+        for s2, tp in zip(s2s, types):# filter(lambda x:x.dim==2, s2s): # Filter for Scatter1D
+            if s2.dim!=2: continue
+            bins = [(p.xMin, p.xMax, p.y, p.yErrAvg) for p in s2.points] # This stores the bin heights as y-values
             histos[s2.path] = bins
         del s2s #< pro-active YODA memory clean-up
     except Exception as e:
         print("Can't load histos from file '%s': %s" % (path, e))
     return histos
+
 
 def read_paramsfile(path):
     """
@@ -106,9 +111,11 @@ if __name__ == "__main__":
     op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
     op.add_option("-o", dest="OUTFILE", default="mc.hdf5", help="Output file name (default: %default)")
     op.add_option("-c", dest="COMPRESSION", type=int, default=4, help="GZip compression level (default: %default)")
-    op.add_option("--pname", "--pfile", dest="PNAME", default="params.dat", help="Name of the params file to be found in each run directory (default: %default)")
+    op.add_option("--pname", dest="PNAME", default="params.dat", help="Name of the params file to be found in each run directory (default: %default)")
+    op.add_option("--log10", dest="LOG10", action='store_true', help="Store the log10 of values (default: %default)")
     opts, args = op.parse_args()
 
+    print("NOTE: histograms are read in, converted to scaters. This has the effect that the nominal bin values are the bin heights. We multiply with the bin widths to correctly store the areas")
 
     ## Import test
     try:
@@ -163,8 +170,12 @@ if __name__ == "__main__":
     pset = f.create_dataset("params", data=np.array([list(PARAMS[r].values()) for r in runs]), compression=9)
     pset.attrs["names"] = [x.encode('utf8') for x in pnames]
 
-    f.create_dataset("values", data=vals, compression=opts.COMPRESSION)
-    f.create_dataset("errors", data=errs, compression=opts.COMPRESSION)
+    if opts.LOG10:
+        f.create_dataset("values", data=np.log10(vals), compression=opts.COMPRESSION)
+        f.create_dataset("errors", data=np.log10(errs), compression=opts.COMPRESSION)
+    else:
+        f.create_dataset("values", data=vals, compression=opts.COMPRESSION)
+        f.create_dataset("errors", data=errs, compression=opts.COMPRESSION)
     f.create_dataset("xmin", data=xmin, compression=opts.COMPRESSION)
     f.create_dataset("xmax", data=xmax, compression=opts.COMPRESSION)
     f.close()
