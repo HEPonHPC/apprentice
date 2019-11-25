@@ -917,8 +917,8 @@ class RationalApproximationSIP():
             ret = coeff[self.M+index]
         return ret
 
-    def robustSample(self,coeff, q_ipo):
-        return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])-1
+    def robustSample(self, coeff, q_ipo):
+        return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)]) - 1
 
     def robustObjWithGrad(self, x, grad, coeff):
         if grad.size > 0:
