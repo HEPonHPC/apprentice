@@ -30,6 +30,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             Y     --- function values
             order --- tuple (m,n) m being the order of the numerator polynomial --- if omitted: auto
         """
+        self._vmin=None
+        self._vmax=None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -60,6 +62,10 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     def m(self): return self._m
     @property
     def n(self): return self._n
+    @property
+    def vmin(self): return self._vmin
+    @property
+    def vmax(self): return self._vmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
@@ -217,12 +223,14 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         d={}
         d["dim"]    = self.dim
-        d["trainingsize"] = self.trainingsize
+        if hasattr(self, "trainingsize"): d["trainingsize"] = self.trainingsize
         d["m"]      = self.m
         d["n"]      = self.n
         d["pcoeff"] = list(self._pcoeff)
         d["qcoeff"] = list(self._qcoeff)
         d["scaler"] = self._scaler.asDict
+        if self._vmin is not None: d["vmin"] = self._vmin
+        if self._vmax is not None: d["vmax"] = self._vmax
         return d
 
     def save(self, fname):
@@ -237,6 +245,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         self._n      = int(pdict["n"])
         self._dim    = int(pdict["dim"])
         self._scaler = apprentice.Scaler(pdict["scaler"])
+        if "vmin" in pdict: self._vmin = pdict["vmin"]
+        if "vmax" in pdict: self._vmax = pdict["vmax"]
         if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
         else           : self.recurrence=apprentice.monomial.recurrence
         try:
@@ -250,24 +260,28 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         d = json.load(open(fname))
         self.mkFromDict(d, set_structures=set_structures)
 
-    def fmin(self, multistart=None):
+    def fmin(self, multistart=None, use_grad=False):
+        if use_grad: jac=lambda x:self.gradient(x)
+        else: jac=None
         from scipy import optimize
         if multistart is None:
-            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
             return fmin["fun"]
         else:
             _P = self._scaler.drawSamples(multistart)
-            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
             return min(_fmin)
 
-    def fmax(self, multistart=None):
+    def fmax(self, multistart=None, use_grad=False):
+        if use_grad: jac=lambda x:-1*self.gradient(x)
+        else: jac=None
         from scipy import optimize
         if multistart is None:
-            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
             return -fmax["fun"]
         else:
             _P = self._scaler.drawSamples(multistart)
-            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
             return -min(_fmax)
 
     @property
