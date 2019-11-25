@@ -471,22 +471,33 @@ class TuningObjective(object):
             self.mkFromFiles(*args, **kwargs)
         else:
             print("Calling mkfrom self")
-            self.mkReduced(self, discard)
+            self.mkFromData(*args, **kwargs)
 
-    def mkReduced(self, keep):
-        pass
+    def mkReduced(self, keep, **kwargs):
+        RA = list(np.array(self._RA)[keep])
+        Y = self._Y[keep]
+        E = self._E[keep]
+        binids = list(np.array(self._binids)[keep])
+        W2 = self._W2[keep]
+        return TuningObjective(RA,Y,E,W2,binids, **kwargs)
 
-    def mkFromFiles(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
-    # def __init__(self, f_weights, f_data, f_approx, restart_filter=None, debug=False, limits=None, cache_recursions=True):
+    # @classmethod
+    def mkFromData(cls, RA, Y, E, W2, binids, **kwargs):
+        cls._RA = RA
+        cls._Y = Y
+        cls._E = E
+        cls._W2=W2
+        cls._binids = binids
+
+        cls.setAttributes(**kwargs)
+
+    def mkFromFiles(self, f_weights, f_data, f_approx, **kwargs):
+        cache_recursions = kwargs["cache_recursions"] if kwargs.get("cache_recursions") is not None else True
         import apprentice
         import numpy as np
-        self._debug = debug
         binids, RA = apprentice.tools.readApprox(f_approx, set_structures = False)
-        if self._debug: print("Initially we have {} bins".format(len(binids)))
         hnames = [b.split("#")[0] for b in binids]
         bnums  = [int(b.split("#")[1]) for b in binids]
-
-        self._dim = RA[0].dim
 
         # Initial weights
         weights = self.initWeights(f_weights, hnames, bnums)
@@ -495,6 +506,7 @@ class TuningObjective(object):
         dd = apprentice.tools.readExpData(f_data, [str(b) for b in  binids])
         Y  = np.array([dd[b][0] for b in binids])
         E  = np.array([dd[b][1] for b in binids])
+
         # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
         for num, bid in enumerate(binids):
@@ -511,15 +523,23 @@ class TuningObjective(object):
         self._Y      = Y[good]
         self._W2     = np.array([w*w for w in np.array(weights)[good]])
 
+        self.setAttributes(**kwargs)
 
+
+        # All this needs to be in a function
+        # if limits is not None: self.setLimits(limits)
+
+        # FIXME This should never be in the main class
+
+
+    def setAttributes(self, **kwargs):
+        self._dim = self._RA[0].dim
         self._E2 = np.array([1./e**2 for e in self._E])
         self._SCLR = self._RA[0]._scaler # Here we quietly assume already that all scalers are identical
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         self._bounds = self._SCLR.box
-
-        if limits is not None: self.setLimits(limits)
-
-        # FIXME This should never be in the main class
+        if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
+        self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
         hdict, _ = history_dict(self._binids, self._hnames)
         self._hdict = hdict
         self._wdict = weights_dict(self._W2, self._hdict)
@@ -529,11 +549,10 @@ class TuningObjective(object):
             for j in range(i[0], i[1]):
                 self._windex.append(inum)
 
-
-        if debug: print("After filtering: len(binids) = {}".format(len(self._binids)))
+        cache_recursions = kwargs["cache_recursions"] if kwargs.get("cache_recursions") is not None else True
 
         if cache_recursions:
-            print("Warning, you are using an experimental feature.")
+            print("Congrats, you are using an experimental feature.")
             self.use_cache=True
             self.prepareCache()
             self._PC = np.zeros((len(self._RA), np.max([r._pcoeff.shape[0] for r in self._RA])))
@@ -624,11 +643,9 @@ class TuningObjective(object):
             self.setWeights(wdict2)
 
     def envelope(self, nmultistart=10, sel=None):
-        for r in self._RA: r.setStructures()
-
-        FMIN = self.fmin(nmultistart=nmultistart, sel=sel)
-        FMAX = self.fmax(nmultistart=nmultistart, sel=sel)
-        return FMIN, FMAX
+        VMIN=np.array([r.vmin for r in self._RA])
+        VMAX=np.array([r.vmax for r in self._RA])
+        return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
 
     def fmin(self, nmultistart=10, sel=None):
         return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmin(nmultistart) for num in sel]
