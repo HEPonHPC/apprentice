@@ -32,6 +32,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             initDict --- dict to read pre-calculated info from
             order    --- int being the order of the polynomial
         """
+        self._vmin=None
+        self._vmax=None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -58,6 +60,10 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
     def M(self): return self._M
     @property
     def m(self): return self._m
+    @property
+    def vmin(self): return self._vmin
+    @property
+    def vmax(self): return self._vmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
@@ -136,6 +142,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         d["m"]      = self.m
         d["pcoeff"] = list(self._pcoeff)
         d["scaler"] = self._scaler.asDict
+        if self._vmin is not None: d["vmin"] = self._vmin
+        if self._vmax is not None: d["vmax"] = self._vmax
         return d
 
     def save(self, fname):
@@ -155,6 +163,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         self._scaler = apprentice.Scaler(pdict["scaler"])
         if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
         else           : self.recurrence=apprentice.monomial.recurrence
+        if "vmin" in pdict: self._vmin = pdict["vmin"]
+        if "vmax" in pdict: self._vmax = pdict["vmax"]
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
@@ -162,24 +172,28 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         if set_structures:
             self.setStructures()
 
-    def fmin(self, multistart=None):
+    def fmin(self, multistart=None, use_grad=False):
+        if use_grad: jac=lambda x:self.gradient(x)
+        else: jac=None
         from scipy import optimize
         if multistart is None:
-            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
             return fmin["fun"]
         else:
             _P = self._scaler.drawSamples(multistart)
-            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
             return min(_fmin)
 
-    def fmax(self, multistart=None):
+    def fmax(self, multistart=None, use_grad=False):
+        if use_grad: jac=lambda x:-1*self.gradient(x)
+        else: jac=None
         from scipy import optimize
         if multistart is None:
-            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box)
+            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
             return -fmax["fun"]
         else:
             _P = self._scaler.drawSamples(multistart)
-            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box)["fun"] for pstart in _P]
+            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
             return -min(_fmax)
 
     @property
