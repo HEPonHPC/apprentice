@@ -92,12 +92,12 @@ class RationalApproximationONB(object):
         """
         Solve the SVD and test the ratio of the first and last sv against tol
         """
-        if n <0: return False
-        if m <0: return False
+        if n == 0: return False
+        if m == 0: return False
         S = self._svd(F, Q, m, n)
         dec = S['s'][-1] < self.tol * S['s'][0]
         if self._debug:
-            print("Test ({},{}): {}".format(m,n, dec))
+            print("Test ({},{}): {} ratio: {}".format(m,n, dec, S['s'][-1]/S['s'][0]))
 
         return dec
 
@@ -131,7 +131,7 @@ class RationalApproximationONB(object):
         Denominator first reduction
         """
         m, n = M, N
-        while self.isViable(self.F,  Q, m, n-1):# and n>0:
+        while self.isViable(self.F,  Q, m, n):# and n>0:
             n-=1
 
         # Numerator reduction
@@ -144,7 +144,7 @@ class RationalApproximationONB(object):
         else:
             iF=np.diag([1./y for y in Y]) # TODO move into reduction step and exclude 0s
 
-        while self.isViable(iF, Q[np.where(Y!=0)], m-1, n):# and m>0:
+        while self.isViable(iF, Q[np.where(Y!=0)], m, n):# and m>0:
             m-=1
 
         return m, n
