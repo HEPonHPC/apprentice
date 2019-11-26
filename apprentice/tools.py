@@ -468,7 +468,7 @@ class TuningObjective(object):
     def __init__(self, *args, **kwargs):
         if type(args[0])==str:
             print("Calling mkfrom files")
-            self.mkFromFiles(*args, **kwargs)
+            self.mkFromFiles(*args, **kwargs, filter_envelope=True)
         else:
             print("Calling mkfrom self")
             self.mkFromData(*args, **kwargs)
@@ -480,6 +480,13 @@ class TuningObjective(object):
         binids = list(np.array(self._binids)[keep])
         W2 = self._W2[keep]
         return TuningObjective(RA,Y,E,W2,binids, **kwargs)
+
+    def setReduced(self, keep):
+        self._RA = list(np.array(self._RA)[keep])
+        self._Y = self._Y[keep]
+        self._E = self._E[keep]
+        self._binids = list(np.array(self._binids)[keep])
+        self._W2 = self._W2[keep]
 
     # @classmethod
     def mkFromData(cls, RA, Y, E, W2, binids, **kwargs):
@@ -523,13 +530,11 @@ class TuningObjective(object):
         self._Y      = Y[good]
         self._W2     = np.array([w*w for w in np.array(weights)[good]])
 
+
+        if kwargs.get("filter_envelope") is not None and kwargs["filter_envelope"]:
+            self.setReduced(self.envelope())
+
         self.setAttributes(**kwargs)
-
-
-        # All this needs to be in a function
-        # if limits is not None: self.setLimits(limits)
-
-        # FIXME This should never be in the main class
 
 
     def setAttributes(self, **kwargs):
