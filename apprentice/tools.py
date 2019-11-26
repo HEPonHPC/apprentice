@@ -468,7 +468,7 @@ class TuningObjective(object):
     def __init__(self, *args, **kwargs):
         if type(args[0])==str:
             print("Calling mkfrom files")
-            self.mkFromFiles(*args, **kwargs, filter_envelope=True)
+            self.mkFromFiles(*args, **kwargs)
         else:
             print("Calling mkfrom self")
             self.mkFromData(*args, **kwargs)
@@ -531,7 +531,10 @@ class TuningObjective(object):
         self._W2     = np.array([w*w for w in np.array(weights)[good]])
 
 
-        if kwargs.get("filter_envelope") is not None and kwargs["filter_envelope"]:
+        # Do envelope filtering by default
+        if kwargs.get("filter_envelope") is not None and not kwargs["filter_envelope"]:
+            pass
+        else:
             self.setReduced(self.envelope())
 
         self.setAttributes(**kwargs)
@@ -809,6 +812,9 @@ class TuningObjective(object):
             comm.bcast(fbest, root=0)
 
         return xbest, fbest
+
+    def __len__(self):
+        return len(self._binids)
 
     def __call__(self, x):
         return self.objective(x)
