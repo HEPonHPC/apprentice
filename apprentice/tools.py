@@ -643,9 +643,12 @@ class TuningObjective(object):
             self.setWeights(wdict2)
 
     def envelope(self, nmultistart=10, sel=None):
-        VMIN=np.array([r.vmin for r in self._RA])
-        VMAX=np.array([r.vmax for r in self._RA])
-        return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
+        if 'vmin' in self._RA[0] and 'vmax' in self._RA[0]:
+            VMIN=np.array([r.vmin for r in self._RA])
+            VMAX=np.array([r.vmax for r in self._RA])
+            return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
+        else:
+            return np.array([r for r in range(len(self._RA))])
 
     def fmin(self, nmultistart=10, sel=None):
         return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmin(nmultistart) for num in sel]
