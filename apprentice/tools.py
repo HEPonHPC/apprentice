@@ -2,6 +2,29 @@ import numpy as np
 from collections import OrderedDict
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
 
+
+def neighbours(arr, karr):
+    n = len(arr)
+    asum, maxcount, maxstartindex, maxendindex, changestartto = 0, 0, 0, 0, 0
+
+    for i in range(n):
+        if maxcount + 1 < n and (asum + arr[i]) <= karr[maxcount + 1]:
+            asum += arr[i]
+            maxcount += 1
+            maxstartindex = changestartto
+            maxendindex = i
+        elif asum != 0:
+            asum = asum - arr[i - maxcount] + arr[i]
+            changestartto = i - maxcount + 1
+    if maxstartindex > 0 and arr[maxstartindex - 1] < arr[maxendindex]:
+        maxendindex -= 1
+        maxstartindex -= 1
+    elif maxendindex < n-1 and arr[maxstartindex] > arr[maxendindex + 1]:
+        maxendindex += 1
+        maxstartindex += 1
+    return maxcount, maxstartindex, maxendindex
+
+
 def pInBox(P, box):
     for i in range(len(P)):
         if P[i] < box[i][0]: return False
@@ -652,11 +675,48 @@ class TuningObjective(object):
 
     def envelope(self, nmultistart=10, sel=None):
         if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
+            if self._RA[0].vmin is None or self._RA[0].vmax is None:
+                return np.where(self._Y) # use everything
+
             VMIN=np.array([r.vmin for r in self._RA])
             VMAX=np.array([r.vmax for r in self._RA])
             return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
         else:
             return np.where(self._Y) # use everything
+
+    def hypofilt(self, alpha, nstart=20, nrestart=10):
+        keepids = []
+        for hn in self._hnames:
+            sel = self.obsBins(hn)
+            res = self.minimize(nstart=nstart,nrestart=nrestart,sel=sel)
+            param = res['x']
+            rbvals = self.calc_f_val(param, sel=sel)
+            chi2_test_arr = (rbvals -  self._Y[sel]) ** 2 * self._E2[sel]
+            chi2_test = sum(chi2_test_arr)
+            # if chi2_test!=res["fun"]: print("Warning, chi2 calc is fishy: {} vs. {}".format(chi2_test, res["fun"]))
+
+            npars, nbins = len(param), len(sel)
+            # https://stackoverflow.com/questions/32301698/how-to-build-a-chi-square-distribution-table
+            from scipy.stats import chi2
+            chi2_critical = chi2.isf(alpha, nbins - npars)
+
+            if chi2_test > chi2_critical:
+                chi2_critical_arr = np.zeros(nbins)
+                chi2_critical_arr[       :npars+1] = np.inf
+                chi2_critical_arr[npars+1:       ] = chi2.isf(alpha, np.arange(1, nbins - npars))
+                bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
+                # TODO: Check this special case
+                if bcount < npars+1:
+                    if np.sum(chi2_test_arr[bstart:bend+1]) > chi2_critical:
+                        bcount, bstart, bend = 0, -1, -1
+                    else:
+                        chi2_critical_arr = [chi2_critical] * len(sel)
+                        bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
+
+                if bcount==0: continue
+                for ikeep in range(bstart, bend+1): keepids.append("{}#{}".format(hn, ikeep))
+        return [self._binids.index(x) for x in keepids]
+
 
     def fmin(self, nmultistart=10, sel=None):
         return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmin(nmultistart) for num in sel]
