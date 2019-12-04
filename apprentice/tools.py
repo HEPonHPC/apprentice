@@ -558,8 +558,29 @@ class TuningObjective(object):
         if kwargs.get("filter_envelope") is not None and not kwargs["filter_envelope"]:
             pass
         else:
-            self.setReduced(self.envelope())
+            envindices = self.envelope()
+            removedbinindices = np.setdiff1d(range(len(self._binids)),envindices)
+            print("\n Envelope Filter removed {} bins".format(len(removedbinindices)))
+            for b in sorted(removedbinindices):
+                print("Removing binid {} as it was filtered out by ENVELOPE filter".format(self._binids[b]))
+            self.setReduced(envindices)
+        print("")
+        # Do hypothesis filtering by default
+        if kwargs.get("filter_hypothesis") is not None and not kwargs["filter_hypothesis"]:
+            pass
+        else:
+            self.setAttributes(**kwargs)
+            hypoindices = self.hypofilt(0.05)
+            removedbinindices = np.setdiff1d(range(len(self._binids)), hypoindices)
+            print("\n Hypothesis Filter removed {} bins".format(len(removedbinindices)))
+            for b in sorted(removedbinindices):
+                print("Removing binid {} as it was filtered out by HYPOTHESIS filter".format(self._binids[b]))
+            self.setReduced(hypoindices)
 
+        if (len(self._RA) == 0):
+            print("Filtering removed all bins. Exiting now from Tuning Objective")
+            import sys
+            sys.exit(1)
         self.setAttributes(**kwargs)
 
 
@@ -714,7 +735,10 @@ class TuningObjective(object):
                         bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
 
                 if bcount==0: continue
-                for ikeep in range(bstart, bend+1): keepids.append("{}#{}".format(hn, ikeep))
+                for ikeep in range(bstart, bend+1):
+                    keepids.append(self._binids[sel[ikeep]])
+            else:
+                for ikeep in range(len(sel)): keepids.append(self._binids[sel[ikeep]])
         return [self._binids.index(x) for x in keepids]
 
 
