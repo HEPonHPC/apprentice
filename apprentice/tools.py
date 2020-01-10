@@ -789,7 +789,9 @@ class TuningObjective(object):
     def objective(self, x, sel=slice(None,None,None), unbiased=False):
         if not self.use_cache:
             if isinstance(sel,list) or type(sel).__module__ == np.__name__:
-                vals = [r(x) for r in self._RA[sel]]
+                RR = [self._RA[i] for i in sel]
+                vals = [r(x) for r in RR]
+                # vals = [r(x) for r in self._RA[sel]] --> results in bug
             else:
                 RR = self._RA[sel]
                 vals = [f(x) for f in RR]
@@ -820,7 +822,9 @@ class TuningObjective(object):
         import autograd.numpy as np
         if not self.use_cache:
             if isinstance(sel, list) or type(sel).__module__ == np.__name__:
-                vals = [self._RA[i](x) for i in sel]
+                RR = [self._RA[i] for i in sel]
+                vals = [r(x) for r in RR]
+                # vals = [self._RA[i](x) for i in sel] --> results in bug
             else:
                 RR = self._RA[sel]
                 vals = [f(x) for f in RR]
