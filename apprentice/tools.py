@@ -1,5 +1,7 @@
 import numpy as np
 from collections import OrderedDict
+
+
 # https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
 
 
@@ -19,7 +21,7 @@ def neighbours(arr, karr):
     if maxstartindex > 0 and arr[maxstartindex - 1] < arr[maxendindex]:
         maxendindex -= 1
         maxstartindex -= 1
-    elif maxendindex < n-1 and arr[maxstartindex] > arr[maxendindex + 1]:
+    elif maxendindex < n - 1 and arr[maxstartindex] > arr[maxendindex + 1]:
         maxendindex += 1
         maxstartindex += 1
     return maxcount, maxstartindex, maxendindex
@@ -30,6 +32,7 @@ def pInBox(P, box):
         if P[i] < box[i][0]: return False
         if P[i] > box[i][1]: return False
     return True
+
 
 def read_limitsandfixed(fname):
     """
@@ -49,13 +52,17 @@ def read_limitsandfixed(fname):
                         limits[temp[0]] = (float(temp[1]), float(temp[2]))
     return limits, fixed
 
+
 def readObs(fname):
     with open(fname) as f:
-        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
+        r = [l.strip().split()[0] for l in f if not l.startswith("#")]
     return r
 
+
 import re
-def sorted_nicely( l ):
+
+
+def sorted_nicely(l):
     """ Sorts the given iterable in the way that is expected.
 
     Required arguments:
@@ -64,21 +71,39 @@ def sorted_nicely( l ):
     """
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
-    return sorted(l, key = alphanum_key)
+    return sorted(l, key=alphanum_key)
 
 
-# Standard chi2. w are the squared weights, d is the differences and e are the 1/error^2 erms
-def fast_chi(w,d,e):
-    return np.sum(w*d*d*e)
+# Standard chi2. w are the squared weights, d is the differences and e are the 1/error^2 terms
+def fast_chi(w, d, e):
+    return np.sum(w * d * d * e)
 
-def fast_grad(w,d,e,g):
-    v=-2*w*d*e
-    return np.sum(g*v.reshape((v.shape[0],1)), axis=0)
 
-def least_square(y_data,y_mod,sigma2,w):
-    return w/sigma2 * (y_mod-y_data)**2
+def meanerror(w, d, e, nb):  # WW edited
+    return (np.sum(w * d * d * e)) / nb
 
-def least_squares(y_data,y_mod,sigma2,w,idxs):
+
+def score(d, e, nb, method):  # WW edited
+    s = []
+    for i in range(nb):
+        s.append(d[i] * d[i] * e[i] - np.log(e[i]))
+#    print('score for each bin', s)
+    if method == "meanscore":
+        return np.mean(s)
+    else:
+        return np.median(s)
+
+
+def fast_grad(w, d, e, g):
+    v = -2 * w * d * e
+    return np.sum(g * v.reshape((v.shape[0], 1)), axis=0)
+
+
+def least_square(y_data, y_mod, sigma2, w):
+    return w / sigma2 * (y_mod - y_data) ** 2
+
+
+def least_squares(y_data, y_mod, sigma2, w, idxs):
     """
     Least squares calculation for problem at hand, i.e. length of individual arguments is number of total bins.
     :param y_data: Data.
@@ -88,51 +113,54 @@ def least_squares(y_data,y_mod,sigma2,w,idxs):
     :param idxs: Indices corresponding to observables
     :return:
     """
-    n_o = len(idxs) # number of observables
+    n_o = len(idxs)  # number of observables
     chi2 = np.zeros(n_o)
     V = 0.
     for i in range(n_o):
-        i1 = idxs[i][0]; i2 = idxs[i][-1]
+        i1 = idxs[i][0];
+        i2 = idxs[i][-1]
         chi2[i] = np.sum(np.array(least_square(y_data[i1:i2], y_mod[i1:i2], sigma2[i1:i2], 1.)))
-        V += w[i1]*chi2[i] # weights are for all the bins the same in one observable, thus we just take the first one
+        V += w[i1] * chi2[i]  # weights are for all the bins the same in one observable, thus we just take the first one
     return V, chi2
-
-
 
 
 def numNonZeroCoeff(app, threshold=1e-6):
     """
     Determine the number of non-zero coefficients for an approximation app.
     """
-    n=0
+    n = 0
     for p in app._pcoeff:
-        if abs(p)>threshold: n+=1
+        if abs(p) > threshold: n += 1
 
     if hasattr(app, '_qcoeff'):
         for q in app._qcoeff:
-            if abs(q)>threshold: n+=1
+            if abs(q) > threshold: n += 1
 
     return n
 
 
 def numNLPoly(dim, order):
-    if order <2: return 0
+    if order < 2:
+        return 0
     else:
         return numCoeffsPoly(dim, order) - numCoeffsPoly(dim, 1)
+
 
 def numNL(dim, order):
     """
     Number of non-linearities.
     """
     m, n = order
-    if n ==0 : return numNLPoly(dim, m)
-    if m <2 and n <2: return 0
-    elif m<2 and n>=2:
+    if n == 0: return numNLPoly(dim, m)
+    if m < 2 and n < 2:
+        return 0
+    elif m < 2 and n >= 2:
         return numCoeffsPoly(dim, n) - numCoeffsPoly(dim, 1)
-    elif n<2 and m>=2:
+    elif n < 2 and m >= 2:
         return numCoeffsPoly(dim, m) - numCoeffsPoly(dim, 1)
     else:
-        return numCoeffsRapp(dim, order) -  numCoeffsRapp(dim, (1,1))
+        return numCoeffsRapp(dim, order) - numCoeffsRapp(dim, (1, 1))
+
 
 def numCoeffsPoly(dim, order):
     """
@@ -141,14 +169,16 @@ def numCoeffsPoly(dim, order):
     ntok = 1
     r = min(order, dim)
     for i in range(r):
-      ntok = ntok*(dim+order-i)/(i+1)
+        ntok = ntok * (dim + order - i) / (i + 1)
     return int(ntok)
+
 
 def numCoeffsRapp(dim, order):
     """
     Number of coefficients a dim-dimensional rational approximation of order (m,n) has.
     """
     return numCoeffsPoly(dim, order[0]) + numCoeffsPoly(dim, order[1])
+
 
 def maxOrder(N, dim):
     """
@@ -158,8 +188,8 @@ def maxOrder(N, dim):
     """
     from scipy.special import comb
     omax = 0
-    while comb(dim + omax+1, omax+1) + 1 <= N: # The '+1' stands for a order 0 polynomial's dof
-        omax+=1
+    while comb(dim + omax + 1, omax + 1) + 1 <= N:  # The '+1' stands for a order 0 polynomial's dof
+        omax += 1
     return omax
 
 
@@ -182,26 +212,27 @@ def readH5(fname, idx=[0], xfield="params", yfield="values"):
     # Otherwise we need to check that we are not out of bounds.
 
     # pnames = [p for p in f.get(xfield).attrs["names"]]
-    if len(idx)>0:
-        assert(max(idx) <= indexsize)
+    if len(idx) > 0:
+        assert (max(idx) <= indexsize)
     else:
-        idx=[i for i in range(indexsize)]
+        idx = [i for i in range(indexsize)]
 
     ret = []
     f = h5py.File(fname, "r")
 
     # Read parameters
-    _X=np.array(f.get(xfield))
+    _X = np.array(f.get(xfield))
 
     # Read y-values
     for i in idx:
-        _Y=np.atleast_1d(f.get(yfield)[i])
-        USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) )
-        ret.append([ _X[USE], _Y[USE] ])
+        _Y = np.atleast_1d(f.get(yfield)[i])
+        USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)))
+        ret.append([_X[USE], _Y[USE]])
 
     f.close()
 
     return ret
+
 
 # TODO rewrite such that yfield is a list of datasetnames, e.g. yfield=["values", "errors"]
 
@@ -224,27 +255,28 @@ def readH52(fname, idx=[0], xfield="params", yfield1="values", yfield2="errors")
     # Otherwise we need to check that we are not out of bounds.
 
     # pnames = [p for p in f.get(xfield).attrs["names"]]
-    if len(idx)>0:
-        assert(max(idx) <= indexsize)
+    if len(idx) > 0:
+        assert (max(idx) <= indexsize)
     else:
-        idx=[i for i in range(indexsize)]
+        idx = [i for i in range(indexsize)]
 
     ret = []
     f = h5py.File(fname, "r")
 
     # Read parameters
-    _X=np.array(f.get(xfield))
+    _X = np.array(f.get(xfield))
 
     # Read y-values
     for i in idx:
-        _Y=np.atleast_1d(f.get(yfield1)[i])
-        _E=np.atleast_1d(f.get(yfield2)[i])
-        USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
-        ret.append([ _X[USE], _Y[USE], _E[USE] ])
+        _Y = np.atleast_1d(f.get(yfield1)[i])
+        _E = np.atleast_1d(f.get(yfield2)[i])
+        USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
+        ret.append([_X[USE], _Y[USE], _E[USE]])
 
     f.close()
 
     return ret
+
 
 def readH53(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
     """
@@ -262,24 +294,25 @@ def readH53(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
     f = h5py.File(fname, "r")
 
     # Read parameters
-    _X=np.array(f.get(xfield))
+    _X = np.array(f.get(xfield))
     Y = f.get(yfield1)[:][idx]
 
     if yfield2 in f:
         E = f.get(yfield2)[:][idx]
         # Read y-values
         for i in range(len(idx)):
-            _Y=Y[i]
-            _E=E[i]
-            USE = np.where( (~np.isinf(_Y))  & (~np.isnan(_Y)) & (~np.isinf(_E))& (~np.isnan(_E)) )
-            ret.append([ _X[USE], _Y[USE], _E[USE] ])
+            _Y = Y[i]
+            _E = E[i]
+            USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
+            ret.append([_X[USE], _Y[USE], _E[USE]])
     else:
         for i in range(len(idx)):
-            _Y=Y[i]
+            _Y = Y[i]
             ret.append([_X, _Y, np.zeros(len(_Y))])
 
     f.close()
     return ret
+
 
 def indexMap(fname, lsub):
     """
@@ -287,19 +320,22 @@ def indexMap(fname, lsub):
     import numpy as np
     import h5py
 
-    with h5py.File(fname, "r") as f: II = [x.decode() for x in f.get("index")[:] ]
-    if len(lsub)==0: lsub = np.unique([x.split("#")[0] for x in II])
-    return {ls : np.where(np.char.find(II, ls)>-1)[0] for ls in lsub}
+    with h5py.File(fname, "r") as f: II = [x.decode() for x in f.get("index")[:]]
+    if len(lsub) == 0: lsub = np.unique([x.split("#")[0] for x in II])
+    return {ls: np.where(np.char.find(II, ls) > -1)[0] for ls in lsub}
+
 
 def readIndex(fname):
     import h5py
     with h5py.File(fname, "r") as f:
-        return [x.decode() for x in f.get("index")[:] ]
+        return [x.decode() for x in f.get("index")[:]]
+
 
 def readObsNames(fname):
     import h5py
     with h5py.File(fname, "r") as f:
-        return np.unique([x.decode().split("#")[0] for x in f.get("index")[:] ])
+        return np.unique([x.decode().split("#")[0] for x in f.get("index")[:]])
+
 
 def readPnamesH5(fname, xfield):
     """
@@ -313,6 +349,7 @@ def readPnamesH5(fname, xfield):
 
     return pnames
 
+
 def readData(fname, delimiter=","):
     """
     Read CSV formatted data. The last column is interpreted as
@@ -323,10 +360,11 @@ def readData(fname, delimiter=","):
     if not os.path.exists(fname): raise Exception("File {} not found".format(fname))
     import numpy as np
     D = np.loadtxt(fname, delimiter=delimiter)
-    X=D[:,0:-1]
-    Y=D[:,-1]
-    USE = np.where( (~np.isinf(Y))  & (~np.isnan(Y)) )
+    X = D[:, 0:-1]
+    Y = D[:, -1]
+    USE = np.where((~np.isinf(Y)) & (~np.isnan(Y)))
     return X[USE], Y[USE]
+
 
 def readApprentice(fname):
     """
@@ -342,24 +380,26 @@ def readApprentice(fname):
         app = apprentice.PolynomialApproximation(fname=fname)
     return app
 
+
 def gradientRecursionSlow(dim, struct, X, jacfac):
-    DER=[]
+    DER = []
     for coord in range(dim):
         der = [0.]
-        for s in struct[1:]: # Start with the linear terms
+        for s in struct[1:]:  # Start with the linear terms
             if s[coord] == 0:
                 der.append(0.)
                 continue
             term = 1.0
             for i in range(len(s)):
-                if i==coord:
-                    term *= s[i]*jacfac[i]
-                    term *= X[i]**(s[i]-1)
+                if i == coord:
+                    term *= s[i] * jacfac[i]
+                    term *= X[i] ** (s[i] - 1)
                 else:
-                    term *= X[i]**s[i]
+                    term *= X[i] ** s[i]
             der.append(term)
         DER.append(der)
     return DER
+
 
 def gradientRecursion(X, struct, jacfac):
     """
@@ -369,46 +409,48 @@ def gradientRecursion(X, struct, jacfac):
     returns array suitbale for multiplication with coefficient vector
     """
     import numpy as np
-    dim=len(X)
-    REC=np.zeros((dim, len(struct)))
+    dim = len(X)
+    REC = np.zeros((dim, len(struct)))
     _RR = np.power(X, struct)
     for coord in range(dim):
-        nonzero=np.where(struct[:,coord]!=0)
-        RR=np.copy(_RR[nonzero])
-        RR[:,coord]=jacfac[coord]*struct[nonzero][:,coord] * np.power(X[coord], struct[nonzero][:,coord]-1)
+        nonzero = np.where(struct[:, coord] != 0)
+        RR = np.copy(_RR[nonzero])
+        RR[:, coord] = jacfac[coord] * struct[nonzero][:, coord] * np.power(X[coord], struct[nonzero][:, coord] - 1)
         REC[coord][nonzero] = np.prod(RR, axis=1)
     return REC
+
 
 def getPolyGradient(coeff, X, dim=2, n=2):
     from apprentice import monomial
     import numpy as np
     struct_q = monomial.monomialStructure(dim, n)
-    grad = np.zeros(dim,dtype=np.float64)
+    grad = np.zeros(dim, dtype=np.float64)
 
     for coord in range(dim):
         """
         Partial derivative w.r.t. coord
         """
         der = [0.]
-        if dim==1:
-            for s in struct_q[1:]: # Start with the linear terms
-                der.append(s*X[0]**(s-1))
+        if dim == 1:
+            for s in struct_q[1:]:  # Start with the linear terms
+                der.append(s * X[0] ** (s - 1))
         else:
-            for s in struct_q[1:]: # Start with the linear terms
+            for s in struct_q[1:]:  # Start with the linear terms
                 if s[coord] == 0:
                     der.append(0.)
                     continue
                 term = 1.0
                 for i in range(len(s)):
                     # print(s[i])
-                    if i==coord:
+                    if i == coord:
                         term *= s[i]
-                        term *= X[i]**(s[i]-1)
+                        term *= X[i] ** (s[i] - 1)
                     else:
-                        term *= X[i]**s[i]
+                        term *= X[i] ** s[i]
                 der.append(term)
         grad[coord] = np.dot(der, coeff)
     return grad
+
 
 def possibleOrders(N, dim, mirror=False):
     """
@@ -417,21 +459,22 @@ def possibleOrders(N, dim, mirror=False):
     """
     from scipy.special import comb
     omax = 0
-    while comb(dim + omax+1, omax+1) + 1 <= N: # The '+1' stands for a order 0 polynomial's dof
-        omax+=1
+    while comb(dim + omax + 1, omax + 1) + 1 <= N:  # The '+1' stands for a order 0 polynomial's dof
+        omax += 1
 
     combs = []
-    for m in reversed(range(omax+1)):
-        for n in reversed(range(m+1)):
-            if comb(dim + m, m) + comb(dim+n,n) <= N:
-                combs.append((m,n))
+    for m in reversed(range(omax + 1)):
+        for n in reversed(range(m + 1)):
+            if comb(dim + m, m) + comb(dim + n, n) <= N:
+                combs.append((m, n))
 
     if mirror:
-        temp=[tuple(reversed(i)) for i in combs]
+        temp = [tuple(reversed(i)) for i in combs]
         for t in temp:
             if not t in combs:
                 combs.append(t)
     return combs
+
 
 def chunkIt(seq, num):
     avg = len(seq) / float(num)
@@ -444,14 +487,16 @@ def chunkIt(seq, num):
 
     # Fix size, sometimes there is spillover
     # TODO: replace with while if problem persists
-    if len(out)>num:
+    if len(out) > num:
         out[-2].extend(out[-1])
-        out=out[0:-1]
+        out = out[0:-1]
 
-    if len(out)!=num:
+    if len(out) != num:
         raise Exception("something went wrong in chunkIt, the target size differs from the actual size")
 
     return out
+
+
 # Todo add binwidth in data model
 def readExpData(fname, binids):
     import json
@@ -459,27 +504,31 @@ def readExpData(fname, binids):
     with open(fname) as f: dd = json.load(f)
     Y = np.array([dd[b][0] for b in binids])
     E = np.array([dd[b][1] for b in binids])
-    return dict([(b, (y, e)) for b,y,e in zip(binids,Y,E)])
+    return dict([(b, (y, e)) for b, y, e in zip(binids, Y, E)])
+
 
 def readTuneResult(fname):
     import json
     with open(fname) as f:
         return json.load(f)
 
+
 # TODO add load filtering
 def readApprox(fname, set_structures=True):
     import json, apprentice
-    with open(fname) as f: rd = json.load(f)
+    with open(fname) as f:
+        rd = json.load(f)
     binids = sorted_nicely(rd.keys())
     binids = [x for x in binids if not x.startswith("__")]
 
     APP = {}
     for b in binids:
         try:
-            APP[b]=apprentice.RationalApproximation(initDict=rd[b])
+            APP[b] = apprentice.RationalApproximation(initDict=rd[b])
         except:
-            APP[b]=apprentice.PolynomialApproximation(initDict=rd[b], set_structures=set_structures)
+            APP[b] = apprentice.PolynomialApproximation(initDict=rd[b], set_structures=set_structures)
     return binids, [APP[b] for b in binids]
+
 
 def mkCov(yerrs):
     import numpy as np
@@ -489,7 +538,7 @@ def mkCov(yerrs):
 class TuningObjective(object):
 
     def __init__(self, *args, **kwargs):
-        if type(args[0])==str:
+        if type(args[0]) == str:
             print("Calling mkfrom files")
             self.mkFromFiles(*args, **kwargs)
         else:
@@ -502,7 +551,7 @@ class TuningObjective(object):
         E = self._E[keep]
         binids = list(np.array(self._binids)[keep])
         W2 = self._W2[keep]
-        return TuningObjective(RA,Y,E,W2,binids, **kwargs)
+        return TuningObjective(RA, Y, E, W2, binids, **kwargs)
 
     def setReduced(self, keep):
         self._RA = list(np.array(self._RA)[keep])
@@ -516,7 +565,7 @@ class TuningObjective(object):
         cls._RA = RA
         cls._Y = Y
         cls._E = E
-        cls._W2=W2
+        cls._W2 = W2
         cls._binids = binids
 
         cls.setAttributes(**kwargs)
@@ -525,41 +574,40 @@ class TuningObjective(object):
         cache_recursions = kwargs["cache_recursions"] if kwargs.get("cache_recursions") is not None else True
         import apprentice
         import numpy as np
-        binids, RA = apprentice.tools.readApprox(f_approx, set_structures = False)
+        binids, RA = apprentice.tools.readApprox(f_approx, set_structures=False)
         hnames = [b.split("#")[0] for b in binids]
-        bnums  = [int(b.split("#")[1]) for b in binids]
+        bnums = [int(b.split("#")[1]) for b in binids]
 
         # Initial weights
         weights = self.initWeights(f_weights, hnames, bnums)
 
         # Filter here to use only certain bins/histos
-        dd = apprentice.tools.readExpData(f_data, [str(b) for b in  binids])
-        Y  = np.array([dd[b][0] for b in binids])
-        E  = np.array([dd[b][1] for b in binids])
+        dd = apprentice.tools.readExpData(f_data, [str(b) for b in binids])
+        Y = np.array([dd[b][0] for b in binids])
+        E = np.array([dd[b][1] for b in binids])
 
         # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
         for num, bid in enumerate(binids):
-            if weights[num]>0 and E[num]>0:
-                if cache_recursions and RA[0]._scaler!=RA[num]._scaler:
+            if weights[num] > 0 and E[num] > 0:
+                if cache_recursions and RA[0]._scaler != RA[num]._scaler:
                     print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
                 good.append(num)
 
         # TODO This needs some re-engineering to allow fow multiple filterings
-        self._RA     = [RA[g]     for g in good]
+        self._RA = [RA[g] for g in good]
         self._binids = [binids[g] for g in good]
-        self._E      = E[good]
-        self._Y      = Y[good]
-        self._W2     = np.array([w*w for w in np.array(weights)[good]])
-
+        self._E = E[good]
+        self._Y = Y[good]
+        self._W2 = np.array([w * w for w in np.array(weights)[good]])
 
         # Do envelope filtering by default
         if kwargs.get("filter_envelope") is not None and not kwargs["filter_envelope"]:
             pass
         else:
             envindices = self.envelope()
-            removedbinindices = np.setdiff1d(range(len(self._binids)),envindices)
+            removedbinindices = np.setdiff1d(range(len(self._binids)), envindices)
             print("\n Envelope Filter removed {} bins".format(len(removedbinindices)))
             for b in sorted(removedbinindices):
                 print("Removing binid {} as it was filtered out by ENVELOPE filter".format(self._binids[b]))
@@ -583,11 +631,10 @@ class TuningObjective(object):
             sys.exit(1)
         self.setAttributes(**kwargs)
 
-
     def setAttributes(self, **kwargs):
         self._dim = self._RA[0].dim
-        self._E2 = np.array([1./e**2 for e in self._E])
-        self._SCLR = self._RA[0]._scaler # Here we quietly assume already that all scalers are identical
+        self._E2 = np.array([1. / e ** 2 for e in self._E])
+        self._SCLR = self._RA[0]._scaler  # Here we quietly assume already that all scalers are identical
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         self._bounds = self._SCLR.box
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
@@ -605,7 +652,7 @@ class TuningObjective(object):
 
         if cache_recursions:
             print("Congrats, you are using an experimental feature.")
-            self.use_cache=True
+            self.use_cache = True
             self.prepareCache()
             self._PC = np.zeros((len(self._RA), np.max([r._pcoeff.shape[0] for r in self._RA])))
             for num, r in enumerate(self._RA):
@@ -613,26 +660,26 @@ class TuningObjective(object):
 
             # Denominator
             nmax = np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
-            if nmax>0:
-                self._hasRationals=True
+            if nmax > 0:
+                self._hasRationals = True
                 self._QC = np.zeros((len(self._RA), nmax))
                 for num, r in enumerate(self._RA):
                     if hasattr(r, "n"):
                         self._QC[num][:r._qcoeff.shape[0]] = r._qcoeff
                     else:
                         self._QC[num][0] = None
-                self._mask = np.where(np.isfinite(self._QC[:,0]))
+                self._mask = np.where(np.isfinite(self._QC[:, 0]))
             else:
-                self._hasRationals=False
+                self._hasRationals = False
 
         else:
-            self.use_cache=False
+            self.use_cache = False
             for r in self._RA:
                 r.setStructures()
 
     def prepareCache(self):
         import apprentice
-        orders =  []
+        orders = []
         for r in self._RA:
             orders.append(r.m)
             if hasattr(r, "n"):
@@ -640,7 +687,7 @@ class TuningObjective(object):
 
         omax = max(orders)
         self._structure = apprentice.monomialStructure(self.dim, omax)
-        if self.dim==1:
+        if self.dim == 1:
             self.recurrence = apprentice.monomial.recurrence1D
         else:
             self.recurrence = apprentice.monomial.recurrence
@@ -654,9 +701,9 @@ class TuningObjective(object):
         """
         Sanity check to test if caching is possible
         """
-        s=self._RA[0]._scaler
+        s = self._RA[0]._scaler
         for r in self._RA[1:]:
-            if s!=r._scaler:
+            if s != r._scaler:
                 return False
         return True
 
@@ -668,12 +715,12 @@ class TuningObjective(object):
 
     def initWeights(self, fname, hnames, bnums):
         import apprentice
-        matchers=apprentice.weights.read_pointmatchers(fname)
-        weights=[]
+        matchers = apprentice.weights.read_pointmatchers(fname)
+        weights = []
         for hn, bnum in zip(hnames, bnums):
-            pathmatch_matchers = [(m,wstr) for m,wstr in matchers.items() if m.match_path(hn)]
-            posmatch_matchers  = [(m,wstr) for (m,wstr) in pathmatch_matchers if m.match_pos(bnum)]
-            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0 #< NB. using last match
+            pathmatch_matchers = [(m, wstr) for m, wstr in matchers.items() if m.match_path(hn)]
+            posmatch_matchers = [(m, wstr) for (m, wstr) in pathmatch_matchers if m.match_pos(bnum)]
+            w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0  # < NB. using last match
             weights.append(w)
         return weights
 
@@ -682,37 +729,37 @@ class TuningObjective(object):
         Convenience function to update the bins weights.
         """
         if type(wdict) == OrderedDict:
-            #self._wdict = {k:[] for k in wdict.keys()}
-            self._wdict = OrderedDict([(k,[]) for k in wdict.keys()])
+            # self._wdict = {k:[] for k in wdict.keys()}
+            self._wdict = OrderedDict([(k, []) for k in wdict.keys()])
             for num, b in enumerate(self._binids):
                 for hn, w in wdict.items():
                     if hn in b:
-                        self._W2[num] = w*w
+                        self._W2[num] = w * w
                         self._wdict[hn].append(w)
         else:
-            #wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
-            wdict2 = OrderedDict([(hn,_x) for hn, _x in zip(self.hnames, wdict)])
+            # wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
+            wdict2 = OrderedDict([(hn, _x) for hn, _x in zip(self.hnames, wdict)])
             self.setWeights(wdict2)
 
     def envelope(self, nmultistart=10, sel=None):
         if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
             if self._RA[0].vmin is None or self._RA[0].vmax is None:
-                return np.where(self._Y) # use everything
+                return np.where(self._Y)  # use everything
 
-            VMIN=np.array([r.vmin for r in self._RA])
-            VMAX=np.array([r.vmax for r in self._RA])
+            VMIN = np.array([r.vmin for r in self._RA])
+            VMAX = np.array([r.vmax for r in self._RA])
             return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
         else:
-            return np.where(self._Y) # use everything
+            return np.where(self._Y)  # use everything
 
     def hypofilt(self, alpha, nstart=20, nrestart=10):
         keepids = []
         for hn in self._hnames:
             sel = self.obsBins(hn)
-            res = self.minimize(nstart=nstart,nrestart=nrestart,sel=sel)
+            res = self.minimize(nstart=nstart, nrestart=nrestart, sel=sel)
             param = res['x']
             rbvals = self.calc_f_val(param, sel=sel)
-            chi2_test_arr = (rbvals -  self._Y[sel]) ** 2 * self._E2[sel]
+            chi2_test_arr = (rbvals - self._Y[sel]) ** 2 * self._E2[sel]
             chi2_test = sum(chi2_test_arr)
             # if chi2_test!=res["fun"]: print("Warning, chi2 calc is fishy: {} vs. {}".format(chi2_test, res["fun"]))
 
@@ -723,30 +770,31 @@ class TuningObjective(object):
 
             if chi2_test > chi2_critical:
                 chi2_critical_arr = np.zeros(nbins)
-                chi2_critical_arr[       :npars+1] = np.inf
-                chi2_critical_arr[npars+1:       ] = chi2.isf(alpha, np.arange(1, nbins - npars))
+                chi2_critical_arr[:npars + 1] = np.inf
+                chi2_critical_arr[npars + 1:] = chi2.isf(alpha, np.arange(1, nbins - npars))
                 bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
                 # TODO: Check this special case
-                if bcount < npars+1:
-                    if np.sum(chi2_test_arr[bstart:bend+1]) > chi2_critical:
+                if bcount < npars + 1:
+                    if np.sum(chi2_test_arr[bstart:bend + 1]) > chi2_critical:
                         bcount, bstart, bend = 0, -1, -1
                     else:
                         chi2_critical_arr = [chi2_critical] * len(sel)
                         bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
 
-                if bcount==0: continue
-                for ikeep in range(bstart, bend+1):
+                if bcount == 0: continue
+                for ikeep in range(bstart, bend + 1):
                     keepids.append(self._binids[sel[ikeep]])
             else:
                 for ikeep in range(len(sel)): keepids.append(self._binids[sel[ikeep]])
         return [self._binids.index(x) for x in keepids]
 
-
     def fmin(self, nmultistart=10, sel=None):
-        return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmin(nmultistart) for num in sel]
+        return [(i % 10 == 0 and print(i)) or r.fmin(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [
+            self._RA[num].fmin(nmultistart) for num in sel]
 
     def fmax(self, nmultistart=10, sel=None):
-        return [(i % 10 == 0 and print(i)) or r.fmax(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [self._RA[num].fmax(nmultistart) for num in sel]
+        return [(i % 10 == 0 and print(i)) or r.fmax(nmultistart) for i, r in enumerate(self._RA)] if sel is None else [
+            self._RA[num].fmax(nmultistart) for num in sel]
 
     def weights_obs(self):
         """
@@ -755,28 +803,38 @@ class TuningObjective(object):
         """
         return [w[0] for w in self._wdict.values()]
 
-    def obsGoF(self, hname, x):
+    def obsGoF(self, hname, x, method):
         """
         Convenience function to get the (unweighted) contribution to the gof for obs hname at point x
         """
         import numpy as np
         _bids = [num for num, b in enumerate(self._binids) if hname in b]
-        return fast_chi(np.ones(len(_bids)), self._Y[_bids], [self._RA[i](x) for i in _bids], self._E2[_bids] , len(_bids))
+        RR = [self._RA[i] for i in _bids]
+        vals = [r(x) for r in RR]
+        #        return fast_chi(np.ones(len(_bids)), self._Y[_bids], [self._RA[i](x) for i in _bids], self._E2[_bids] , len(_bids))
+        # WW commented
+        if method == "portfolio":
+            return meanerror(np.ones(len(_bids)), self._Y[_bids] - vals, self._E2[_bids], len(_bids))  # WW edited
+        else:  # scoring method
+            return score(self._Y[_bids] - vals, self._E2[_bids], len(_bids), method)  # WW edited
 
-    def meanCont(self, x):
+    def meanCont(self, x, method):
         """
         Convenience function that return a list if the obsGof for all hnames at x
         """
-        return [self.obsGoF(hn, x) for hn in self.hnames]
+        return [self.obsGoF(hn, x, method) for hn in self.hnames]
 
     @property
-    def hnames(self): return self._hnames
+    def hnames(self):
+        return self._hnames
 
     @property
-    def dim(self): return self._dim
+    def dim(self):
+        return self._dim
 
     @property
-    def pnames(self): return self._SCLR.pnames
+    def pnames(self):
+        return self._SCLR.pnames
 
     def _objective_obs(self, x):
         """
@@ -784,14 +842,15 @@ class TuningObjective(object):
         :param x:
         :return:
         """
-        return least_squares(self._Y, [f(x) for f in self._RA], 1/self._E2, np.sqrt(self._W2), self._idxs) # E2 is reciprocal
+        return least_squares(self._Y, [f(x) for f in self._RA], 1 / self._E2, np.sqrt(self._W2),
+                             self._idxs)  # E2 is reciprocal
 
-    def objective(self, x, sel=slice(None,None,None), unbiased=False):
+    def objective(self, x, sel=slice(None, None, None), unbiased=False):
         if not self.use_cache:
-            if isinstance(sel,list) or type(sel).__module__ == np.__name__:
+            if isinstance(sel, list) or type(sel).__module__ == np.__name__:
                 RR = [self._RA[i] for i in sel]
                 vals = [r(x) for r in RR]
-                # vals = [r(x) for r in self._RA[sel]] --> results in bug
+            #                vals = [r(x) for r in self._RA[sel]] #--> results in bug
             else:
                 RR = self._RA[sel]
                 vals = [f(x) for f in RR]
@@ -799,7 +858,7 @@ class TuningObjective(object):
             self.setCache(x)
             vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
-                den   = np.sum(self._maxrec * self._QC[sel], axis=1)
+                den = np.sum(self._maxrec * self._QC[sel], axis=1)
                 vals[self._mask[sel]] /= den[self._mask[sel]]
 
         if unbiased:
@@ -807,18 +866,18 @@ class TuningObjective(object):
         else:
             return fast_chi(self._W2[sel], self._Y[sel] - vals, self._E2[sel])
 
-    def gradient(self, x, sel=slice(None,None,None), unbiased=False):
+    def gradient(self, x, sel=slice(None, None, None), unbiased=False):
         self.setCache(x)
         vals = np.sum(self._maxrec * self._PC[sel], axis=1)
-        X  = self._SCLR.scale(x)
+        X = self._SCLR.scale(x)
         JF = self._SCLR.jacfac
         struct = self._structure
         GR = gradientRecursion(X, struct, JF)
-        temp=np.sum(self._PC.reshape((self._PC.shape[0],1,self._PC.shape[1]))*GR,axis=2)
+        temp = np.sum(self._PC.reshape((self._PC.shape[0], 1, self._PC.shape[1])) * GR, axis=2)
 
         return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], temp)
 
-    def calc_f_val(self,x, sel=slice(None,None,None)):
+    def calc_f_val(self, x, sel=slice(None, None, None)):
         import autograd.numpy as np
         if not self.use_cache:
             if isinstance(sel, list) or type(sel).__module__ == np.__name__:
@@ -846,49 +905,52 @@ class TuningObjective(object):
         lchix = self.obswiseObjective(x, unbiased=True)
         lchiy = self.obswiseObjective(y, unbiased=True)
 
-        comp = [lx<ly for lx, ly in zip(lchix, lchiy)]
+        comp = [lx < ly for lx, ly in zip(lchix, lchiy)]
         return comp.count(True) > comp.count(False)
 
     def startPoint(self, ntrials):
-        if ntrials==0:
+        if ntrials == 0:
             if self._debug: print("StartPoint: {}".format(self._SCLR.center))
             return self._SCLR.center
         import numpy as np
-        _PP = np.random.uniform(low=self._SCLR._Xmin,high=self._SCLR._Xmax,size=(ntrials, self._SCLR.dim))
+        _PP = np.random.uniform(low=self._SCLR._Xmin, high=self._SCLR._Xmax, size=(ntrials, self._SCLR.dim))
         _CH = [self.objective(p) for p in _PP]
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
 
-    def minimize(self, nstart, nrestart=1, sel=slice(None,None,None), use_grad=False, method="L-BFGS-B"):
+    def minimize(self, nstart, nrestart=1, sel=slice(None, None, None), use_grad=False, method="L-BFGS-B"):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
         for t in range(nrestart):
             if use_grad:
                 if self._debug: print("using gradient")
-                res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds, jac=self.gradient, method=method)
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), self.startPoint(nstart),
+                                        bounds=self._bounds, jac=self.gradient, method=method)
             else:
-                res = optimize.minimize(lambda x: self.objective(x,sel=sel), self.startPoint(nstart), bounds=self._bounds, method=method)
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), self.startPoint(nstart),
+                                        bounds=self._bounds, method=method)
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
         return finalres
 
-    def minimize_mpi(self, nstart, nrestart=10, sel=slice(None,None,None)):
+    def minimize_mpi(self, nstart, nrestart=10, sel=slice(None, None, None)):
         from mpi4py import MPI
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         import apprentice as app
-        rankWork = app.tools.chunkIt([_ for _ in range(nrestart)], comm.Get_size()) if rank==0 else []
+        rankWork = app.tools.chunkIt([_ for _ in range(nrestart)], comm.Get_size()) if rank == 0 else []
         rankWork = comm.scatter(rankWork, root=0)
         np.random.seed(rank)
 
         from scipy import optimize
-        R   = [optimize.minimize(lambda x: self.objective(x, sel=sel), self.startPoint(nstart), bounds=self._bounds) for _ in rankWork]
-        X   = [r.x.tolist() for r in R]
+        R = [optimize.minimize(lambda x: self.objective(x, sel=sel), self.startPoint(nstart), bounds=self._bounds) for _
+             in rankWork]
+        X = [r.x.tolist() for r in R]
         FUN = [r.fun.tolist() for r in R]
         ibest = np.argmin(FUN)
-        X   = comm.gather(X[ibest],   root=0)
+        X = comm.gather(X[ibest], root=0)
         FUN = comm.gather(FUN[ibest], root=0)
 
         xbest, fbest = None, None
@@ -917,6 +979,7 @@ def history_dict(binids, hnames=None):
         hdict[hname].append(bid)
     return hdict, hnames
 
+
 def weights_dict(w2_bins, hdict):
     """
     Transform bin weights to weights dictionary.
@@ -924,14 +987,15 @@ def weights_dict(w2_bins, hdict):
     :param hdict: History dictionary.
     :return: Weights dictionary.
     """
-    #wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
-    wdict = OrderedDict([(k,np.zeros(len(v))) for (k, v) in zip(hdict.keys(), hdict.values())])
+    # wdict = {k:np.zeros(len(v)) for (k,v) in zip(hdict.keys(),hdict.values())}
+    wdict = OrderedDict([(k, np.zeros(len(v))) for (k, v) in zip(hdict.keys(), hdict.values())])
     i = 0
-    for (k,v) in zip(wdict.keys(),wdict.values()):
+    for (k, v) in zip(wdict.keys(), wdict.values()):
         n = len(v)
-        wdict[k][:] = np.sqrt(np.array(w2_bins[i:i+n]))
+        wdict[k][:] = np.sqrt(np.array(w2_bins[i:i + n]))
         i += n
     return wdict
+
 
 def indices(hnames, dict):
     """
@@ -940,17 +1004,16 @@ def indices(hnames, dict):
     :param dict: Either weights or history dict.
     :return: Indices dictionary.
     """
-    idxs = [[0,0] for _ in hnames]
+    idxs = [[0, 0] for _ in hnames]
     i = 0
-    for (k,v) in zip(range(len(hnames)),dict.values()):
+    for (k, v) in zip(range(len(hnames)), dict.values()):
         n = len(v)
-        idxs[k][:] = [i,i + n]
+        idxs[k][:] = [i, i + n]
         i += n
     return idxs
 
 
-
-def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None,model_bias=None):
+def artificial_data_from_RA(approximation_file, p0, eps=None, var=None, outfile=None, model_bias=None):
     """
     Create in-silico data from rational approximation file corrupting the data with zero mean Gaussian noise (lenghts of provided arguments must match the number of observables in the provided approximation file).
     :param approximation_file: Approximation json file.
@@ -974,21 +1037,23 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
     if model_bias is None:
         model_bias = np.zeros(n_o)
     if n_o != len(p0) or n_o != len(eps) or n_o != len(var) or n_o != len(model_bias):
-        raise TypeError("Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(n_o))
-    RA_dict = dict([(b, r) for (b,r) in zip(binids,RA)])
+        raise TypeError(
+            "Lengths of p0, eps, var and model_bias (if provided) and number of observables have to be the same. There are {} observables.".format(
+                n_o))
+    RA_dict = dict([(b, r) for (b, r) in zip(binids, RA)])
     data = dict([(b, []) for b in binids])
 
-    Ey = [] # expected values of data
+    Ey = []  # expected values of data
 
-    for (h,p,e,v,b) in zip(hnames,p0,eps,var,model_bias):
+    for (h, p, e, v, b) in zip(hnames, p0, eps, var, model_bias):
         for i in hdict[h]:
-            bid = "{h}#{i}".format(h=h,i=i)
+            bid = "{h}#{i}".format(h=h, i=i)
             r = RA_dict[bid]
             mu = r(p)
-            sigma2_eps = e*abs(mu)
+            sigma2_eps = e * abs(mu)
             d = mu + b + np.random.normal(0.0, np.sqrt(sigma2_eps)) + np.random.normal(0.0, np.sqrt(v))
             data[bid] = [d, np.sqrt(sigma2_eps + v)] if sigma2_eps + v > 0 else [d, 1.0]
-            Ey.append(mu+b)
+            Ey.append(mu + b)
 
     if outfile is None:
         outfile = 'data.json'
@@ -996,10 +1061,13 @@ def artificial_data_from_RA(approximation_file,p0,eps=None,var=None,outfile=None
         json.dump(data, f)
 
     return Ey
-def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, restart_filter=100,seed = 54321, N=100, epsmodel = 0.):
+
+
+def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, restart_filter=100, seed=54321, N=100,
+                          epsmodel=0.):
     np.random.seed(seed)
     import json
-    with open(experimentaldatafile,'r') as f:
+    with open(experimentaldatafile, 'r') as f:
         expdata = json.load(f)
     binids, RA = readApprox(approximationfile)
     hdict, _ = history_dict(binids)
@@ -1012,12 +1080,13 @@ def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, r
     if len(expdata.keys()) != len(binids) or len(bbdict.keys()) != len(binids):
         n_b = len(binids)
         raise TypeError(
-            "Number of keys in experimental data, bad bin and number of bins have to be the same. There are {} bins.".format(n_b))
+            "Number of keys in experimental data, bad bin and number of bins have to be the same. There are {} bins.".format(
+                n_b))
 
     RA_dict = dict([(b, r) for (b, r) in zip(binids, RA)])
     data = dict([(b, []) for b in binids])
 
-    for obs,p in zip(hdict.keys(),p0):
+    for obs, p in zip(hdict.keys(), p0):
         for b in hdict[obs]:
             bid = "{o}#{b}".format(o=obs, b=b)
             r = RA_dict[bid]
@@ -1025,7 +1094,7 @@ def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, r
             sigma = expdata[bid][1]
 
             if bbdict[bid]:
-                bool = int(np.random.uniform(0,2))
+                bool = int(np.random.uniform(0, 2))
                 if bool:
                     FEX = r.fmin(restart_filter)
                     mult = -1.
@@ -1041,31 +1110,30 @@ def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, r
             d = [mu + np.random.normal(0.0, scale=sigmamodel) + np.random.normal(0.0, scale=sigma) for i in range(N)]
             d = np.average(d)
 
-            data[bid] = [d,sigma]
+            data[bid] = [d, sigma]
 
     return data
 
+
 if __name__ == "__main__":
-    import os,sys
+    import os, sys
+
     approximationfile = "../../pyoo/test_data_min2_noisefree/approximation.json"
     experimentaldatafile = "../../pyoo/test_data_min2_noisefree/experimental_data.json"
     import json
+
     with open(experimentaldatafile, 'r') as f:
         expdata = json.load(f)
-    p = [2.4743870765622695,1.7068479984402454]
+    p = [2.4743870765622695, 1.7068479984402454]
     hnames = [b.split("#")[0] for b in expdata]
     uniquehnames = np.unique(hnames)
     p0 = [p] * len(uniquehnames)
     bbdict = {}
-    for ono,obs in enumerate(uniquehnames):
+    for ono, obs in enumerate(uniquehnames):
         for b in expdata:
             if obs in b:
                 bbdict[b] = False
 
-
     bbdict = {b: False for b in expdata}
-    data = generate_data_from_RA(approximationfile,experimentaldatafile,p0,bbdict)
+    data = generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict)
     sys.exit(0)
-
-
-
