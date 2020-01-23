@@ -119,6 +119,18 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         rec_p = np.array(self.recurrence(X, self._struct_p))
         return self._pcoeff.dot(rec_p)
 
+    def predictArray(self, X):
+        """
+        Evaluation of the numer poly at many points X.
+        """
+        XS=pp._scaler.scale(X)
+        try: # This fails for 1D ...
+            rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
+        except:
+            rec_p = np.power(XS, self._struct_p[:, np.newaxis])
+        return self._pcoeff.dot(rec_p)
+
+
     def __call__(self, X):
         """
         Operator version of predict.
@@ -271,6 +283,7 @@ if __name__=="__main__":
     pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
 
     pylab.plot(X, [pp(x) for x in X], label="Polynomial approx m={} strategy 1".format(3))
+    pylab.plot(X, pp.predictArray(X), label="Polynomial approx array  m={} strategy 1".format(3))
 
     myg = [pp.gradient(x) for x in X]
 
