@@ -48,7 +48,7 @@ def raNorm(ra, X, Y, norm=2):
         nrm+= abs(ra.predict(x) - Y[num])**norm
     return nrm
 
-def mkBestRA(X,Y, pnames, split=0.7, norm=2, n_max=None, f_plot=None):
+def mkBestRA(X,Y, pnames, split=0.7, norm=2, m_max=5, n_max=None, f_plot=None):
     """
     """
     _N, _dim = X.shape
@@ -60,10 +60,16 @@ def mkBestRA(X,Y, pnames, split=0.7, norm=2, n_max=None, f_plot=None):
     N_test  = len(i_test)
 
     orders = apprentice.tools.possibleOrders(N_train, _dim, mirror=True)
-    if n_max is not None: orders = [ o for o in orders if o[1] <= n_max]
+    if n_max is not None: orders = [ o for o in orders if o[1] <= n_max and o[0]<=m_max]
 
 
-    d_RA   = { o : apprentice.RationalApproximation(X[i_train], Y[i_train], order=o, pnames=pnames) for o in orders }
+    # d_RA   = { o : apprentice.RationalApproximation(X[i_train], Y[i_train], order=o, pnames=pnames) for o in orders }
+    d_RA   = {}
+    for o in orders:
+        if o[1] ==0:
+            d_RA[o] = apprentice.PolynomialApproximation(X[i_train], Y[i_train], order=o[0], pnames=pnames)
+        else:
+            d_RA[o] = apprentice.RationalApproximation(X[i_train], Y[i_train], order=o, pnames=pnames)
     d_norm = { o : raNorm(d_RA[o], X[i_test], Y[i_test]) for o in orders }
     import operator
     sorted_norm = sorted(d_norm.items(), key=operator.itemgetter(1))
@@ -120,8 +126,15 @@ if __name__ == "__main__":
     scl = []
     t1=time.time()
     for num, (X, Y) in  enumerate(DATA):
-        ras.append(mkBestRA(X,Y, pnames, f_plot="{}.pdf".format(binids[num].replace("/","_"))))
-        # ras.append(apprentice.RationalApproximation(X, Y, order=(3,0), pnames=pnames))
+        # t11=time.time()
+        # ras.append(mkBestRA(X,Y, pnames, n_max=3))#, f_plot="{}.pdf".format(binids[num].replace("/","_"))))
+        # t22=time.time()
+        # print("Approximation {}/{} took {} seconds".format(num+1,len(binids), t22-t11))
+        try:
+            ras.append(apprentice.RationalApproximation(X, Y, order=(2,0), pnames=pnames))
+        except Exception as e:
+            print("Problem with {}".format(binids[num]))
+            pass
 
     t2=time.time()
     print("Approximation took {} seconds".format(t2-t1))
@@ -131,6 +144,6 @@ if __name__ == "__main__":
     JD = { x : y.asDict for x, y in zip(binids, ras) }
 
     import json
-    with open(sys.argv[2], "w") as f: json.dump(JD, f)
+    with open(sys.argv[2], "w") as f: json.dump(JD, f, indent=4)
 
     print("Done --- approximation of {} objects written to {}".format(len(idx), sys.argv[2]))
