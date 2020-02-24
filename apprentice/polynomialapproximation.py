@@ -98,7 +98,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         from apprentice import tools
         n_required = tools.numCoeffsPoly(self.dim, self.m)
         if n_required > self._Y.shape[0]:
-            raise Exception("Not enough inputs: got %i but require %i to do m=%i"%(n_required, self._Y.shape, self.m))
+            raise Exception("Not enough inputs: got %i but require %i to do m=%i"%(self._Y.shape[0], n_required, self.m))
 
         self.setStructures()
 
