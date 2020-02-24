@@ -82,17 +82,10 @@ def fast_chi(w, d, e):
 def meanerror(w, d, e, nb):  # WW edited
     return (np.sum(w * d * d * e)) / nb
 
-
-def score(d, e, nb, method):  # WW edited
-    s = []
-    for i in range(nb):
-        s.append(d[i] * d[i] * e[i] - np.log(e[i]))
-#    print('score for each bin', s)
-    if method == "meanscore":
-        return np.mean(s)
-    else:
-        return np.median(s)
-
+def score(d, e, nb, method):
+    s = d*d*e - np.log(e)
+    if method == "meanscore": return np.mean(s)
+    else:                     return np.median(s)
 
 def fast_grad(w, d, e, g):
     v = -2 * w * d * e
@@ -676,6 +669,9 @@ class TuningObjective(object):
             self.use_cache = False
             for r in self._RA:
                 r.setStructures()
+
+    def setAppStructures(self):
+        for r in self._RA: r.setStructures()
 
     def prepareCache(self):
         import apprentice
