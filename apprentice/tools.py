@@ -2,7 +2,22 @@ import numpy as np
 from collections import OrderedDict
 
 
-# https://arcpy.wordpress.com/2012/05/11/sorting-alphanumeric-strings-in-python/
+
+def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
+    PF = 1 if mode=="min" else -1
+    if use_grad: jac=lambda x:PF*app.gradient(x)
+    else: jac=None
+    from scipy import optimize
+
+    res = []
+    for i in range(nrestart):
+        P = app._scaler.drawSamples(nsamples)
+        V = [PF*app.predict(p) for p in P]
+        imin = V.index(min(V))
+        pstart = P[imin]
+        _fmin = optimize.minimize(lambda x:PF*app.predict(x), pstart, bounds=app._scaler.box, jac=jac)
+        res.append(_fmin["fun"])
+    return PF*min(res)
 
 
 def neighbours(arr, karr):
