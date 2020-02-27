@@ -5,7 +5,6 @@ import numpy as np
 from mpi4py import MPI
 
 
-
 if __name__ == "__main__":
     import sys
     from scipy import optimize
@@ -26,8 +25,6 @@ if __name__ == "__main__":
     op.add_option("-r", "--restart", dest="NRESTART", type=int, default=1, help="Number of restarts (default: %default)")
     op.add_option("--seed", dest="SEED", type=int, default=1234, help="Random number seed (default: %default)")
     op.add_option("-i", "--inplace", dest="INPLACE", default=False, action='store_true', help="Overwrite input file (default: %default)")
-    op.add_option("--filter", dest="FILTER", default=False, action='store_true', help="Filter bins that do no envelope data (default: %default)")
-    op.add_option("--filter-n", dest="FILTERN", default=10, type=int, help="Number of multistarts when determining fmin/max (default: %default)")
     op.add_option("-g", "--grad", dest="USEGRAD", default=False, action='store_true', help="Use gradients in minimisation (default: %default)")
     opts, args = op.parse_args()
 
@@ -37,11 +34,31 @@ if __name__ == "__main__":
     rankWork = app.tools.chunkIt([i for i in range(len(binids))], size) if rank==0 else []
     rankWork = comm.scatter(rankWork, root=0)
     import time
+    import sys
+    import datetime
     t0=time.time()
 
 
-    FMIN = [(binids[i], RA[i].fmin(opts.NTRIALS, use_grad=opts.USEGRAD)) for i in rankWork]
-    FMAX = [(binids[i], RA[i].fmax(opts.NTRIALS, use_grad=opts.USEGRAD)) for i in rankWork]
+    FMIN, FMAX = [], []
+    for i in rankWork:
+        FMIN.append((binids[i], RA[i].fmin(opts.NTRIALS, opts.NRESTART, use_grad=opts.USEGRAD)))
+        FMAX.append((binids[i], RA[i].fmax(opts.NTRIALS, opts.NRESTART, use_grad=opts.USEGRAD)))
+
+        if rank==0:
+            now = time.time()
+            tel = now - t0
+            ttg = tel*(len(rankWork)-i)/(i+1)
+            eta = now + ttg
+            eta = datetime.datetime.fromtimestamp(now + ttg)
+            sys.stdout.write("[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(rank, i+1, len(rankWork), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')))
+            sys.stdout.flush()
+        sys.stdout.flush()
+
+    if rank==0:
+        print()
+
+    # FMIN = [(binids[i], RA[i].fmin(opts.NTRIALS, use_grad=opts.USEGRAD)) for i in rankWork]
+    # FMAX = [(binids[i], RA[i].fmax(opts.NTRIALS, use_grad=opts.USEGRAD)) for i in rankWork]
     t1=time.time()
 
     _FMIN = comm.gather(FMIN, root=0)
