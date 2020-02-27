@@ -184,29 +184,11 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         if set_structures:
             self.setStructures()
 
-    def fmin(self, multistart=None, use_grad=False):
-        if use_grad: jac=lambda x:self.gradient(x)
-        else: jac=None
-        from scipy import optimize
-        if multistart is None:
-            fmin = optimize.minimize(lambda x:self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
-            return fmin["fun"]
-        else:
-            _P = self._scaler.drawSamples(multistart)
-            _fmin = [optimize.minimize(lambda x:self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
-            return min(_fmin)
+    def fmin(self, nsamples=1, nrestart=1, use_grad=False):
+        return apprentice.tools.extreme(self, nsamples, nrestart, use_grad, mode="min")
 
-    def fmax(self, multistart=None, use_grad=False):
-        if use_grad: jac=lambda x:-1*self.gradient(x)
-        else: jac=None
-        from scipy import optimize
-        if multistart is None:
-            fmax = optimize.minimize(lambda x:-self.predict(x), self._scaler.center, bounds=self._scaler.box, jac=jac)
-            return -fmax["fun"]
-        else:
-            _P = self._scaler.drawSamples(multistart)
-            _fmax = [optimize.minimize(lambda x:-self.predict(x), pstart, bounds=self._scaler.box, jac=jac)["fun"] for pstart in _P]
-            return -min(_fmax)
+    def fmax(self, nsamples=1, nrestart=1, use_grad=False):
+        return apprentice.tools.extreme(self, nsamples, nrestart, use_grad, mode="max")
 
     @property
     def coeffNorm(self):
