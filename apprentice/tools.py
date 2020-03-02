@@ -640,8 +640,9 @@ class TuningObjective(object):
         self.setAttributes(**kwargs)
 
     def setAttributes(self, **kwargs):
+        noiseexp = int(kwargs.get("noise_exponent")) if kwargs.get("noise_exponent") is not None else 2
         self._dim = self._RA[0].dim
-        self._E2 = np.array([1. / e ** 2 for e in self._E])
+        self._E2 = np.array([1. / e ** noiseexp for e in self._E])
         self._SCLR = self._RA[0]._scaler  # Here we quietly assume already that all scalers are identical
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         self._bounds = self._SCLR.box
