@@ -427,6 +427,28 @@ def gradientRecursion(X, struct, jacfac):
         REC[coord][nonzero] = np.prod(RR, axis=1)
     return REC
 
+def gradientRecursionFast(X, struct, jacfac, NNZ, sred):
+    """
+    X ... scaled point
+    struct ... polynomial structure
+    jacfac ... jacobian factor
+    NNZ  ... list of np.where results
+    sred ... reduced structure
+    returns array suitable for multiplication with coefficient vector
+    """
+    import numpy as np
+    dim = len(X)
+    REC = np.zeros((dim, len(struct)))
+    _RR = np.power(X, struct)
+    nelem = len(sred[0])
+
+    W=[_RR[nz] for nz in NNZ]
+
+    for coord, (RR, nz) in enumerate(zip(W,NNZ)):
+        RR[:, coord] = jacfac[coord] * sred[coord] *_RR[:nelem, coord]
+        REC[coord][nz] = np.prod(RR, axis=1)
+
+    return REC
 
 def getPolyGradient(coeff, X, dim=2, n=2):
     from apprentice import monomial
@@ -546,11 +568,10 @@ def mkCov(yerrs):
 class TuningObjective(object):
 
     def __init__(self, *args, **kwargs):
+        self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
         if type(args[0]) == str:
-            print("Calling mkfrom files")
             self.mkFromFiles(*args, **kwargs)
         else:
-            print("Calling mkfrom self")
             self.mkFromData(*args, **kwargs)
 
     def mkReduced(self, keep, **kwargs):
@@ -599,7 +620,7 @@ class TuningObjective(object):
         for num, bid in enumerate(binids):
             if weights[num] > 0 and E[num] > 0:
                 if cache_recursions and RA[0]._scaler != RA[num]._scaler:
-                    print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
+                    if self._debug: print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
                 good.append(num)
 
@@ -616,11 +637,12 @@ class TuningObjective(object):
         else:
             envindices = self.envelope()
             removedbinindices = np.setdiff1d(range(len(self._binids)), envindices)
-            print("\n Envelope Filter removed {} bins".format(len(removedbinindices)))
-            for b in sorted(removedbinindices):
-                print("Removing binid {} as it was filtered out by ENVELOPE filter".format(self._binids[b]))
+            if self._debug:
+                print("\n Envelope Filter removed {} bins".format(len(removedbinindices)))
+                for b in sorted(removedbinindices):
+                    print("Removing binid {} as it was filtered out by ENVELOPE filter".format(self._binids[b]))
             self.setReduced(envindices)
-        print("")
+        if self._debug:print("")
         # Do hypothesis filtering by default
         if kwargs.get("filter_hypothesis") is not None and not kwargs["filter_hypothesis"]:
             pass
@@ -628,9 +650,10 @@ class TuningObjective(object):
             self.setAttributes(**kwargs)
             hypoindices = self.hypofilt(0.05)
             removedbinindices = np.setdiff1d(range(len(self._binids)), hypoindices)
-            print("\n Hypothesis Filter removed {} bins".format(len(removedbinindices)))
-            for b in sorted(removedbinindices):
-                print("Removing binid {} as it was filtered out by HYPOTHESIS filter".format(self._binids[b]))
+            if self._debug:
+                print("\n Hypothesis Filter removed {} bins".format(len(removedbinindices)))
+                for b in sorted(removedbinindices):
+                    print("Removing binid {} as it was filtered out by HYPOTHESIS filter".format(self._binids[b]))
             self.setReduced(hypoindices)
 
         if (len(self._RA) == 0):
@@ -659,16 +682,22 @@ class TuningObjective(object):
         cache_recursions = kwargs["cache_recursions"] if kwargs.get("cache_recursions") is not None else True
 
         if cache_recursions:
-            print("Congrats, you are using an experimental feature.")
+            # print("Congrats, you are using an experimental feature.")
             self.use_cache = True
             self.prepareCache()
-            self._PC = np.zeros((len(self._RA), np.max([r._pcoeff.shape[0] for r in self._RA])))
-            for num, r in enumerate(self._RA):
-                self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
+
+            # need maximum extends of coefficients
+            nmax_p=np.max([r._pcoeff.shape[0]                           for r in self._RA])
+            nmax_q=np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
+            nmax = max(nmax_p, nmax_q)
+
+            # self._PC = np.zeros((len(self._RA), np.max([r._pcoeff.shape[0] for r in self._RA])))
+            self._PC = np.zeros((len(self._RA), nmax))
+            for num, r in enumerate(self._RA): self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
 
             # Denominator
-            nmax = np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
-            if nmax > 0:
+            # nmax = np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
+            if nmax_q > 0:
                 self._hasRationals = True
                 self._QC = np.zeros((len(self._RA), nmax))
                 for num, r in enumerate(self._RA):
@@ -698,6 +727,9 @@ class TuningObjective(object):
 
         omax = max(orders)
         self._structure = apprentice.monomialStructure(self.dim, omax)
+        # Gradient helpers
+        self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
+        self._sred = np.array([self._structure[nz][:,num] for num, nz in enumerate(self._NNZ)])
         if self.dim == 1:
             self.recurrence = apprentice.monomial.recurrence1D
         else:
@@ -856,6 +888,33 @@ class TuningObjective(object):
         return least_squares(self._Y, [f(x) for f in self._RA], 1 / self._E2, np.sqrt(self._W2),
                              self._idxs)  # E2 is reciprocal
 
+
+    def getVals(self, x, sel=slice(None, None, None), set_cache=True):
+        if set_cache: self.setCache(x)
+        vals = np.sum(self._maxrec * self._PC[sel], axis=1)
+        if self._hasRationals:
+            den = np.sum(self._maxrec * self._QC[sel], axis=1)
+            vals[self._mask[sel]] /= den[self._mask[sel]]
+        return vals
+
+    def getGrads(self, x, sel=slice(None, None, None), set_cache=True):
+        if set_cache: self.setCache(x)
+        xs = self._SCLR.scale(x)
+        JF = self._SCLR.jacfac
+        GREC = gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+
+        Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
+
+        if self._hasRationals:
+            if set_cache: self.setCache(x)
+            P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
+            Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
+            Qprime = np.sum(self._QC[sel].reshape((self._QC[sel].shape[0], 1, self._QC[sel].shape[1])) * GREC, axis=2)
+            return Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime
+
+        return Pprime
+
+
     def objective(self, x, sel=slice(None, None, None), unbiased=False):
         if not self.use_cache:
             if isinstance(sel, list) or type(sel).__module__ == np.__name__:
@@ -879,14 +938,16 @@ class TuningObjective(object):
 
     def gradient(self, x, sel=slice(None, None, None), unbiased=False):
         self.setCache(x)
-        vals = np.sum(self._maxrec * self._PC[sel], axis=1)
-        X = self._SCLR.scale(x)
-        JF = self._SCLR.jacfac
-        struct = self._structure
-        GR = gradientRecursion(X, struct, JF)
-        temp = np.sum(self._PC.reshape((self._PC.shape[0], 1, self._PC.shape[1])) * GR, axis=2)
+        # vals = np.sum(self._maxrec * self._PC[sel], axis=1)
+        vals  = self.getVals( x, sel, set_cache=False)
+        grads = self.getGrads(x, sel, set_cache=False)
+        # X = self._SCLR.scale(x)
+        # JF = self._SCLR.jacfac
+        # struct = self._structure
+        # GR = gradientRecursion(X, struct, JF)
+        # temp = np.sum(self._PC.reshape((self._PC.shape[0], 1, self._PC.shape[1])) * GR, axis=2)
 
-        return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], temp)
+        return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], grads)
 
     def calc_f_val(self, x, sel=slice(None, None, None)):
         import autograd.numpy as np
@@ -909,8 +970,12 @@ class TuningObjective(object):
     def obsBins(self, hname):
         return [i for i, item in enumerate(self._binids) if item.startswith(hname)]
 
-    def obswiseObjective(self, x, unbiased=False):
-        return [self.objective(x, sel=self.obsBins(hn), unbiased=unbiased) for hn in self._hnames]
+    def obswiseObjective(self, x, unbiased=False, binids=None, setCache=True):
+        if binids is None:
+            return [self.objective(x, sel=self.obsBins(hn), unbiased=unbiased) for hn in self._hnames]
+        else:
+            return [self.objective(x, sel=bids, unbiased=unbiased) for bids in binids]
+
 
     def XisbetterthanY(self, x, y):
         lchix = self.obswiseObjective(x, unbiased=True)
