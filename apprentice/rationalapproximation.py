@@ -202,6 +202,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
             GRECQ = gradientRecursion(X, struct_q, self._scaler.jacfac)
             qprime = np.sum(GRECQ * self._qcoeff, axis=1)
 
+
         return pprime/q - p/q/q*qprime
 
     def __call__(self, X):
@@ -323,7 +324,7 @@ if __name__=="__main__":
     pylab.plot(X, [pp(x) for x in X], label="Rational approx")
     # pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
     pylab.plot(X, G, label="auto gradient")
-    pylab.plot(X, myg, label="manual gradient")
+    pylab.plot(X, myg, label="manual gradient", linestyle="--")
     # pylab.plot(X, myg, label="manual gradient")
     pylab.legend()
 
