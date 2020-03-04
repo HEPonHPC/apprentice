@@ -623,6 +623,8 @@ class TuningObjective(object):
                     if self._debug: print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
                 good.append(num)
+            else: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[num],E[num]))
+
 
         # TODO This needs some re-engineering to allow fow multiple filterings
         self._RA = [RA[g] for g in good]
@@ -663,8 +665,9 @@ class TuningObjective(object):
         self.setAttributes(**kwargs)
 
     def setAttributes(self, **kwargs):
+        noiseexp = int(kwargs.get("noise_exponent")) if kwargs.get("noise_exponent") is not None else 2
         self._dim = self._RA[0].dim
-        self._E2 = np.array([1. / e ** 2 for e in self._E])
+        self._E2 = np.array([1. / e ** noiseexp for e in self._E])
         self._SCLR = self._RA[0]._scaler  # Here we quietly assume already that all scalers are identical
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         self._bounds = self._SCLR.box
