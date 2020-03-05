@@ -68,18 +68,21 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debu
         elif mode == "sip":
             try:
                 _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
-            except:
+            except Exception as e:
+                print("Exception:", e)
                 return None, True
         elif mode == "lasip":
             try:
                 _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
-            except:
+            except Exception as e:
+                print("Exception:", e)
                 return None, True
             has_pole = denomChangesSignMS(_app, 100)[0]
             if has_pole:
                 try:
                     _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ss', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
-                except:
+                except Exception as e:
+                    print("Exception:", e)
                     return None, True
         else:
             raise Exception("Specified mode {} does not exist, choose la|onb|sip".format(mode))
