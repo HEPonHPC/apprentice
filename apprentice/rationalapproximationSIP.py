@@ -1057,6 +1057,10 @@ if __name__=="__main__":
     infilePath11 = "../benchmarkdata/f16.txt"
     # infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
     X, Y = tools.readData(infilePath11)
+    r = RationalApproximationSIP(X, Y, m=2, n=3, trainingscale="Cp", roboptstrategy='ss', localoptsolver='scipy',
+                                 fitstrategy='filter', strategy=0)
+    print(r.asJSON)
+    exit(0)
     r = RationalApproximationSIP(X,Y,
                                 m=2,
                                 n=3,
