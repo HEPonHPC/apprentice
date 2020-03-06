@@ -9,3 +9,4 @@ from apprentice.weights import read_pointmatchers
 from apprentice.scaler import Scaler
 from apprentice.onb import ONB
 from apprentice.monomial import monomialStructure
+from apprentice.appset import AppSet
