@@ -224,8 +224,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         X = self._scaler.scale(np.array(X))
         S = self._struct_p
 
-        JF = self._scaler.jacfac
-        HH = np.ones((self.dim, self.dim, len(S)), dtype=np.int32)
+        HH = np.ones((self.dim, self.dim, len(S)), dtype=np.float)
         EE = np.full((self.dim, self.dim, len(S), self.dim), S, dtype=np.int32)
 
         for numx in range(self.dim):
@@ -242,11 +241,16 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             for numy in range(self.dim):
                 NONZ[numx][numy]=np.where(HH[numx][numy]>0)
 
+        JF = self._scaler.jacfac
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                HH[numx][numy][NONZ[numx][numy]] *= (JF[numx] * JF[numy])
+
         HESS = np.empty((self.dim, self.dim), dtype=np.float)
         for numx in range(self.dim):
             for numy in range(self.dim):
                 if numy>=numx:
-                    HESS[numx][numy] = np.sum(JF[numx] * JF[numy] * HH[numx][numy][NONZ[numx][numy]] * np.prod(np.power(X, EE[numx][numy][NONZ[numx][numy]]), axis=1) * self._pcoeff[NONZ[numx][numy]])
+                    HESS[numx][numy] = np.sum(HH[numx][numy][NONZ[numx][numy]] * np.prod(np.power(X, EE[numx][numy][NONZ[numx][numy]]), axis=1) * self._pcoeff[NONZ[numx][numy]])
                 else:
                     HESS[numx][numy] = HESS[numy][numx]
 
