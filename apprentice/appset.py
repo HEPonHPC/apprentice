@@ -1,6 +1,5 @@
 import apprentice
 import numpy as np
-import ompred
 
 # from numba import jit, njit, prange
 # @njit(parallel=True)
