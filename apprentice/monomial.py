@@ -53,33 +53,16 @@ def monomialStructure(dim, order):
         return structure.ravel()
     return structure
 
-
 def recurrence1D(X, structure):
     return X**structure
 
-# Autograd seems to have a problem with Numba. We will deal with this later.
-# @jit(parallel=True)
 def recurrence(X, structure):
     """
     Create the parameter combination vector for a particular structure,
     or in more mathy terms, the recurrence relation for X in a monomial basis
     structure.
     """
-    # temp = X**structure
-    #Added this dtype since autograd.numpy.numpy_boxes.ArrayBox result needs to go into ret
-    # ret = np.zeros(structure.shape[0], dtype ='object')
-    # for i in range(len(temp)):
-        # v = 1.0
-        # for t in temp[i]:
-            # v = v * t
-        # ret[i] = v
-    # return ret
-    # import sys
-    # sys.exit(1)
-    import autograd.numpy as np
-    return np.prod(X**structure, axis=1)
-    # except:
-        # return np.prod(X**structure, axis=0) # this is for order 0 things
+    return np.prod(X**structure, axis=1, dtype=np.float32)
 
 def vandermonde(params, order):
     """
