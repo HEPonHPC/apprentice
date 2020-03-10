@@ -1,17 +1,7 @@
 import apprentice
 import numpy as np
 
-# from numba import jit, njit, prange
-# @njit(parallel=True)
-# def fast_red(M):
-    # ret=np.zeros(M.shape[0])
-    # for i in prange(M.shape[0]):
-        # for j in prange(M.shape[1]):
-            # ret[i] += M[i][j]
-    # return ret
-
-
-
+## legacy Prof2 code
 def calcHistoCov(h, COV_P, result):
     """
     Propagate the parameter covariance onto the histogram covariance
@@ -83,7 +73,7 @@ class AppSet(object):
         self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
         self._sred = np.array([self._structure[nz][:,num] for num, nz in enumerate(self._NNZ)], dtype=np.int32)
         # Hessian helpers
-        self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float) # Prefactors
+        self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float32) # Prefactors
         self._EE = np.full((self.dim, self.dim, len(S), self.dim), S, dtype=np.int32) # Initial structures
 
         for numx in range(self.dim):
@@ -152,9 +142,9 @@ class AppSet(object):
             P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
             Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
             Qprime = np.sum(self._QC[sel].reshape((self._QC[sel].shape[0], 1, self._QC[sel].shape[1])) * GREC, axis=2)
-            return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
+            return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float32)
 
-        return np.array(Pprime, dtype=np.float64)
+        return np.array(Pprime, dtype=np.float32)
 
     def hessians(self, x, sel=slice(None, None, None)):
         """
@@ -168,7 +158,7 @@ class AppSet(object):
 
         NSEL = len(self._PC[sel])
 
-        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float)
+        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float32)
         for numx in range(self.dim):
             for numy in range(self.dim):
                 rec = self._HH[numx][numy][self._HNONZ[numx][numy]] * np.prod(np.power(xs, self._EE[numx][numy][self._HNONZ[numx][numy]]), axis=1)
@@ -221,16 +211,6 @@ class TuningObjective2(object):
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
 
-        # hdict, _ = history_dict(self._binids, self._hnames)
-        # self._hdict = hdict
-        # self._wdict = weights_dict(self._W2, self._hdict)
-        # self._idxs = indices(self._hnames, self._hdict)
-        # self._windex = []
-        # for inum, i in enumerate(self._idxs):
-            # for j in range(i[0], i[1]):
-                # self._windex.append(inum)
-
-
     def mkFromFiles(self, f_weights, f_data, f_approx, **kwargs):
         AS = AppSet(f_approx)
         # hnames = sorted(list(set([b.split("#")[0] for b in AS._binids])))
@@ -263,8 +243,6 @@ class TuningObjective2(object):
         self._W2 = np.array([w * w for w in np.array(weights)[good]], dtype=np.float32)
         self.setAttributes(**kwargs)
 
-
-
     def objective(self, x, sel=slice(None, None, None), unbiased=False):
         vals = self._AS.vals(x, sel=sel)
         if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
@@ -274,6 +252,23 @@ class TuningObjective2(object):
         vals  = self._AS.vals( x, sel = sel)
         grads = self._AS.grads(x, sel, set_cache=False)
         return apprentice.tools.fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], grads)
+
+    def hessian(self, x, sel=slice(None, None, None)):
+        vals  = self._AS.vals( x, sel = sel)
+        grads = self._AS.grads(x, sel, set_cache=False)
+        hess  = self._AS.hessians(x, sel)
+
+        spans = np.empty( (self.dim, self.dim, len(vals)) )
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                if numy>=numx:
+                    spans[numx][numy] = grads[:,numx] *  grads[:,numy]
+                else:
+                    spans[numx][numy] = spans[numy][numx]
+
+        diff = vals - self._Y[sel]
+
+        return 2 * np.sum( self._W2[sel]*self._E2[sel]*(spans+diff*hess), axis=2)
 
     def startPoint(self, ntrials):
         if ntrials == 0:
@@ -302,6 +297,19 @@ class TuningObjective2(object):
             xbest = X[ibest]
         xbest = comm.bcast(xbest, root=0)
         return xbest
+
+    def minimizeTrust(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
+        from scipy import optimize
+        minobj = np.Infinity
+        finalres = None
+        for t in range(nrestart):
+            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float32)
+
+            res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
+            if res["fun"] < minobj:
+                minobj = res["fun"]
+                finalres = res
+        return finalres
 
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="TNC", use_mpi=False):
         from scipy import optimize
