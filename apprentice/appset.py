@@ -1,6 +1,5 @@
 import apprentice
 import numpy as np
-import ompred
 
 # from numba import jit, njit, prange
 # @njit(parallel=True)
@@ -10,6 +9,25 @@ import ompred
         # for j in prange(M.shape[1]):
             # ret[i] += M[i][j]
     # return ret
+
+
+
+def calcHistoCov(h, COV_P, result):
+    """
+    Propagate the parameter covariance onto the histogram covariance
+    using the ipol gradients.
+    """
+    IBINS = h.bins
+    from numpy import zeros
+    COV_H = zeros((h.nbins, h.nbins))
+    from numpy import array
+    for i in range(len(IBINS)):
+        GRD_i = array(IBINS[i].grad(result))
+        for j in range(len(IBINS)):
+            GRD_j = array(IBINS[j].grad(result))
+            pc =GRD_i.dot(COV_P).dot(GRD_j)
+            COV_H[i][j] = pc
+    return COV_H
 
 
 from numba import jit, njit
@@ -60,9 +78,33 @@ class AppSet(object):
         omax = max(omax_p, omax_q)
 
         self._structure = np.array(apprentice.monomialStructure(self.dim, omax), dtype=np.int32)
+        S=self._structure
         # Gradient helpers
         self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
         self._sred = np.array([self._structure[nz][:,num] for num, nz in enumerate(self._NNZ)], dtype=np.int32)
+        # Hessian helpers
+        self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float) # Prefactors
+        self._EE = np.full((self.dim, self.dim, len(S), self.dim), S, dtype=np.int32) # Initial structures
+
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                if numx==numy:
+                    self._HH[numx][numy] = S[:,numx] * (S[:,numx]-1)
+                else:
+                    self._HH[numx][numy] = S[:,numx] *  S[:,numy]
+                self._EE[numx][numy][:,numx]-=1
+                self._EE[numx][numy][:,numy]-=1
+
+        self._HNONZ = np.empty((self.dim, self.dim), dtype=tuple)
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                self._HNONZ[numx][numy]=np.where(self._HH[numx][numy]>0)
+
+        # Jacobians for Hessian
+        JF = self._SCLR.jacfac
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                self._HH[numx][numy][self._HNONZ[numx][numy]] *= (JF[numx] * JF[numy])
 
     def setCoefficients(self):
         # Need maximum extends of coefficients
@@ -98,36 +140,12 @@ class AppSet(object):
             vals[self._mask[sel]] /= den[self._mask[sel]]
         return vals
 
-    def vals2(self, x, sel=slice(None, None, None), set_cache=True):
-        if set_cache: self.setRecurrence(x)
-        MM=self._maxrec * self._PC[sel]
-        vals = ompred.ompsum(MM)
-        if self._hasRationals:
-            den = ompred.ompsum(self._maxrec * self._QC[sel])
-            vals[self._mask[sel]] /= den[self._mask[sel]]
-        return vals
-
-    def manyvals(self, x, sel=slice(None, None, None)):
-        xs = self._SCLR.scale(x)
-        rr = [self.recurrence(x, self._structure) for x in xs]
-        MM=[r* self._PC[sel] for r in rr]
-        vals = np.sum(MM, axis=2)
-        if self._hasRationals:
-            NN=[r* self._QC[sel] for r in rr]
-            den = np.sum(NN, axis=2)
-            # from IPython import embed
-            # embed()
-            vals /= den
-            # vals[self._mask[sel]] /= den[self._mask[sel]]
-        return vals
-
     def grads(self, x, sel=slice(None, None, None), set_cache=True):
         if set_cache: self.setRecurrence(x)
         xs = self._SCLR.scale(x)
         JF = self._SCLR.jacfac
         GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
-        # Pprime = np.array(np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2), dtype=np.float64)
         Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
 
         if self._hasRationals:
@@ -137,6 +155,29 @@ class AppSet(object):
             return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
 
         return np.array(Pprime, dtype=np.float64)
+
+    def hessians(self, x, sel=slice(None, None, None)):
+        """
+        To get the hessian matrix of bin number N, do
+        H=hessians(pp)
+        H[:,:,N]
+        """
+        if self._hasRationals:
+            raise Exception("Hessians for rational functions not (yet) implemented")
+        xs = self._SCLR.scale(x)
+
+        NSEL = len(self._PC[sel])
+
+        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float)
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                rec = self._HH[numx][numy][self._HNONZ[numx][numy]] * np.prod(np.power(xs, self._EE[numx][numy][self._HNONZ[numx][numy]]), axis=1)
+                if numy>=numx:
+                    HESS[numx][numy] = np.sum((rec*self._PC[:,self._HNONZ[numx][numy][0]]), axis=1)
+                else:
+                    HESS[numx][numy] = HESS[numy][numx]
+
+        return HESS
 
     def __len__(self): return len(self._RA)
 
@@ -226,9 +267,6 @@ class TuningObjective2(object):
 
     def objective(self, x, sel=slice(None, None, None), unbiased=False):
         vals = self._AS.vals(x, sel=sel)
-        # from IPython import embed
-        # embed()
-        # exit(1)
         if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
         else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, self._E2[sel])
 
