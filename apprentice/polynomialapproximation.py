@@ -19,7 +19,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, xmin=-1, xmax=1, scale_min=-1, scale_max=1, pnames=None, set_structures=True):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, set_structures=True):
         """
         Multivariate polynomial approximation
 
@@ -218,6 +218,40 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         GREC = gradientRecursion(X, struct, self._scaler.jacfac)
 
         return np.sum(GREC * self._pcoeff, axis=1)
+
+    def hessian(self, X):
+        import numpy as np
+        X = self._scaler.scale(np.array(X))
+        S = self._struct_p
+
+        JF = self._scaler.jacfac
+        HH = np.ones((self.dim, self.dim, len(S)), dtype=np.int32)
+        EE = np.full((self.dim, self.dim, len(S), self.dim), S, dtype=np.int32)
+
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                if numx==numy:
+                    HH[numx][numy] = S[:,numx] * (S[:,numx]-1)
+                else:
+                    HH[numx][numy] = S[:,numx] *  S[:,numy]
+                EE[numx][numy][:,numx]-=1
+                EE[numx][numy][:,numy]-=1
+
+        NONZ = np.empty((self.dim, self.dim), dtype=tuple)
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                NONZ[numx][numy]=np.where(HH[numx][numy]>0)
+
+        HESS = np.empty((self.dim, self.dim), dtype=np.float)
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                if numy>=numx:
+                    HESS[numx][numy] = np.sum(JF[numx] * JF[numy] * HH[numx][numy][NONZ[numx][numy]] * np.prod(np.power(X, EE[numx][numy][NONZ[numx][numy]]), axis=1) * self._pcoeff[NONZ[numx][numy]])
+                else:
+                    HESS[numx][numy] = HESS[numy][numx]
+
+        return HESS
+
 
 if __name__=="__main__":
 
