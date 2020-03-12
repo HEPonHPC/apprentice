@@ -178,7 +178,7 @@ class TuningObjective2(object):
     def __init__(self, *args, **kwargs):
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
         if type(args[0]) == str: self.mkFromFiles(*args, **kwargs)
-        else:                    self.mkFromData( *args, **kwargs)
+        else:                    self.mkFromData( *args, **kwargs) # NOT impemented
 
     @property
     def dim(self): return self._AS.dim
@@ -195,6 +195,15 @@ class TuningObjective2(object):
             w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0  # < NB. using last match
             weights.append(w)
         return np.array(weights)
+
+    def setWeights(self, wdict):
+        """
+        Convenience function to update the bins weights.
+        NOTE that hnames is in fact an array of strings repeating the histo name for each corresp bin
+        """
+        weights = []
+        for hn in self._hnames[self._good]: weights.append(wdict[hn])
+        self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float32)
 
     def setLimits(self, fname):
         lim, fix = apprentice.tools.read_limitsandfixed(fname)
@@ -213,9 +222,9 @@ class TuningObjective2(object):
 
     def mkFromFiles(self, f_weights, f_data, f_approx, **kwargs):
         AS = AppSet(f_approx)
-        # hnames = sorted(list(set([b.split("#")[0] for b in AS._binids])))
         hnames = [b.split("#")[0] for b in AS._binids]
         bnums = [int(b.split("#")[1]) for b in AS._binids]
+        self._hnames = np.array(hnames)
         weights = self.initWeights(f_weights, hnames, bnums)
 
         # Filter here to use only certain bins/histos
@@ -233,6 +242,8 @@ class TuningObjective2(object):
                 good.append(num)
             else:
                 if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[num],E[num]))
+
+        self._good = good
 
         # TODO This needs some re-engineering to allow fow multiple filterings
         RA = [AS._RA[g] for g in good]
