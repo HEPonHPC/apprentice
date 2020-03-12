@@ -770,7 +770,7 @@ class TuningObjective(object):
             weights.append(w)
         return weights
 
-    def setWeights(self, wdict):
+    def setWeights(self, wdict,wexp=2):
         """
         Convenience function to update the bins weights.
         """
@@ -780,7 +780,7 @@ class TuningObjective(object):
             for num, b in enumerate(self._binids):
                 for hn, w in wdict.items():
                     if hn in b:
-                        self._W2[num] = w * w
+                        self._W2[num] = w ** wexp
                         self._wdict[hn].append(w)
         else:
             # wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
