@@ -785,7 +785,7 @@ class TuningObjective(object):
         else:
             # wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
             wdict2 = OrderedDict([(hn, _x) for hn, _x in zip(self.hnames, wdict)])
-            self.setWeights(wdict2)
+            self.setWeights(wdict2,wexp)
 
     def envelope(self, nmultistart=10, sel=None):
         if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
