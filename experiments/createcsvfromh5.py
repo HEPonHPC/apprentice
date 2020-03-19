@@ -12,6 +12,38 @@ if __name__ == "__main__":
     op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
     opts, args = op.parse_args()
 
+    import json
+    with open("../../log/orig/A14/out_NNPDF.json", 'r') as f:
+        ds = json.load(f)
+
+    header = ds['chain-0']['pnames_inner']
+    header.append('y')
+    boxin = "/Users/mkrishnamoorthy/Box/PhysicsData/HEP_Fermi/A14"
+    boxout = "/Users/mkrishnamoorthy/Box/PhysicsData/HEP_Fermi/A14-withheader"
+
+    from os import listdir
+    from os.path import isfile, join
+    import csv
+
+    onlyfiles = [f for f in listdir(boxin) if isfile(join(boxin, f))]
+
+    for file in onlyfiles:
+        filein = os.path.join(boxin,file)
+        fileout = os.path.join(boxout,file)
+
+        with open(fileout, 'w', newline='') as outcsv:
+            writer = csv.writer(outcsv)
+            writer.writerow(header)
+
+            with open(filein, 'r', newline='') as incsv:
+                reader = csv.reader(incsv)
+                writer.writerows(row for row in reader)
+
+
+
+    exit(0)
+
+
     if os.path.exists(opts.OUTPUT):
         uk = '_all'
         if uk in opts.OUTPUT:
