@@ -103,8 +103,14 @@ def score(d, e, nb, method):
     else:                     return np.median(s)
 
 def fast_grad(w, d, e, g):
-    v = -2 * w * d * e
+    v = -2 * w * d * e # TODO check where the minus comes from
     return np.sum(g * v.reshape((v.shape[0], 1)), axis=0)
+
+def fast_grad2(w, d, E2, e, g, ge):
+    errterm=1./(E2 + e*e)
+    v1  = -2 * w * d     * errterm
+    v2  = +2 * w * d * d * errterm*errterm * e   # NOTE massive thx to JT for the -
+    return np.sum(g * v1.reshape((v1.shape[0], 1)), axis=0) - np.sum(ge * v2.reshape((v2.shape[0], 1)), axis=0)
 
 
 def least_square(y_data, y_mod, sigma2, w):
