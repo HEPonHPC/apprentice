@@ -776,7 +776,7 @@ class TuningObjective(object):
             weights.append(w)
         return weights
 
-    def setWeights(self, wdict):
+    def setWeights(self, wdict,wexp=2):
         """
         Convenience function to update the bins weights.
         """
@@ -786,12 +786,12 @@ class TuningObjective(object):
             for num, b in enumerate(self._binids):
                 for hn, w in wdict.items():
                     if hn in b:
-                        self._W2[num] = w * w
+                        self._W2[num] = w ** wexp
                         self._wdict[hn].append(w)
         else:
             # wdict2 = {hn: _x for hn, _x in zip(self.hnames, wdict)}
             wdict2 = OrderedDict([(hn, _x) for hn, _x in zip(self.hnames, wdict)])
-            self.setWeights(wdict2)
+            self.setWeights(wdict2,wexp)
 
     def envelope(self, nmultistart=10, sel=None):
         if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
