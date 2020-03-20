@@ -62,7 +62,7 @@ def recurrence(X, structure):
     or in more mathy terms, the recurrence relation for X in a monomial basis
     structure.
     """
-    return np.prod(X**structure, axis=1, dtype=np.float32)
+    return np.prod(X**structure, axis=1, dtype=np.float64)
 
 def vandermonde(params, order):
     """
