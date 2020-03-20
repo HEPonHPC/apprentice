@@ -73,7 +73,7 @@ class AppSet(object):
         self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
         self._sred = np.array([self._structure[nz][:,num] for num, nz in enumerate(self._NNZ)], dtype=np.int32)
         # Hessian helpers
-        self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float32) # Prefactors
+        self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float64) # Prefactors
         self._EE = np.full((self.dim, self.dim, len(S), self.dim), S, dtype=np.int32) # Initial structures
 
         for numx in range(self.dim):
@@ -101,13 +101,13 @@ class AppSet(object):
         lmax_p=np.max([r._pcoeff.shape[0]                           for r in self._RA])
         lmax_q=np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
         lmax = max(lmax_p, lmax_q)
-        self._PC = np.zeros((len(self._RA), lmax), dtype=np.float32)
+        self._PC = np.zeros((len(self._RA), lmax), dtype=np.float64)
         for num, r in enumerate(self._RA): self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
 
         # Denominator
         if lmax_q > 0:
             self._hasRationals = True
-            self._QC = np.zeros((len(self._RA), lmax), dtype=np.float32)
+            self._QC = np.zeros((len(self._RA), lmax), dtype=np.float64)
             for num, r in enumerate(self._RA):
                 if hasattr(r, "n"):
                     self._QC[num][:r._qcoeff.shape[0]] = r._qcoeff
@@ -142,9 +142,9 @@ class AppSet(object):
             P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
             Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
             Qprime = np.sum(self._QC[sel].reshape((self._QC[sel].shape[0], 1, self._QC[sel].shape[1])) * GREC, axis=2)
-            return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float32)
+            return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
 
-        return np.array(Pprime, dtype=np.float32)
+        return np.array(Pprime, dtype=np.float64)
 
     def hessians(self, x, sel=slice(None, None, None)):
         """
@@ -158,7 +158,7 @@ class AppSet(object):
 
         NSEL = len(self._PC[sel])
 
-        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float32)
+        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float64)
         for numx in range(self.dim):
             for numy in range(self.dim):
                 rec = self._HH[numx][numy][self._HNONZ[numx][numy]] * np.prod(np.power(xs, self._EE[numx][numy][self._HNONZ[numx][numy]]), axis=1)
@@ -183,6 +183,9 @@ class TuningObjective2(object):
     @property
     def dim(self): return self._AS.dim
 
+    @property
+    def pnames(self): return self._SCLR.pnames
+
     def rbox(self, ntrials):
         return self._AS.rbox(ntrials)
 
@@ -203,7 +206,7 @@ class TuningObjective2(object):
         """
         weights = []
         for hn in self._hnames[self._good]: weights.append(wdict[hn])
-        self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float32)
+        self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
     def setLimits(self, fname):
         lim, fix = apprentice.tools.read_limitsandfixed(fname)
@@ -214,13 +217,13 @@ class TuningObjective2(object):
     def setAttributes(self, **kwargs):
         noiseexp = int(kwargs.get("noise_exponent")) if kwargs.get("noise_exponent") is not None else 2
         self._dim = self._AS.dim
-        self._E2 = np.array([1. / e ** noiseexp for e in self._E], dtype=np.float32)
+        self._E2 = np.array([1. / e ** noiseexp for e in self._E], dtype=np.float64)
         self._SCLR = self._AS._SCLR
         self._bounds = self._SCLR.box
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
 
-    def mkFromFiles(self, f_weights, f_data, f_approx, **kwargs):
+    def mkFromFiles(self, f_weights, f_data, f_approx, f_errors=None, **kwargs):
         AS = AppSet(f_approx)
         hnames = [b.split("#")[0] for b in AS._binids]
         bnums = [int(b.split("#")[1]) for b in AS._binids]
@@ -229,8 +232,8 @@ class TuningObjective2(object):
 
         # Filter here to use only certain bins/histos
         dd = apprentice.tools.readExpData(f_data, [str(b) for b in AS._binids])
-        Y = np.array([dd[b][0] for b in AS._binids], dtype=np.float32)
-        E = np.array([dd[b][1] for b in AS._binids], dtype=np.float32)
+        Y = np.array([dd[b][0] for b in AS._binids], dtype=np.float64)
+        E = np.array([dd[b][1] for b in AS._binids], dtype=np.float64)
 
         # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
@@ -245,24 +248,43 @@ class TuningObjective2(object):
 
         self._good = good
 
+
         # TODO This needs some re-engineering to allow fow multiple filterings
         RA = [AS._RA[g] for g in good]
         self._binids = [AS._binids[g] for g in good]
         self._AS = AppSet(RA, self._binids)
         self._E = E[good]
         self._Y = Y[good]
-        self._W2 = np.array([w * w for w in np.array(weights)[good]], dtype=np.float32)
+        self._W2 = np.array([w * w for w in np.array(weights)[good]], dtype=np.float64)
+        # Add in error approximations
+        if f_errors is not None:
+            EAS = AppSet(f_errors)
+            ERA = [EAS._RA[g] for g in good]
+            self._EAS=AppSet(ERA, self._binids)
+        else:
+            self._EAS=None
         self.setAttributes(**kwargs)
 
     def objective(self, x, sel=slice(None, None, None), unbiased=False):
         vals = self._AS.vals(x, sel=sel)
-        if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
-        else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, self._E2[sel])
+        if self._EAS is not None:
+            err2 = self._EAS.vals(x, sel=sel)**2
+        else:
+            err2=np.zeros_like(vals)
+        if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))
+        else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))# self._E2[sel])
 
     def gradient(self, x, sel=slice(None, None, None)):
-        vals  = self._AS.vals( x, sel = sel)
-        grads = self._AS.grads(x, sel, set_cache=False)
-        return apprentice.tools.fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], grads)
+        vals  = self._AS.vals( x, sel=sel)
+        E2=1./self._E2[sel]
+        grads = self._AS.grads(x, sel=sel, set_cache=False)
+        if self._EAS is not None:
+            err   = self._EAS.vals(  x, sel=sel, set_cache=False)
+            egrads = self._EAS.grads( x, sel=sel, set_cache=False)
+        else:
+            err= np.zeros_like(vals)
+            egrads = np.zeros_like(grads)
+        return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err,grads, egrads)
 
     def hessian(self, x, sel=slice(None, None, None)):
         vals  = self._AS.vals( x, sel = sel)
@@ -309,14 +331,28 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
+    # NOTE fast but tendency to end up outside box
     def minimizeTrust(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float32)
+            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
             res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
+            if res["fun"] < minobj:
+                minobj = res["fun"]
+                finalres = res
+        return finalres
+
+    def minimizeNCG(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
+        from scipy import optimize
+        minobj = np.Infinity
+        finalres = None
+        for t in range(nrestart):
+            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+
+            res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="Newton-CG")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -327,7 +363,7 @@ class TuningObjective2(object):
         minobj = np.Infinity
         finalres = None
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float32)
+            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
             if use_grad:
                 if self._debug: print("using gradient")
@@ -340,5 +376,29 @@ class TuningObjective2(object):
                 minobj = res["fun"]
                 finalres = res
         return finalres
+
+    def minimizeLBFGSB(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="L-BFGS-B", use_mpi=False):
+        from scipy import optimize
+        minobj = np.Infinity
+        finalres = None
+        for t in range(nrestart):
+            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+
+            if use_grad:
+                if self._debug: print("using gradient")
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                        bounds=self._bounds, jac=self.gradient, method=method, tol=tol)
+            else:
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                        bounds=self._bounds, method=method, tol=tol)
+            if res["fun"] < minobj:
+                minobj = res["fun"]
+                finalres = res
+        return finalres
+
+    def writeParams(self, x, fname):
+        with open(fname, "w") as f:
+            for pn, val in zip(self.pnames, x):
+                f.write("{}\t{}\n".format(pn, val))
 
     def __len__(self): return len(self._AS)
