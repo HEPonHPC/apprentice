@@ -1,0 +1,224 @@
+#!/usr/bin/python3
+
+from numba import jit
+import apprentice as app
+import numpy as np
+
+def regularise(app, threshold=1e-6):
+    pc = np.zeros_like(app._pcoeff)
+    for num, c in enumerate(app._pcoeff):
+        if abs(c)>threshold: pc[num] = c
+    app._pcoeff=pc
+
+    if hasattr(app, "qcoeff"):
+        qc = np.zeros_like(app._qcoeff)
+        for num, c in enumerate(app._qcoeff):
+            if abs(c)>threshold: qc[num] = c
+        app._qcoeff=qc
+
+def denomMinMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
+    from scipy import optimize
+    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+def denomMaxMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
+    from scipy import optimize
+    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+def denomChangesSignMS(rapp, multistart=10):
+    xmin = denomMinMS(rapp, multistart)
+    xmax = denomMaxMS(rapp, multistart)
+    bad  = rapp.denom(xmin) * rapp.denom(xmax) <0
+    if bad: return True,  xmin, xmax
+    else:   return False, xmin, xmax
+
+
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debug=False, testforPoles=100):
+    M, N = order
+    import apprentice as app
+    if N==0:
+        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames)
+        hasPole=False
+    else:
+        if mode == "la":    _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+        elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol)
+        elif mode == "sip":
+            try:
+                _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+        elif mode == "lasip":
+            try:
+                _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+            has_pole = denomChangesSignMS(_app, 100)[0]
+            if has_pole:
+                try:
+                    _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ss', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+                except Exception as e:
+                    print("Exception:", e)
+                    return None, True
+        else:
+            raise Exception("Specified mode {} does not exist, choose la|onb|sip".format(mode))
+        hasPole = denomChangesSignMS(_app, testforPoles)[0]
+
+    return _app, hasPole
+
+
+if __name__ == "__main__":
+
+    import optparse, os, sys, h5py
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-o", dest="OUTPUT", default="approx.json", help="Output filename (default: %default)")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+    op.add_option("-s", dest="SEED", type=int, default=1234, help="Random seed (default: %default)")
+    op.add_option("--order", dest="ORDER", default=None, help="Polynomial orders of numerator and denominator, comma separated (default: %default)")
+    op.add_option("--mode", dest="MODE", default="la", help="Base algorithm  --- la |sip|lasip --- (default: %default)")
+    op.add_option("--errs", dest="ERRS", action='store_true', default=False, help="Build approximations for errors, (default is for values)")
+    op.add_option("--log", dest="ISLOG", action='store_true', default=False, help="input data is logarithmic --- affects how we filter (default: %default)")
+    op.add_option("--msg", dest="MSGEVERY", default=5, type=int, help="Verbosity of progress (default: %default)")
+    op.add_option("--fitter", dest="FITTER", default="scipy", help="Fitter scipy | filter (default: %default)")
+    op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
+    opts, args = op.parse_args()
+
+    rank=0
+    size=1
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    except Exception as e:
+        print("Exception when trying to import mpi4py:", e)
+        comm = None
+        pass
+
+    if opts.MODE not in ["la", "sip", "lasip"]:
+        print("Error: specified mode {} no known".format(opts.MODE))
+        sys.exit(1)
+
+    if len(args) == 0:
+        print("No input specified, exiting")
+        sys.exit(1)
+
+    if not os.path.exists(args[0]):
+        print("Input '{}' not found.".format(args[0]))
+
+    # Prevent overwriting of input data
+    assert(args[0]!=opts.OUTPUT)
+
+    pnames = app.tools.readPnamesH5(args[0], xfield="params") if rank==0 else []
+    pnames = comm.bcast(pnames, root=0)
+    if rank==0:
+        observables = list(set(app.tools.readObs(opts.WEIGHTS))) if opts.WEIGHTS is not None else app.tools.readObsNames(args[0])
+    else: observables = []
+    observables = comm.bcast(observables, root=0)
+
+    if rank == 0:
+        im = app.tools.indexMap(args[0], observables)
+        _IDX = np.sort(np.concatenate(list(im.values())))
+    else: _IDX = []
+
+    IDX = comm.bcast(_IDX, root=0)
+    rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else []
+    rankIdx = comm.scatter(rankIdx, root=0)
+
+    binids = app.tools.readIndex(args[0]) if rank==0 else []
+    binids = comm.bcast(binids, root=0)
+
+    DATA = app.tools.readH53(args[0], rankIdx)
+    comm.barrier()
+    print("[{}] will proceed to calculate approximations for {} objects)".format(rank, len(rankIdx)))
+    sys.stdout.flush()
+
+    apps = []
+    M,N=[int(x) for x in opts.ORDER.split(",")]
+
+    import time
+    t4   = time.time()
+    import datetime
+    for num, (_X, _Y, _E) in  enumerate(DATA):
+        if rank==0 or rank==size-1:
+            if ((num+1)%opts.MSGEVERY ==0):
+                now = time.time()
+                tel = now - t4
+                ttg = tel*(len(DATA)-num)/(num+1)
+                eta = now + ttg
+                eta = datetime.datetime.fromtimestamp(now + ttg)
+                sys.stdout.write("{}[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(80*" " if rank>0 else "", rank, num+1, len(DATA), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')) ,)
+                sys.stdout.flush()
+        USE = np.where( (_Y>0) ) if opts.ISLOG else np.where( (_E>=0) )
+        X = _X[USE]
+        Y =  np.log10(_Y[USE]) if opts.ISLOG else _Y[USE]
+        E =  np.log10(_E[USE]) if opts.ISLOG else _E[USE]
+
+        if len(X) == 0:
+            print("No data to calculate approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            import sys
+            sys.stdout.flush()
+            continue
+        if len(X) < app.tools.numCoeffsRapp(len(X[0]),order=(M,N)):
+            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping".format(binids[rankIdx[num]], len(X), app.tools.numCoeffsRapp(len(X[0]),order=myOrders[0])))
+            import sys
+            sys.stdout.flush()
+            continue
+
+        if opts.ERRS:
+            temp,  hasPole = calcApprox(X, E, (M,N), pnames, opts.MODE, fitter=opts.FITTER, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
+        else:
+            temp,  hasPole = calcApprox(X, Y, (M,N), pnames, opts.MODE, fitter=opts.FITTER, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
+        if temp is None:
+            print("Unable to calculate value approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            import sys
+            sys.stdout.flush()
+            continue
+        else:
+            if hasPole:
+                print("Warning: pole detected in {}".format(binids[rankIdx[num]]))
+                import sys
+                sys.stdout.flush()
+        apps.append(temp)
+
+    DD  = [(i, a.asDict) for a, i  in zip(apps,rankIdx)]
+    APPS = comm.gather(DD, root=0)
+    t5   = time.time()
+    if rank==0:
+        print()
+        print("Approximation calculation took {} seconds".format(t5-t4))
+        sys.stdout.flush()
+    if rank==0:
+        binids = app.tools.readIndex(args[0])
+        JD = {}
+        for rankApps in APPS:
+            for idx, app in rankApps:
+                JD[binids[idx]] = app
+
+        with h5py.File(args[0], "r") as f:
+            if "xmin" in f and "xmax" in f:
+                _XMIN = f["xmin"][:]
+                _XMAX = f["xmax"][:]
+                xmin, xmax = [], []
+                for rankApps in APPS:
+                    for idx, _ in rankApps:
+                        xmin.append(_XMIN[idx])
+                        xmax.append(_XMAX[idx])
+                JD["__xmin"]=xmin
+                JD["__xmax"]=xmax
+
+        import json
+        with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
+
+        print("Done --- {} approximations written to {}".format(len(JD), opts.OUTPUT))
+
+    exit(0)
