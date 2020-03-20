@@ -14,10 +14,8 @@ setup(
    'sklearn',
    'numba',
    'h5py'
-   # 'sobol',
-   # 'pyDOE'
  ],
-  scripts=["bin/app-ls", "bin/app-tune", "bin/app-rox", "bin/app-nest", "bin/app-rox-parallel", "bin/app-predict", "etc/convertDat.py", "etc/simplecomp.py"],
+  scripts=["bin/app-ls", "bin/app-tune", "bin/app-build", "bin/app-rox", "bin/app-nest", "bin/app-rox-parallel", "bin/app-predict", "bin/app-sample", "etc/convertData.py", "etc/simplecomp.py", "etc/convert.py"],
   extras_require = {
   },
   entry_points = {
