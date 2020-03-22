@@ -550,19 +550,19 @@ def readTuneResult(fname):
 
 
 # TODO add load filtering
-def readApprox(fname, set_structures=True):
+def readApprox(fname, set_structures=True, usethese=None):
     import json, apprentice
     with open(fname) as f:
         rd = json.load(f)
     binids = sorted_nicely(rd.keys())
     binids = [x for x in binids if not x.startswith("__")]
+    if usethese is not None:
+        binids = [x for x in binids if x in usethese]
 
     APP = {}
     for b in binids:
-        try:
-            APP[b] = apprentice.RationalApproximation(initDict=rd[b])
-        except:
-            APP[b] = apprentice.PolynomialApproximation(initDict=rd[b], set_structures=set_structures)
+        if "n" in rd[b]: APP[b] = apprentice.RationalApproximation(initDict=rd[b]) # FIXME what about set_structures for rationals?
+        else:            APP[b] = apprentice.PolynomialApproximation(initDict=rd[b], set_structures=set_structures)
     return binids, [APP[b] for b in binids]
 
 
