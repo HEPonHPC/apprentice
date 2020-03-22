@@ -42,8 +42,10 @@ class AppSet(object):
     @property
     def dim(self): return self._dim
 
-    def mkFromFile(self, f_approx, **kwargs):
-        self._binids, self._RA = apprentice.tools.readApprox(f_approx, set_structures=False)
+    def mkFromFile(self, f_approx, binids=None, **kwargs):
+        binids, RA = apprentice.tools.readApprox(f_approx, set_structures=False, usethese=binids)
+        self._binids=np.array(binids)
+        self._RA = np.array(RA)
         self.setAttributes(**kwargs)
 
     def mkFromData(self, RA, binids, **kwargs):
@@ -225,37 +227,40 @@ class TuningObjective2(object):
 
     def mkFromFiles(self, f_weights, f_data, f_approx, f_errors=None, **kwargs):
         AS = AppSet(f_approx)
-        hnames = [b.split("#")[0] for b in AS._binids]
-        bnums = [int(b.split("#")[1]) for b in AS._binids]
-        self._hnames = np.array(hnames)
+        hnames  = [    b.split("#")[0]  for b in AS._binids]
+        bnums   = [int(b.split("#")[1]) for b in AS._binids]
         weights = self.initWeights(f_weights, hnames, bnums)
+        nonzero = np.where(weights>0)
+
 
         # Filter here to use only certain bins/histos
-        dd = apprentice.tools.readExpData(f_data, [str(b) for b in AS._binids])
-        Y = np.array([dd[b][0] for b in AS._binids], dtype=np.float64)
-        E = np.array([dd[b][1] for b in AS._binids], dtype=np.float64)
+        dd = apprentice.tools.readExpData(f_data, [str(b) for b in AS._binids[nonzero]])
+        Y = np.array([dd[b][0] for b in AS._binids[nonzero]], dtype=np.float64)
+        E = np.array([dd[b][1] for b in AS._binids[nonzero]], dtype=np.float64)
 
         # Filter for wanted bins here and get rid of division by zero in case of 0 error which is undefined behaviour
         good = []
-        for num, bid in enumerate(AS._binids):
-            if weights[num] > 0 and E[num] > 0:
+        for num, bid in enumerate(AS._binids[nonzero]):
+            if E[num] > 0:
                 if AS._RA[0]._scaler != AS._RA[num]._scaler:
                     if self._debug: print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
                 good.append(num)
             else:
-                if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[num],E[num]))
+                if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[nonzero][num],E[num]))
 
         self._good = good
 
 
         # TODO This needs some re-engineering to allow fow multiple filterings
-        RA = [AS._RA[g] for g in good]
-        self._binids = [AS._binids[g] for g in good]
+        RA = [AS._RA[nonzero][g] for g in good]
+        self._binids = [AS._binids[nonzero][g] for g in good]
         self._AS = AppSet(RA, self._binids)
         self._E = E[good]
         self._Y = Y[good]
-        self._W2 = np.array([w * w for w in np.array(weights)[good]], dtype=np.float64)
+        self._W2 = np.array([w  for w in np.array(weights[nonzero])[good]], dtype=np.float64)
+        # self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
+        self._hnames = np.array([b.split("#")[0]  for b in AS._binids[nonzero]])
         # Add in error approximations
         if f_errors is not None:
             EAS = AppSet(f_errors)
@@ -290,25 +295,44 @@ class TuningObjective2(object):
         vals  = self._AS.vals( x, sel = sel)
         grads = self._AS.grads(x, sel, set_cache=False)
         hess  = self._AS.hessians(x, sel)
+        if self._EAS is not None:
+            evals  = self._EAS.vals( x, sel = sel)
+            egrads = self._EAS.grads(x, sel, set_cache=False)
+            ehess  = self._EAS.hessians(x, sel)
+        else:
+            evals  = np.zeros_like(vals)
+            egrads = np.zeros_like(grads)
+            ehess  = np.zeros_like(hess)
 
-        spans = np.empty( (self.dim, self.dim, len(vals)) )
+        # Some useful definitions
+        E2=1./self._E2[sel]
+        lbd = E2 + evals*evals
+        kap = vals - self._Y[sel]
+        G1 = 2./lbd
+        G2 = -4*kap*evals/lbd/lbd
+        G3 =  2*kap/lbd
+
+        H2 = -2 * kap*kap/lbd/lbd
+        H3 = -2 * evals * kap /lbd * G2
+
+        spans = np.zeros( (self.dim, self.dim, len(vals)) )
+        # TODO explicitly exploit symmetry
         for numx in range(self.dim):
             for numy in range(self.dim):
-                if numy>=numx:
-                    spans[numx][numy] = grads[:,numx] *  grads[:,numy]
-                else:
-                    spans[numx][numy] = spans[numy][numx]
+                spans[numx][numy] +=        G1 *  grads[:,numx] *  grads[:,numy]
+                spans[numx][numy] +=     2* G2 * egrads[:,numx] *  grads[:,numy]
+                spans[numx][numy] += (H2 + H3) * egrads[:,numx] * egrads[:,numy]
+        spans += G3*hess
+        spans += H2*evals*ehess
 
-        diff = vals - self._Y[sel]
-
-        return 2 * np.sum( self._W2[sel]*self._E2[sel]*(spans+diff*hess), axis=2)
+        return np.sum( self._W2[sel]*(spans), axis=2)
 
     def startPoint(self, ntrials):
         if ntrials == 0:
             if self._debug: print("StartPoint: {}".format(self._SCLR.center))
             return self._SCLR.center
         import numpy as np
-        _PP = np.random.uniform(low=self._SCLR._Xmin, high=self._SCLR._Xmax, size=(ntrials, self._SCLR.dim))
+        _PP = np.random.uniform(low=self._bounds[:,0], high=self._bounds[:,1], size=(ntrials, self._SCLR.dim))
         _CH = [self.objective(p) for p in _PP]
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
@@ -336,6 +360,8 @@ class TuningObjective2(object):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
+        import time
+        t0=time.time()
         for t in range(nrestart):
             x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
@@ -343,6 +369,9 @@ class TuningObjective2(object):
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
+        t1=time.time()
+        if self._debug:
+            print(t1-t0)
         return finalres
 
     def minimizeNCG(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
@@ -362,6 +391,8 @@ class TuningObjective2(object):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
+        import time
+        t0=time.time()
         for t in range(nrestart):
             x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
@@ -375,12 +406,17 @@ class TuningObjective2(object):
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
+        t1=time.time()
+        if self._debug:
+            print(t1-t0)
         return finalres
 
     def minimizeLBFGSB(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="L-BFGS-B", use_mpi=False):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
+        import time
+        t0=time.time()
         for t in range(nrestart):
             x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
@@ -394,11 +430,37 @@ class TuningObjective2(object):
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
+        t1=time.time()
+        if self._debug:
+            print(t1-t0)
         return finalres
 
     def writeParams(self, x, fname):
         with open(fname, "w") as f:
             for pn, val in zip(self.pnames, x):
                 f.write("{}\t{}\n".format(pn, val))
+
+    def printParams(self, x):
+        s= ""
+        for num, (pn, val) in enumerate(zip(self.pnames, x)):
+            s+= ("{}\t{}  [{} ... {}]\n".format(pn, val, self._SCLR.box[num][0], self._SCLR.box[num][1]))
+        return s
+
+    def lineScan(self, x0, dim, npoints=100, bounds=None):
+        if bounds is None:
+            xmin, xmax = self._SCLR.box[dim]
+        else:
+            xmin, xmax = bounds
+
+        xcoords = list(np.linspace(xmin, xmax, npoints))
+        xcoords.append(x0[dim])
+        xcoords.sort()
+
+        X = np.tile(x0, (len(xcoords),1))
+        for num, x in enumerate(X):
+            x[dim] = xcoords[num]
+        return X
+
+
 
     def __len__(self): return len(self._AS)
