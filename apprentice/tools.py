@@ -15,7 +15,7 @@ def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
         V = [PF*app.predict(p) for p in P]
         imin = V.index(min(V))
         pstart = P[imin]
-        _fmin = optimize.minimize(lambda x:PF*app.predict(x), pstart, bounds=app._scaler.box, jac=jac)
+        _fmin = optimize.minimize(lambda x:PF*app.predict(x), pstart, bounds=app._scaler.box, jac=jac, method="TNC")
         res.append(_fmin["fun"])
     return PF*min(res)
 
