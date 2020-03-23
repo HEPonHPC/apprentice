@@ -443,15 +443,21 @@ class TuningObjective2(object):
         import time
         t0=time.time()
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
-            if use_grad:
-                if self._debug: print("using gradient")
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol)
-            else:
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds[self._freeIdx], method=method, tol=tol)
+            isSaddle = True
+
+            while (isSaddle):
+                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+
+                if use_grad:
+                    if self._debug: print("using gradient")
+                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                            bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol)
+                else:
+                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                            bounds=self._bounds[self._freeIdx], method=method, tol=tol)
+                isSaddle=self.isSaddle(res.x)
+                print(isSaddle)
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -485,6 +491,11 @@ class TuningObjective2(object):
         for num, x in enumerate(X):
             x[dim] = xcoords[num]
         return X
+
+    def isSaddle(self, x):
+        H=self.hessian(x)
+        # Test for negative eigenvalue
+        return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
 
 
 
