@@ -210,11 +210,23 @@ class TuningObjective2(object):
         for hn in self._hnames[self._good]: weights.append(wdict[hn])
         self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
-    def setLimits(self, fname):
+    def setLimitsAndFixed(self, fname):
         lim, fix = apprentice.tools.read_limitsandfixed(fname)
+
+        i_fix, v_fix, i_free =[], [], []
         for num, pn in enumerate(self.pnames):
             if pn in lim:
                 self._bounds[num] = lim[pn]
+            if pn in fix:
+                i_fix.append(num)
+                v_fix.append(fix[pn])
+            else:
+                i_free.append(num)
+
+        self._fixIdx = (i_fix, )
+        self._fixVal = v_fix
+        self._freeIdx = (i_free, )
+
 
     def setAttributes(self, **kwargs):
         noiseexp = int(kwargs.get("noise_exponent")) if kwargs.get("noise_exponent") is not None else 2
@@ -222,6 +234,9 @@ class TuningObjective2(object):
         self._E2 = np.array([1. / e ** noiseexp for e in self._E], dtype=np.float64)
         self._SCLR = self._AS._SCLR
         self._bounds = self._SCLR.box
+        self._freeIdx = ([i for i in range(self._dim)],)
+        self._fixIdx = ([],)
+        self._fixVal = []
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
 
@@ -258,8 +273,8 @@ class TuningObjective2(object):
         self._AS = AppSet(RA, self._binids)
         self._E = E[good]
         self._Y = Y[good]
-        self._W2 = np.array([w  for w in np.array(weights[nonzero])[good]], dtype=np.float64)
-        # self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
+        # self._W2 = np.array([w  for w in np.array(weights[nonzero])[good]], dtype=np.float64)
+        self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
         self._hnames = np.array([b.split("#")[0]  for b in AS._binids[nonzero]])
         # Add in error approximations
         if f_errors is not None:
@@ -270,7 +285,14 @@ class TuningObjective2(object):
             self._EAS=None
         self.setAttributes(**kwargs)
 
-    def objective(self, x, sel=slice(None, None, None), unbiased=False):
+    def mkPoint(self, _x):
+        x=np.empty(self._dim, dtype=np.float64)
+        x[self._fixIdx] = self._fixVal
+        x[self._freeIdx] = _x
+        return x
+
+    def objective(self, _x, sel=slice(None, None, None), unbiased=False):
+        x=self.mkPoint(_x)
         vals = self._AS.vals(x, sel=sel)
         if self._EAS is not None:
             err2 = self._EAS.vals(x, sel=sel)**2
@@ -279,7 +301,8 @@ class TuningObjective2(object):
         if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))
         else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))# self._E2[sel])
 
-    def gradient(self, x, sel=slice(None, None, None)):
+    def gradient(self, _x, sel=slice(None, None, None)):
+        x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel=sel)
         E2=1./self._E2[sel]
         grads = self._AS.grads(x, sel=sel, set_cache=False)
@@ -289,16 +312,17 @@ class TuningObjective2(object):
         else:
             err= np.zeros_like(vals)
             egrads = np.zeros_like(grads)
-        return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err,grads, egrads)
+        return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err,grads, egrads)[self._freeIdx]
 
-    def hessian(self, x, sel=slice(None, None, None)):
+    def hessian(self, _x, sel=slice(None, None, None)):
+        x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel = sel)
         grads = self._AS.grads(x, sel, set_cache=False)
-        hess  = self._AS.hessians(x, sel)
+        hess  = self._AS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(self))
         if self._EAS is not None:
             evals  = self._EAS.vals( x, sel = sel)
             egrads = self._EAS.grads(x, sel, set_cache=False)
-            ehess  = self._EAS.hessians(x, sel)
+            ehess  = self._EAS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(self))
         else:
             evals  = np.zeros_like(vals)
             egrads = np.zeros_like(grads)
@@ -315,10 +339,10 @@ class TuningObjective2(object):
         H2 = -2 * kap*kap/lbd/lbd
         H3 = -2 * evals * kap /lbd * G2
 
-        spans = np.zeros( (self.dim, self.dim, len(vals)) )
+        spans = np.zeros( (len(_x), len(_x), len(vals)) )
         # TODO explicitly exploit symmetry
-        for numx in range(self.dim):
-            for numy in range(self.dim):
+        for numx in range(len(_x)):
+            for numy in range(len(_x)):
                 spans[numx][numy] +=        G1 *  grads[:,numx] *  grads[:,numy]
                 spans[numx][numy] +=     2* G2 * egrads[:,numx] *  grads[:,numy]
                 spans[numx][numy] += (H2 + H3) * egrads[:,numx] * egrads[:,numy]
@@ -330,9 +354,10 @@ class TuningObjective2(object):
     def startPoint(self, ntrials):
         if ntrials == 0:
             if self._debug: print("StartPoint: {}".format(self._SCLR.center))
-            return self._SCLR.center
+            x0 =self._bounds[:,0] + 0.5*(self._bounds[:,1]-self._bounds[:,0])
+            return x0[self._freeIdx]
         import numpy as np
-        _PP = np.random.uniform(low=self._bounds[:,0], high=self._bounds[:,1], size=(ntrials, self._SCLR.dim))
+        _PP = np.random.uniform(low=self._bounds[self._freeIdx][:,0], high=self._bounds[self._freeIdx][:,1], size=(ntrials, len(self._freeIdx[0])))
         _CH = [self.objective(p) for p in _PP]
         if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
         return _PP[_CH.index(min(_CH))]
@@ -399,10 +424,10 @@ class TuningObjective2(object):
             if use_grad:
                 if self._debug: print("using gradient")
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds, jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                        bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
             else:
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                        bounds=self._bounds[self._freeIdx], method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -411,7 +436,7 @@ class TuningObjective2(object):
             print(t1-t0)
         return finalres
 
-    def minimizeLBFGSB(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="L-BFGS-B", use_mpi=False):
+    def minimizeLBFGSB(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-6,  method="L-BFGS-B", use_mpi=False):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
@@ -423,10 +448,10 @@ class TuningObjective2(object):
             if use_grad:
                 if self._debug: print("using gradient")
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds, jac=self.gradient, method=method, tol=tol)
+                        bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol)
             else:
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds, method=method, tol=tol)
+                        bounds=self._bounds[self._freeIdx], method=method, tol=tol)
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -448,7 +473,7 @@ class TuningObjective2(object):
 
     def lineScan(self, x0, dim, npoints=100, bounds=None):
         if bounds is None:
-            xmin, xmax = self._SCLR.box[dim]
+            xmin, xmax = self._SCLR.box[self._freeIdx][dim]
         else:
             xmin, xmax = bounds
 
