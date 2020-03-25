@@ -388,9 +388,13 @@ class TuningObjective2(object):
         import time
         t0=time.time()
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+            isSaddle = True
+            while (isSaddle):
+                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
-            res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
+                isSaddle=self.isSaddle(res.x)
+                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -403,13 +407,22 @@ class TuningObjective2(object):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
+        import time
+        t0=time.time()
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+            isSaddle = True
+            while (isSaddle):
+                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
-            res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="Newton-CG")
+                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="Newton-CG")
+                isSaddle=self.isSaddle(res.x)
+                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
+        t1=time.time()
+        if self._debug:
+            print(t1-t0)
         return finalres
 
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="TNC", use_mpi=False):
@@ -419,15 +432,20 @@ class TuningObjective2(object):
         import time
         t0=time.time()
         for t in range(nrestart):
-            x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+            isSaddle = True
+            while (isSaddle):
+                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
-            if use_grad:
-                if self._debug: print("using gradient")
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
-            else:
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                        bounds=self._bounds[self._freeIdx], method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                if use_grad:
+                    if self._debug: print("using gradient")
+                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                            bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                else:
+                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                            bounds=self._bounds[self._freeIdx], method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                isSaddle=self.isSaddle(res.x)
+                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
+
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -457,7 +475,7 @@ class TuningObjective2(object):
                     res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
                             bounds=self._bounds[self._freeIdx], method=method, tol=tol)
                 isSaddle=self.isSaddle(res.x)
-                print(isSaddle)
+                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -479,7 +497,7 @@ class TuningObjective2(object):
 
     def lineScan(self, x0, dim, npoints=100, bounds=None):
         if bounds is None:
-            xmin, xmax = self._SCLR.box[self._freeIdx][dim]
+            xmin, xmax = self._bounds[self._freeIdx][dim]
         else:
             xmin, xmax = bounds
 
@@ -493,10 +511,14 @@ class TuningObjective2(object):
         return X
 
     def isSaddle(self, x):
+        # temp fix to skip check when fixing parameters
+        if len(self._fixIdx[0])>0: return False
         H=self.hessian(x)
         # Test for negative eigenvalue
         return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
 
+    @property
+    def ndf(self): return len(self) - self.dim - len(self._fixIdx[0])
 
 
     def __len__(self): return len(self._AS)
