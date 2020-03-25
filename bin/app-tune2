@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+import apprentice as app
+import numpy as np
+import time
+
+def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
+    temp = TO._fixIdx
+    import pylab
+    A14 = np.array([0.14, 1.88, 1.56, 0.91, 1.05, 0.127, 0.127, 2.09, 0.126, 1.71])
+    A14 = A14[TO._freeIdx]
+    pnames = np.array(TO.pnames)[TO._freeIdx]
+    for i in range(len(x0)):
+        pylab.clf()
+        X=TO.lineScan(x0,i)
+        Y   =[TO.objective(x) for x in X]
+        Yunb=[TO.objective(x, unbiased=True) for x in X]
+        # pylab.axvline(A14[i], label="A14 NNPDF, x=%.2f"%A14[i], color="r")
+        pylab.axvline(x0[i], label="x0=%.5f"%x0[i], color="k")
+        y0=TO.objective(x0, unbiased=True)
+        pylab.axhline(y0, label="unbiased y0=%.2f"%y0, color="k")
+        pylab.plot(X[:,i], Y,    label="biased")
+        pylab.plot(X[:,i], Yunb, linestyle="dashed", label="unbiased")
+        pylab.ylabel("objective")
+        pylab.xlabel(pnames[i])
+        pylab.legend()
+        pylab.savefig(prefix+"valley_{}.pdf".format(i))
+
+
+import optparse, os, sys
+op = optparse.OptionParser(usage=__doc__)
+op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+op.add_option("-o", dest="OUTDIR", default="tune", help="Output directory (default: %default)")
+op.add_option("-e", "--errorapprox", dest="ERRAPP", default=None, help="Approximations of bin uncertainties (default: %default)")
+op.add_option("-s", "--survey", dest="SURVEY", default=1, type=int, help="Size of survey when determining start point (default: %default)")
+op.add_option("-r", "--restart", dest="RESTART", default=1, type=int, help="Minimiser restarts (default: %default)")
+op.add_option("--seed", dest="SEED", default=1234, type=int, help="The base random seed (default: %default)")
+op.add_option("-a", "--algorithm", dest="ALG", default="tnc", help="The minimisation algrithm tnc, ncg, lbfgsb, trust (default: %default)")
+op.add_option("-l", "--limits", dest="LIMITS", default=None, help="Parameter file with limits and fixed parameters (default: %default)")
+op.add_option("-f", dest="FORCE", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
+op.add_option("-p", "--plotvalley", dest="PLOTVALLEY", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
+opts, args = op.parse_args()
+
+#TODO add protections and checks if files exist etc
+if not os.path.exists(opts.OUTDIR): os.makedirs(opts.OUTDIR)
+
+WFILE = args[0]
+DATA  = args[1]
+APP   = args[2]
+
+np.random.seed(opts.SEED)
+
+GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
+if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
+
+if opts.ALG=="tnc":      res = GOF.minimize(      opts.SURVEY, opts.RESTART)
+elif opts.ALG=="ncg":    res = GOF.minimizeNCG(   opts.SURVEY, opts.RESTART)
+elif opts.ALG=="lbfgsb": res = GOF.minimizeLBFGSB(opts.SURVEY, opts.RESTART)
+elif opts.ALG=="trust":  res = GOF.minimizeTrust( opts.SURVEY, opts.RESTART)
+else:
+    raise Exception("Minimisation algorithm {} not implemented, should be tnc, ncg, lbfgsb or trut, exiting")
+
+if opts.DEBUG: print(res)
+
+chi2 = GOF.objective(res.x, unbiased=True)
+print("Objective value at best fit point: {} ({} without weights)".format(res.fun, chi2))
+ndf = GOF.ndf
+print("Degrees of freedom: {}".format(ndf))
+print("phi2/ndf: %.3f"%(chi2/ndf))
+print("Best fit point:")
+print(GOF.printParams(res.x))
+
+outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
+
+GOF.writeParams(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
+if opts.PLOTVALLEY:
+    plotout = os.path.join(opts.OUTDIR, "valleys_{}".format(outcommon))
+    if not os.path.exists(plotout): os.makedirs(plotout)
+    mkPlotsMinimum(GOF, res.x, prefix=plotout+"/")
+
+import shutil
+shutil.copy(WFILE, os.path.join(opts.OUTDIR, "weights_{}.txt".format(outcommon)))
+
+print("Done. Output written to directory {}.".format(opts.OUTDIR))
