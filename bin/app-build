@@ -40,7 +40,7 @@ def denomChangesSignMS(rapp, multistart=10):
     else:   return False, xmin, xmax
 
 
-def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debug=False, testforPoles=100):
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100):
     M, N = order
     import apprentice as app
     if N==0:
@@ -51,7 +51,7 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debu
         elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol)
         elif mode == "sip":
             try:
-                _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ms', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+                _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug)
             except Exception as e:
                 print("Exception:", e)
                 return None, True
@@ -64,7 +64,7 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, fitter='scipy', debu
             has_pole = denomChangesSignMS(_app, 100)[0]
             if has_pole:
                 try:
-                    _app = app.RationalApproximationSIP(X, Y, m=M, n=N, trainingscale="Cp", roboptstrategy = 'ss', localoptsolver = 'scipy', fitstrategy = fitter, strategy=0, pnames=pnames, debug=debug)
+                    _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug)
                 except Exception as e:
                     print("Exception:", e)
                     return None, True
@@ -88,7 +88,6 @@ if __name__ == "__main__":
     op.add_option("--errs", dest="ERRS", action='store_true', default=False, help="Build approximations for errors, (default is for values)")
     op.add_option("--log", dest="ISLOG", action='store_true', default=False, help="input data is logarithmic --- affects how we filter (default: %default)")
     op.add_option("--msg", dest="MSGEVERY", default=5, type=int, help="Verbosity of progress (default: %default)")
-    op.add_option("--fitter", dest="FITTER", default="scipy", help="Fitter scipy | filter (default: %default)")
     op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
     opts, args = op.parse_args()
 
@@ -175,9 +174,9 @@ if __name__ == "__main__":
             continue
 
         if opts.ERRS:
-            temp,  hasPole = calcApprox(X, E, (M,N), pnames, opts.MODE, fitter=opts.FITTER, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
+            temp,  hasPole = calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
         else:
-            temp,  hasPole = calcApprox(X, Y, (M,N), pnames, opts.MODE, fitter=opts.FITTER, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
+            temp,  hasPole = calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES)
         if temp is None:
             print("Unable to calculate value approximation for {} --- skipping".format(binids[rankIdx[num]]))
             import sys
