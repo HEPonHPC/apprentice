@@ -25,7 +25,7 @@ if __name__ == "__main__":
     op.add_option("-r", "--restart", dest="NRESTART", type=int, default=1, help="Number of restarts (default: %default)")
     op.add_option("--seed", dest="SEED", type=int, default=1234, help="Random number seed (default: %default)")
     op.add_option("-i", "--inplace", dest="INPLACE", default=False, action='store_true', help="Overwrite input file (default: %default)")
-    op.add_option("-g", "--grad", dest="USEGRAD", default=False, action='store_true', help="Use gradients in minimisation (default: %default)")
+    # op.add_option("-g", "--grad", dest="USEGRAD", default=False, action='store_true', help="Use gradients in minimisation (default: %default)")
     opts, args = op.parse_args()
 
     np.random.seed(opts.SEED)
@@ -41,8 +41,8 @@ if __name__ == "__main__":
 
     FMIN, FMAX = [], []
     for i in rankWork:
-        FMIN.append((binids[i], RA[i].fmin(opts.NTRIALS, opts.NRESTART, use_grad=opts.USEGRAD)))
-        FMAX.append((binids[i], RA[i].fmax(opts.NTRIALS, opts.NRESTART, use_grad=opts.USEGRAD)))
+        FMIN.append((binids[i], RA[i].fmin(opts.NTRIALS, opts.NRESTART, use_grad=True)))
+        FMAX.append((binids[i], RA[i].fmax(opts.NTRIALS, opts.NRESTART, use_grad=True)))
 
         if rank==0:
             now = time.time()
