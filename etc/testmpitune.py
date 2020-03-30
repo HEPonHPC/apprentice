@@ -11,9 +11,7 @@ def objective(IO, x, comm, rankApp):
     xs = a._scaler.scale(x)
     rec_p = np.array(a.recurrence(xs, a._struct_p))
 
-    # test = [r._pcoeff.dot(rec_p) for r in IO._RA]
     v = np.array([IO._RA[i].predict(x, recurrence=rec_p) for i in rankApp])
-    # v = np.array([IO._RA[i](x) for i in rankApp])
     w = IO._W2[rankApp]
     y = IO._Y[rankApp]
     e = IO._E2[rankApp]
@@ -71,7 +69,7 @@ if __name__ == "__main__":
         raise Exception("No data file spefified -- use  -d on CL")
 
     np.random.seed(opts.SEED)
-    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0], debug=opts.DEBUG)
+    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0], debug=opts.DEBUG, cache_recursions=True)
     rankApp = app.tools.chunkIt([x for x in range(len(IO._RA))], size) if rank==0 else []
     rankApp = comm.scatter(rankApp, root=0)
 
