@@ -62,10 +62,29 @@ def fast_robustSample(coeff, q_ipo, M, N):
 def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
     return np.sum(np.square(Y * np.sum(coeff[M:M+N] * ipoq, axis=1) - np.sum(coeff[:M] * ipop, axis=1)))
 
-def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
+def fast_jac(coeff, _, ipop, ipoq, M, N, Y):
+    """
+    Exact analytic gradient of fast_leastSqObj
+    """
+    core = Y * np.sum(coeff[M:M+N] * ipoq, axis=1) - np.sum(coeff[:M] * ipop, axis=1)
+    grads = np.empty_like(coeff)
+
+    pgrad = -2*np.sum(core[:,np.newaxis]                    *ipop, axis=0)
+    qgrad =  2*np.sum(core[:,np.newaxis] * Y[:,np.newaxis] * ipoq, axis=0)
+
+    grads[:M]    = pgrad
+    grads[M:M+N] = qgrad
+
+    return grads
+
+def fast_jac2(coeff, trainingsize, ipop, ipoq, M, N, Y):
+    """
+    Forward difference gradient of fast_leastSqObj
+    """
     f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
     h = 1.5e-8
     jac = np.zeros_like(coeff)
+
     for num in range(len(coeff)):
         temp=np.zeros_like(coeff)
         temp[num]+=h
@@ -315,7 +334,7 @@ class RationalApproximationSIP():
         #print '{0:4d}   {1: .6E}'.format(self.Nfeval, fast_leastSqObj(coeff, self.trainingsize, ipop, ipoq, self.M, self.N, self._Y))
         self.Nfeval += 1
 
-    def scipyfit(self, coeffs0, cons, maxiter=1001, ftol=1e-3, iprint=2):
+    def scipyfit(self, coeffs0, cons, maxiter=1001, ftol=1e-9, iprint=2):
         start = timer()
         ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
@@ -441,6 +460,7 @@ class RationalApproximationSIP():
             cons = np.append(cons, {'type': 'ineq', 'fun':fast_robustSampleV, 'args':(ipoq, self.M, self.N)})
 
             if(self.strategy == 0):
+                # TODO need to check if this is a feasible point!
                 coeffs0 = np.ones((self.M+self.N))
                 coeffs0[self.M] = 2
             elif(self.strategy == 1):
@@ -468,6 +488,17 @@ class RationalApproximationSIP():
 
             if(self._fitstrategy == 'scipy'):
                 coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
+                # This is a bit brutal trial and error,
+                # if the starting point was not good, we just try again with a random
+                # vector, otherwise coeffs is always the same and this loop does nothing
+                # but waste time
+                if optstatus['status']!=0:
+                    fixme=True
+                    while fixme:
+                        coeffs0 = np.random.random(coeffs0.shape)
+                        coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
+                        if optstatus['status']!=0:
+                            fixme=False
             elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
                 coeffs, leastSq, optstatus = self.pyomofit(iter-1,self._fitstrategy)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
@@ -1054,12 +1085,14 @@ class RationalApproximationSIP():
 
 if __name__=="__main__":
     import sys
-    infilePath11 = "../benchmarkdata/f16.txt"
+    infilePath11 = sys.argv[1]#"benchmarkdata/f16.txt"
     # infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
     X, Y = tools.readData(infilePath11)
-    r = RationalApproximationSIP(X, Y, m=2, n=3, trainingscale="Cp", roboptstrategy='ss', localoptsolver='scipy',
-                                 fitstrategy='filter', strategy=0)
-    print(r.asJSON)
+    print(X.shape)
+    for i in range(int(sys.argv[2])):
+        r = RationalApproximationSIP(X, Y, m=2, n=3, trainingscale="Cp", roboptstrategy='ss', localoptsolver='scipy',
+                                     fitstrategy='scipy', strategy=0)
+    # print(r.asJSON)
     exit(0)
     r = RationalApproximationSIP(X,Y,
                                 m=2,
