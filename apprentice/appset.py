@@ -340,11 +340,11 @@ class TuningObjective2(object):
         H3 = -2 * evals * kap /lbd * G2
 
         spans = np.zeros( (len(_x), len(_x), len(vals)) )
-        # TODO explicitly exploit symmetry
+        # TODO explicitly exploit symmetry to make this faster?
         for numx in range(len(_x)):
             for numy in range(len(_x)):
                 spans[numx][numy] +=        G1 *  grads[:,numx] *  grads[:,numy]
-                spans[numx][numy] +=     2* G2 * egrads[:,numx] *  grads[:,numy]
+                spans[numx][numy] +=        G2 * (egrads[:,numx] *  grads[:,numy] + egrads[:,numy] *  grads[:,numx])
                 spans[numx][numy] += (H2 + H3) * egrads[:,numx] * egrads[:,numy]
         spans += G3*hess
         spans += H2*evals*ehess
