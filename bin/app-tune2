@@ -10,6 +10,16 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
     A14 = np.array([0.14, 1.88, 1.56, 0.91, 1.05, 0.127, 0.127, 2.09, 0.126, 1.71])
     A14 = A14[TO._freeIdx]
     pnames = np.array(TO.pnames)[TO._freeIdx]
+
+    XX = [TO.lineScan(x0,i) for i in range(len(x0))]
+    YY = []
+    for i, X in enumerate(XX):
+        Y   =[TO.objective(x) for x in X]
+        YY.append(Y)
+    ymax=np.max(np.array(YY))
+    ymin=np.min(np.array(YY))
+
+
     for i in range(len(x0)):
         pylab.clf()
         X=TO.lineScan(x0,i)
@@ -23,9 +33,32 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
         pylab.plot(X[:,i], Yunb, linestyle="dashed", label="unbiased")
         pylab.ylabel("objective")
         pylab.xlabel(pnames[i])
+        pylab.ylim((0.9*ymin, 1.1*ymax))
         pylab.legend()
         pylab.savefig(prefix+"valley_{}.pdf".format(i))
 
+def mkPlotsCorrelation(TO, x0, prefix=""):
+    H=TO.hessian(x0)
+    COV = np.linalg.inv(H)
+    COR = np.zeros_like(COV)
+    nd = len(x0)
+    for i in range(nd):
+        for j in range(nd):
+            COR[i,j] = COV[i,j]/np.sqrt(COV[i,i]*COV[j,j])
+
+    mask =  np.tri(COR.shape[0], k=0)
+    A = np.ma.array(COR, mask=mask)
+    import pylab
+    pylab.clf()
+    bb = pylab.imshow(A, vmin=-1, vmax=1, cmap="RdBu")
+    locs, labels = pylab.yticks()
+    pylab.yticks([i for i in range(nd)], TO.pnames, rotation=00)
+    locs, labels = pylab.xticks()
+    pylab.xticks([i for i in range(nd)], TO.pnames, rotation=90)
+    cbar = pylab.colorbar(bb, extend='both')
+
+    pylab.tight_layout()
+    pylab.savefig(prefix+"corr.pdf")
 
 import optparse, os, sys
 op = optparse.OptionParser(usage=__doc__)
@@ -53,14 +86,16 @@ np.random.seed(opts.SEED)
 GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
 if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
 
-if opts.ALG=="tnc":      res = GOF.minimize(      opts.SURVEY, opts.RESTART)
+if   opts.ALG=="tnc":    res = GOF.minimize(      opts.SURVEY, opts.RESTART)
 elif opts.ALG=="ncg":    res = GOF.minimizeNCG(   opts.SURVEY, opts.RESTART)
 elif opts.ALG=="lbfgsb": res = GOF.minimizeLBFGSB(opts.SURVEY, opts.RESTART)
 elif opts.ALG=="trust":  res = GOF.minimizeTrust( opts.SURVEY, opts.RESTART)
 else:
-    raise Exception("Minimisation algorithm {} not implemented, should be tnc, ncg, lbfgsb or trut, exiting")
+    raise Exception("Minimisation algorithm {} not implemented, should be tnc, ncg, lbfgsb or trust, exiting")
 
 if opts.DEBUG: print(res)
+
+
 
 chi2 = GOF.objective(res.x, unbiased=True)
 print("Objective value at best fit point: {} ({} without weights)".format(res.fun, chi2))
@@ -72,6 +107,7 @@ print(GOF.printParams(res.x))
 
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
 
+mkPlotsCorrelation(GOF, res.x, opts.OUTDIR+"/{}_".format(outcommon))
 GOF.writeParams(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
 if opts.PLOTVALLEY:
     plotout = os.path.join(opts.OUTDIR, "valleys_{}".format(outcommon))
