@@ -28,6 +28,38 @@ def startPoints(self, _PP):
        _CH[p] = self.objective(_PP[p])
     return _PP[np.argmin(_CH)]
 
+@jit(forceobj=True)#, parallel=True)
+def prime(GREC, COEFF, dim, NNZ):
+    ret = np.empty((len(COEFF), dim))
+    for i in range(dim):
+        ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
+    return ret
+
+@jit
+def jitprime(GREC, COEFF, dim):
+    ret = np.empty((len(COEFF), dim))
+    for i in range(dim):
+        for j in range(len(COEFF)):
+            ret[j,i] = np.sum(COEFF[j] * GREC[i])
+    return ret
+
+
+
+@njit(parallel=True)
+def calcSpans(spans1, DIM, G1, G2, H2, H3, grads, egrads):
+    for numx in range(DIM):
+        for numy in range(DIM):
+            if numy<=numx:
+                spans1[numx][numy] +=        G1 *  grads[:,numx] *  grads[:,numy]
+                spans1[numx][numy] +=        G2 * (egrads[:,numx] *  grads[:,numy] + egrads[:,numy] *  grads[:,numx])
+                spans1[numx][numy] += (H2 + H3) * egrads[:,numx] * egrads[:,numy]
+    for numx in range(DIM):
+        for numy in range(DIM):
+            if numy>numx:
+                spans1[numx][numy] = spans1[numy][numx]
+    return spans1
+
+
 class AppSet(object):
     """
     Collection of Apprentice approximations with the same support.
@@ -127,6 +159,9 @@ class AppSet(object):
         if set_cache: self.setRecurrence(x)
         MM=self._maxrec * self._PC[sel]
         vals = np.sum(MM, axis=1)
+        from IPython import embed
+        embed()
+        exit(1)
         if self._hasRationals:
             den = np.sum(self._maxrec * self._QC[sel], axis=1)
             vals[self._mask[sel]] /= den[self._mask[sel]]
@@ -138,12 +173,14 @@ class AppSet(object):
         JF = self._SCLR.jacfac
         GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
+        # NOTE this is expensive -- pybind11??
         Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
+        # Pprime = prime(GREC, self._PC[sel], self.dim, self._NNZ)
 
         if self._hasRationals:
             P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
             Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
-            Qprime = np.sum(self._QC[sel].reshape((self._QC[sel].shape[0], 1, self._QC[sel].shape[1])) * GREC, axis=2)
+            Qprime = prime(GREC, self._QC[sel], self.dim, self._NNZ)
             return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
 
         return np.array(Pprime, dtype=np.float64)
@@ -339,13 +376,8 @@ class TuningObjective2(object):
         H2 = -2 * kap*kap/lbd/lbd
         H3 = -2 * evals * kap /lbd * G2
 
-        spans = np.zeros( (len(_x), len(_x), len(vals)) )
-        # TODO explicitly exploit symmetry to make this faster?
-        for numx in range(len(_x)):
-            for numy in range(len(_x)):
-                spans[numx][numy] +=        G1 *  grads[:,numx] *  grads[:,numy]
-                spans[numx][numy] +=        G2 * (egrads[:,numx] *  grads[:,numy] + egrads[:,numy] *  grads[:,numx])
-                spans[numx][numy] += (H2 + H3) * egrads[:,numx] * egrads[:,numy]
+        spans = calcSpans(np.zeros( (len(_x), len(_x), len(vals)) ), self.dim, G1,G2,H2,H3,grads,egrads)
+
         spans += G3*hess
         spans += H2*evals*ehess
 
@@ -357,9 +389,12 @@ class TuningObjective2(object):
             x0 =self._bounds[:,0] + 0.5*(self._bounds[:,1]-self._bounds[:,0])
             return x0[self._freeIdx]
         import numpy as np
+        import time
+        t0=time.time()
         _PP = np.random.uniform(low=self._bounds[self._freeIdx][:,0], high=self._bounds[self._freeIdx][:,1], size=(ntrials, len(self._freeIdx[0])))
         _CH = [self.objective(p) for p in _PP]
-        if self._debug: print("StartPoint: {}".format(_PP[_CH.index(min(_CH))]))
+        t1=time.time()
+        if self._debug: print("StartPoint: {}, evaluation took {} seconds".format(_PP[_CH.index(min(_CH))], t1-t0))
         return _PP[_CH.index(min(_CH))]
 
     def startPointMPI(self, ntrials):
