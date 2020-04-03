@@ -155,13 +155,14 @@ class AppSet(object):
         xs = self._SCLR.scale(x)
         self._maxrec = self.recurrence(xs, self._structure)
 
-    def vals(self, x, sel=slice(None, None, None), set_cache=True):
+    def vals(self, x, sel=slice(None, None, None), set_cache=True, maxorder=None):
         if set_cache: self.setRecurrence(x)
-        MM=self._maxrec * self._PC[sel]
+        if maxorder is None:
+            MM=self._maxrec * self._PC[sel]
+        else:
+            nc = apprentice.tools.numCoeffsPoly(self.dim, 2)
+            MM=self._maxrec[:nc] * self._PC[sel][:,:nc]
         vals = np.sum(MM, axis=1)
-        from IPython import embed
-        embed()
-        exit(1)
         if self._hasRationals:
             den = np.sum(self._maxrec * self._QC[sel], axis=1)
             vals[self._mask[sel]] /= den[self._mask[sel]]
@@ -174,8 +175,8 @@ class AppSet(object):
         GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
         # NOTE this is expensive -- pybind11??
-        Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
-        # Pprime = prime(GREC, self._PC[sel], self.dim, self._NNZ)
+        # Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
+        Pprime = prime(GREC, self._PC[sel], self.dim, self._NNZ)
 
         if self._hasRationals:
             P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
