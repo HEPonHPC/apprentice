@@ -35,6 +35,19 @@ def prime(GREC, COEFF, dim, NNZ):
         ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
     return ret
 
+@jit(forceobj=True)#, parallel=True)
+def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
+    ret = np.empty((dim, dim, NSEL), dtype=np.float64)
+    for numx in range(dim):
+        for numy in range(dim):
+            rec = HH[numx][numy][HNONZ[numx][numy]] * np.prod(np.power(xs, EE[numx][numy][HNONZ[numx][numy]]), axis=1)
+            if numy>=numx:
+                ret[numx][numy] = np.sum((rec*COEFF[:,HNONZ[numx][numy][0]]), axis=1)
+            else:
+                ret[numx][numy] = ret[numy][numx]
+
+    return ret
+
 @jit
 def jitprime(GREC, COEFF, dim):
     ret = np.empty((len(COEFF), dim))
@@ -186,28 +199,40 @@ class AppSet(object):
 
         return np.array(Pprime, dtype=np.float64)
 
+    # @jit(forceobj=True)#, parallel=True)
     def hessians(self, x, sel=slice(None, None, None)):
         """
         To get the hessian matrix of bin number N, do
         H=hessians(pp)
         H[:,:,N]
         """
-        if self._hasRationals:
-            raise Exception("Hessians for rational functions not (yet) implemented")
         xs = self._SCLR.scale(x)
 
         NSEL = len(self._PC[sel])
 
-        HESS = np.empty((self.dim, self.dim, NSEL), dtype=np.float64)
-        for numx in range(self.dim):
-            for numy in range(self.dim):
-                rec = self._HH[numx][numy][self._HNONZ[numx][numy]] * np.prod(np.power(xs, self._EE[numx][numy][self._HNONZ[numx][numy]]), axis=1)
-                if numy>=numx:
-                    HESS[numx][numy] = np.sum((rec*self._PC[:,self._HNONZ[numx][numy][0]]), axis=1)
-                else:
-                    HESS[numx][numy] = HESS[numy][numx]
+        Phess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._PC)
 
-        return HESS
+        #TODO check against autograd?
+        if self._hasRationals:
+            JF = self._SCLR.jacfac
+            GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+            P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
+            Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
+            Pprime = np.atleast_2d(prime(GREC, self._PC[sel], self.dim, self._NNZ))
+            Qprime = np.atleast_2d(prime(GREC, self._QC[sel], self.dim, self._NNZ))
+            Qhess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._QC)
+
+            w = Phess/Q
+            for numx in range(self.dim):
+                for numy in range(self.dim):
+                    w[numx][numy] -= 2*(Pprime[:,numx]*Qprime[:,numy]/Q/Q).flatten()
+                    w[numx][numy] += 2*(Qprime[:,numx]*Qprime[:,numy]*P/Q/Q/Q).flatten()
+
+            w -= Qhess*(P/Q/Q)
+            return w
+
+        return Phess
+
 
     def __len__(self): return len(self._RA)
 
@@ -430,7 +455,7 @@ class TuningObjective2(object):
 
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
                 isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
+                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -452,7 +477,7 @@ class TuningObjective2(object):
 
                 res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="Newton-CG")
                 isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
+                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
@@ -473,14 +498,13 @@ class TuningObjective2(object):
                 x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
                 if use_grad:
-                    if self._debug: print("using gradient")
                     res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
                             bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
                 else:
                     res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
                             bounds=self._bounds[self._freeIdx], method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
                 isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
+                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
 
             if res["fun"] < minobj:
                 minobj = res["fun"]
@@ -511,7 +535,7 @@ class TuningObjective2(object):
                     res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
                             bounds=self._bounds[self._freeIdx], method=method, tol=tol)
                 isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("minisation ended up in saddle point, retrying")
+                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
             if res["fun"] < minobj:
                 minobj = res["fun"]
                 finalres = res
