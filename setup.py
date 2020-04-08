@@ -13,7 +13,8 @@ setup(
    'scipy',
    'sklearn',
    'numba',
-   'h5py'
+   'h5py',
+   'mpi4py'
  ],
   scripts=["bin/app-ls", "bin/app-tune2", "bin/app-build", "bin/app-predict", "bin/app-sample", "etc/convertData.py", "etc/convert.py", "etc/extrema.py"],
   extras_require = {
