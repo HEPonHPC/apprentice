@@ -16,6 +16,8 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
     for i, X in enumerate(XX):
         Y   =[TO.objective(x) for x in X]
         YY.append(Y)
+        Y   =[TO.objective(x, unbiased=True) for x in X]
+        YY.append(Y)
     ymax=np.max(np.array(YY))
     ymin=np.min(np.array(YY))
 
@@ -25,7 +27,7 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
         X=TO.lineScan(x0,i)
         Y   =[TO.objective(x) for x in X]
         Yunb=[TO.objective(x, unbiased=True) for x in X]
-        # pylab.axvline(A14[i], label="A14 NNPDF, x=%.2f"%A14[i], color="r")
+        pylab.axvline(A14[i], label="A14 NNPDF, x=%.2f"%A14[i], color="r")
         pylab.axvline(x0[i], label="x0=%.5f"%x0[i], color="k")
         y0=TO.objective(x0, unbiased=True)
         pylab.axhline(y0, label="unbiased y0=%.2f"%y0, color="k")
@@ -34,7 +36,9 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
         pylab.ylabel("objective")
         pylab.xlabel(pnames[i])
         pylab.ylim((0.9*ymin, 1.1*ymax))
+        pylab.yscale("log")
         pylab.legend()
+        pylab.tight_layout()
         pylab.savefig(prefix+"valley_{}.pdf".format(i))
 
 def mkPlotsCorrelation(TO, x0, prefix=""):
@@ -72,7 +76,13 @@ op.add_option("-a", "--algorithm", dest="ALG", default="tnc", help="The minimisa
 op.add_option("-l", "--limits", dest="LIMITS", default=None, help="Parameter file with limits and fixed parameters (default: %default)")
 op.add_option("-f", dest="FORCE", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
 op.add_option("-p", "--plotvalley", dest="PLOTVALLEY", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
+op.add_option("--tol", dest="TOL", default=1e-6, type=float, help="Tolerance for scipy optimize minimize (default: %default)")
+op.add_option("--no-check", dest="NOCHECK", default=False, action="store_true", help="Don't check for sadlepoints (default: %default)")
 opts, args = op.parse_args()
+
+
+if opts.ALG not in ["tnc", "ncg", "lbfgsb" ,"trust"]:
+    raise Exception("Minimisation algorithm {} not implemented, should be tnc, ncg, lbfgsb or trust, exiting".format(opts.ALG))
 
 #TODO add protections and checks if files exist etc
 if not os.path.exists(opts.OUTDIR): os.makedirs(opts.OUTDIR)
@@ -86,15 +96,12 @@ np.random.seed(opts.SEED)
 GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
 if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
 
-if   opts.ALG=="tnc":    res = GOF.minimize(      opts.SURVEY, opts.RESTART)
-elif opts.ALG=="ncg":    res = GOF.minimizeNCG(   opts.SURVEY, opts.RESTART)
-elif opts.ALG=="lbfgsb": res = GOF.minimizeLBFGSB(opts.SURVEY, opts.RESTART)
-elif opts.ALG=="trust":  res = GOF.minimizeTrust( opts.SURVEY, opts.RESTART)
-else:
-    raise Exception("Minimisation algorithm {} not implemented, should be tnc, ncg, lbfgsb or trust, exiting")
+import time
+t0=time.time()
+res = GOF.minimize(opts.SURVEY, opts.RESTART, method=opts.ALG, tol=opts.TOL, saddlePointCheck=not opts.NOCHECK)
 
+t1=time.time()
 if opts.DEBUG: print(res)
-
 
 
 chi2 = GOF.objective(res.x, unbiased=True)
@@ -104,6 +111,7 @@ print("Degrees of freedom: {}".format(ndf))
 print("phi2/ndf: %.3f"%(chi2/ndf))
 print("Best fit point:")
 print(GOF.printParams(res.x))
+print("\n\tMinimisation took {} seconds".format(t1-t0))
 
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
 
