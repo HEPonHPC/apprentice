@@ -456,7 +456,7 @@ class TuningObjective2(object):
         import datetime
         t0 = time.time()
         for ii in rankWork:
-            res = self.minimize(nstart,1,sel,method,tol,saddlePointCheck)
+            res = self.minimize(nstart,1,sel,method,tol,saddlePointCheck,use_MPI_for_x0=False)
             _res[ii] = res
             _F[ii] = res["fun"]
 
@@ -482,7 +482,8 @@ class TuningObjective2(object):
         myreturnvalue = comm.bcast(myreturnvalue, root=0)
         return myreturnvalue
 
-    def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddlePointCheck=True):
+    def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6,
+                 saddlePointCheck=True, use_MPI_for_x0 = False):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
@@ -491,7 +492,8 @@ class TuningObjective2(object):
         for t in range(nrestart):
             isSaddle = True
             while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart), dtype=np.float64)
+                x0 = np.array(self.startPointMPI(nstart), dtype=np.float64) if use_MPI_for_x0 else np.array(
+                            self.startPoint(nstart), dtype=np.float64)
 
                 if   method=="tnc":    res = self.minimizeTNC(   x0, sel, tol=tol)
                 elif method=="ncg":    res = self.minimizeNCG(   x0, sel, tol=tol)
