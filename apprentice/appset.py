@@ -460,7 +460,7 @@ class TuningObjective2(object):
             _res[ii] = res
             _F[ii] = res["fun"]
 
-            if rank == 0:
+            if rank == 0 and self._debug:
                 print("[{}] {}/{}".format(rank, ii, len(rankWork)))
                 now = time.time()
                 tel = now - t0
