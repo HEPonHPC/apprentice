@@ -441,6 +441,47 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
+    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddlePointCheck=True):
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+
+        _res = np.zeros(nrestart, dtype=object)
+        _F = np.zeros(nrestart)
+        allWork = apprentice.tools.chunkIt([i for i in range(nrestart)], size)
+        rankWork = comm.scatter(allWork, root=0)
+        import time
+        import sys
+        import datetime
+        t0 = time.time()
+        for ii in rankWork:
+            res = self.minimize(nstart,1,sel,method,tol,saddlePointCheck)
+            _res[ii] = res
+            _F[ii] = res["fun"]
+
+            if rank == 0:
+                print("[{}] {}/{}".format(rank, ii, len(rankWork)))
+                now = time.time()
+                tel = now - t0
+                ttg = tel * (len(rankWork) - ii) / (ii + 1)
+                eta = now + ttg
+                eta = datetime.datetime.fromtimestamp(now + ttg)
+                sys.stdout.write(
+                    "[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(
+                        rank, ii + 1, len(rankWork), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')))
+                sys.stdout.flush()
+        a = comm.gather(_res[rankWork])
+        b = comm.gather(_F[rankWork])
+        myreturnvalue = None
+        if rank == 0:
+            allWork = apprentice.tools.chunkIt([i for i in range(nrestart)], size)
+            for r in range(size): _res[allWork[r]] = a[r]
+            for r in range(size): _F[allWork[r]] = b[r]
+            myreturnvalue = _res[np.argmin(_F)]
+        myreturnvalue = comm.bcast(myreturnvalue, root=0)
+        return myreturnvalue
+
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddlePointCheck=True):
         from scipy import optimize
         minobj = np.Infinity
