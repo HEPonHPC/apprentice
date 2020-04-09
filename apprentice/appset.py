@@ -441,8 +441,7 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
-    # NOTE fast but tendency to end up outside box
-    def minimizeTrust(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
+    def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddlePointCheck=True):
         from scipy import optimize
         minobj = np.Infinity
         finalres = None
@@ -451,59 +450,16 @@ class TuningObjective2(object):
         for t in range(nrestart):
             isSaddle = True
             while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+                x0 = np.array(self.startPointMPI(nstart), dtype=np.float64)
 
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="trust-exact")
-                isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
-            if res["fun"] < minobj:
-                minobj = res["fun"]
-                finalres = res
-        t1=time.time()
-        if self._debug:
-            print(t1-t0)
-        return finalres
+                if   method=="tnc":    res = self.minimizeTNC(   x0, sel, tol=tol)
+                elif method=="ncg":    res = self.minimizeNCG(   x0, sel, tol=tol)
+                elif method=="trust":  res = self.minimizeTrust( x0, sel, tol=tol)
+                elif method=="lbfgsb": res = self.minimizeLBFGSB(x0, sel, tol=tol)
+                else: raise Exception("Unknown minimser {}".format(method))
 
-    def minimizeNCG(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_mpi=False):
-        from scipy import optimize
-        minobj = np.Infinity
-        finalres = None
-        import time
-        t0=time.time()
-        for t in range(nrestart):
-            isSaddle = True
-            while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
 
-                res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0, jac=self.gradient, hess=self.hessian, method="Newton-CG")
-                isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
-            if res["fun"] < minobj:
-                minobj = res["fun"]
-                finalres = res
-        t1=time.time()
-        if self._debug:
-            print(t1-t0)
-        return finalres
-
-    def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-4,  method="TNC", use_mpi=False):
-        from scipy import optimize
-        minobj = np.Infinity
-        finalres = None
-        import time
-        t0=time.time()
-        for t in range(nrestart):
-            isSaddle = True
-            while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
-
-                if use_grad:
-                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                            bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
-                else:
-                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                            bounds=self._bounds[self._freeIdx], method=method, tol=tol, options={'maxiter':1000, 'accuracy':tol})
-                isSaddle=self.isSaddle(res.x)
+                isSaddle = False if not saddlePointCheck else self.isSaddle(res.x)
                 if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
 
             if res["fun"] < minobj:
@@ -514,35 +470,29 @@ class TuningObjective2(object):
             print(t1-t0)
         return finalres
 
-    def minimizeLBFGSB(self, nstart=1, nrestart=1, sel=slice(None, None, None), use_grad=True, tol=1e-6,  method="L-BFGS-B", use_mpi=False):
+    def minimizeTrust(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        minobj = np.Infinity
-        finalres = None
-        import time
-        t0=time.time()
-        for t in range(nrestart):
+        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                jac=self.gradient, hess=self.hessian, method="trust-exact")
+        return res
 
-            isSaddle = True
+    def minimizeNCG(self, x0, sel=slice(None, None, None), tol=1e-6):
+        from scipy import optimize
+        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                jac=self.gradient, hess=self.hessian, method="Newton-CG")
+        return res
 
-            while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart) if use_mpi else self.startPoint(nstart), dtype=np.float64)
+    def minimizeTNC(self, x0, sel=slice(None, None, None), tol=1e-6):
+        from scipy import optimize
+        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                bounds=self._bounds[self._freeIdx], jac=self.gradient, method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+        return res
 
-                if use_grad:
-                    if self._debug: print("using gradient")
-                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                            bounds=self._bounds[self._freeIdx], jac=self.gradient, method=method, tol=tol)
-                else:
-                    res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                            bounds=self._bounds[self._freeIdx], method=method, tol=tol)
-                isSaddle=self.isSaddle(res.x)
-                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
-            if res["fun"] < minobj:
-                minobj = res["fun"]
-                finalres = res
-        t1=time.time()
-        if self._debug:
-            print(t1-t0)
-        return finalres
+    def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
+        from scipy import optimize
+        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
+                bounds=self._bounds[self._freeIdx], jac=self.gradient, method="L-BFGS-B", tol=tol)
+        return res
 
     def writeParams(self, x, fname):
         with open(fname, "w") as f:
