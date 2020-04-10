@@ -632,7 +632,8 @@ class TuningObjective(object):
                     if self._debug: print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
                 good.append(num)
-            else: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[num],E[num]))
+            else:
+                if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[num],E[num]))
 
 
         # TODO This needs some re-engineering to allow fow multiple filterings
