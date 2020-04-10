@@ -210,7 +210,7 @@ class AppSet(object):
 
         NSEL = len(self._PC[sel])
 
-        Phess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._PC)
+        Phess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._PC[sel])
 
         #TODO check against autograd?
         if self._hasRationals:
@@ -220,7 +220,7 @@ class AppSet(object):
             Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
             Pprime = np.atleast_2d(prime(GREC, self._PC[sel], self.dim, self._NNZ))
             Qprime = np.atleast_2d(prime(GREC, self._QC[sel], self.dim, self._NNZ))
-            Qhess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._QC)
+            Qhess = doubleprime(self.dim, xs, NSEL, self._HH, self._HNONZ, self._EE, self._QC[sel])
 
             w = Phess/Q
             for numx in range(self.dim):
@@ -243,7 +243,7 @@ class TuningObjective2(object):
     def __init__(self, *args, **kwargs):
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
         if type(args[0]) == str: self.mkFromFiles(*args, **kwargs)
-        else:                    self.mkFromData( *args, **kwargs) # NOT impemented
+        else:                    self.mkFromData( *args, **kwargs) # NOT implemented --- also add a mkReduced for small scale tests
 
     @property
     def dim(self): return self._AS.dim
@@ -381,11 +381,11 @@ class TuningObjective2(object):
         x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel = sel)
         grads = self._AS.grads(x, sel, set_cache=False)
-        hess  = self._AS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(self))
+        hess  = self._AS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         if self._EAS is not None:
             evals  = self._EAS.vals( x, sel = sel)
             egrads = self._EAS.grads(x, sel, set_cache=False)
-            ehess  = self._EAS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(self))
+            ehess  = self._EAS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         else:
             evals  = np.zeros_like(vals)
             egrads = np.zeros_like(grads)
@@ -409,7 +409,7 @@ class TuningObjective2(object):
 
         return np.sum( self._W2[sel]*(spans), axis=2)
 
-    def startPoint(self, ntrials):
+    def startPoint(self, ntrials, sel=slice(None, None, None)):
         if ntrials == 0:
             if self._debug: print("StartPoint: {}".format(self._SCLR.center))
             x0 =self._bounds[:,0] + 0.5*(self._bounds[:,1]-self._bounds[:,0])
@@ -418,19 +418,19 @@ class TuningObjective2(object):
         import time
         t0=time.time()
         _PP = np.random.uniform(low=self._bounds[self._freeIdx][:,0], high=self._bounds[self._freeIdx][:,1], size=(ntrials, len(self._freeIdx[0])))
-        _CH = [self.objective(p) for p in _PP]
+        _CH = [self.objective(p, sel=sel) for p in _PP]
         t1=time.time()
         if self._debug: print("StartPoint: {}, evaluation took {} seconds".format(_PP[_CH.index(min(_CH))], t1-t0))
         return _PP[_CH.index(min(_CH))]
 
-    def startPointMPI(self, ntrials):
+    def startPointMPI(self, ntrials, sel=slice(None, None, None)):
         from mpi4py import MPI
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         XX = self.rbox(ntrials)
         rankWork = apprentice.tools.chunkIt(XX, comm.Get_size()) if rank == 0 else []
         rankWork = comm.scatter(rankWork, root=0)
-        temp = [self.objective(x) for x in rankWork]
+        temp = [self.objective(x, sel=sel) for x in rankWork]
         ibest = np.argmin(temp)
         X = comm.gather(XX[ibest], root=0)
         FUN = comm.gather(temp[ibest], root=0)
@@ -491,7 +491,7 @@ class TuningObjective2(object):
         for t in range(nrestart):
             isSaddle = True
             while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart), dtype=np.float64)
+                x0 = np.array(self.startPointMPI(nstart, sel=sel), dtype=np.float64)
 
                 if   method=="tnc":    res = self.minimizeTNC(   x0, sel, tol=tol)
                 elif method=="ncg":    res = self.minimizeNCG(   x0, sel, tol=tol)
