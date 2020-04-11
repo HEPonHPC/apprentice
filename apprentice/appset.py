@@ -98,6 +98,9 @@ class AppSet(object):
         self._binids = binids
         self.setAttributes(**kwargs)
 
+    def mkReduced(self, keep, **kwargs):
+        return AppSet(np.array(self._RA)[keep], np.array(self._binids)[keep], **kwargs)
+
     def setAttributes(self, **kwargs):
         self._hnames = sorted(list(set([b.split("#")[0] for b in self._binids])))
         self._dim = self._RA[0].dim
@@ -310,7 +313,6 @@ class TuningObjective2(object):
         weights = self.initWeights(f_weights, hnames, bnums)
         nonzero = np.where(weights>0)
 
-
         # Filter here to use only certain bins/histos
         dd = apprentice.tools.readExpData(f_data, [str(b) for b in AS._binids[nonzero]])
         Y = np.array([dd[b][0] for b in AS._binids[nonzero]], dtype=np.float64)
@@ -326,9 +328,7 @@ class TuningObjective2(object):
                 good.append(num)
             else:
                 if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[nonzero][num],E[num]))
-
         self._good = good
-
 
         # TODO This needs some re-engineering to allow fow multiple filterings
         RA = [AS._RA[nonzero][g] for g in good]
@@ -336,7 +336,6 @@ class TuningObjective2(object):
         self._AS = AppSet(RA, self._binids)
         self._E = E[good]
         self._Y = Y[good]
-        # self._W2 = np.array([w  for w in np.array(weights[nonzero])[good]], dtype=np.float64)
         self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
         self._hnames = np.array([b.split("#")[0]  for b in AS._binids[nonzero]])
         # Add in error approximations
@@ -347,6 +346,25 @@ class TuningObjective2(object):
         else:
             self._EAS=None
         self.setAttributes(**kwargs)
+
+    def mkFromData(cls, AS, EAS, Y, E, W2, **kwargs):
+        cls._AS = AS
+        cls._EAS = EAS
+        cls._Y = Y
+        cls._E = E
+        cls._W2 =W2
+        cls._binids = AS._binids
+        cls._hnames = np.array([b.split("#")[0]  for b in AS._binids])
+        cls.setAttributes(**kwargs)
+
+    def mkReduced(self, keep, **kwargs):
+        AS = self._AS.mkReduced(keep, **kwargs)
+        if self._EAS is not None:  EAS = self._EAS.mkReduced(keep, **kwargs)
+        else:                      EAS = None
+        Y = self._Y[keep]
+        E = self._E[keep]
+        W2 = self._W2[keep]
+        return TuningObjective2(AS, EAS, Y, E, W2, **kwargs)
 
     def mkPoint(self, _x):
         x=np.empty(self._dim, dtype=np.float64)
@@ -515,26 +533,42 @@ class TuningObjective2(object):
 
     def minimizeTrust(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                jac=self.gradient, hess=self.hessian, method="trust-exact")
+        res = optimize.minimize(
+                lambda x: self.objective(x, sel=sel),
+                x0,
+                jac=lambda x:self.gradient(x, sel=sel),
+                hess=lambda x:self.hessian(x, sel=sel),
+                method="trust-exact")
         return res
 
     def minimizeNCG(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                jac=self.gradient, hess=self.hessian, method="Newton-CG")
+        res = optimize.minimize(
+                lambda x: self.objective(x, sel=sel),
+                x0,
+                jac=lambda x:self.gradient(x, sel=sel),
+                hess=lambda x:self.hessian(x, sel=sel),
+                method="Newton-CG")
         return res
 
     def minimizeTNC(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                bounds=self._bounds[self._freeIdx], jac=self.gradient, method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+        res = optimize.minimize(
+                lambda x: self.objective(x, sel=sel),
+                x0,
+                bounds=self._bounds[self._freeIdx],
+                jac=lambda x:self.gradient(x, sel=sel),
+                method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
         return res
 
     def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        res = optimize.minimize(lambda x: self.objective(x, sel=sel), x0,
-                bounds=self._bounds[self._freeIdx], jac=self.gradient, method="L-BFGS-B", tol=tol)
+        res = optimize.minimize(
+                lambda x: self.objective(x, sel=sel),
+                x0,
+                bounds=self._bounds[self._freeIdx],
+                jac=lambda x:self.gradient(x, sel=sel),
+                method="L-BFGS-B", tol=tol)
         return res
 
     def writeParams(self, x, fname):
@@ -564,6 +598,8 @@ class TuningObjective2(object):
         return X
 
     def isSaddle(self, x):
+    # if   any(x==GOF._bounds[:,0]): print("WARNING: Minimisation ended up at lower boundary")
+    # elif any(x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
         # temp fix to skip check when fixing parameters
         if len(self._fixIdx[0])>0: return False
         H=self.hessian(x)
