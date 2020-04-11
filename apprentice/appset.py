@@ -398,11 +398,11 @@ class TuningObjective2(object):
     def hessian(self, _x, sel=slice(None, None, None)):
         x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel = sel)
-        grads = self._AS.grads(x, sel, set_cache=False)
+        grads = self._AS.grads(x, sel, set_cache=False)[:,self._freeIdx].reshape(len(vals), len(_x))
         hess  = self._AS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         if self._EAS is not None:
             evals  = self._EAS.vals( x, sel = sel)
-            egrads = self._EAS.grads(x, sel, set_cache=False)
+            egrads = self._EAS.grads(x, sel, set_cache=False)[:,self._freeIdx].reshape(len(vals), len(_x))
             ehess  = self._EAS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         else:
             evals  = np.zeros_like(vals)
@@ -420,7 +420,7 @@ class TuningObjective2(object):
         H2 = -2 * kap*kap/lbd/lbd
         H3 = -2 * evals * kap /lbd * G2
 
-        spans = calcSpans(np.zeros( (len(_x), len(_x), len(vals)) ), self.dim, G1,G2,H2,H3,grads,egrads)
+        spans = calcSpans(np.zeros( (len(_x), len(_x), len(vals)) ), len(_x), G1,G2,H2,H3,grads,egrads)
 
         spans += G3*hess
         spans += H2*evals*ehess
@@ -600,8 +600,6 @@ class TuningObjective2(object):
     def isSaddle(self, x):
     # if   any(x==GOF._bounds[:,0]): print("WARNING: Minimisation ended up at lower boundary")
     # elif any(x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
-        # temp fix to skip check when fixing parameters
-        if len(self._fixIdx[0])>0: return False
         H=self.hessian(x)
         # Test for negative eigenvalue
         return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
