@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import apprentice
+import apprentice as app
 import numpy as np
 
 import matplotlib, os, sys
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     op = optparse.OptionParser(usage=__doc__)
     op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
     op.add_option("-o", dest="OUTDIR", default="appnest", help="Output directory (default: %default)")
-    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
-    op.add_option("-d", dest="DATA", default=None, help="Data file to compare to (default: %default)")
+    op.add_option("-e", "--errorapprox", dest="ERRAPP", default=None, help="Approximations of bin uncertainties (default: %default)")
+    op.add_option("-l", "--limits", dest="LIMITS", default=None, help="Parameter file with limits and fixed parameters (default: %default)")
     op.add_option("--tol", dest="TOL", default=0.1, type=float, help="Evidence tolerance (default: %default)")
     op.add_option("--eff", dest="EFF", default=0.8, type=float, help="Sampling efficiency (default: %default)")
     op.add_option("--seed", dest="SEED", default=1, type=int, help="Random seed for pymultinest run (default: %default)")
@@ -51,19 +51,21 @@ if __name__ == "__main__":
     op.add_option("--update", dest="UPDATE", default=10000, type=int, help="Update interval (default: %default iterations)")
     opts, args = op.parse_args()
 
-    if opts.WEIGHTS is None:
-        raise Exception("No weight file spefified -- use  -w on CL")
-    if opts.DATA is None:
-        raise Exception("No data file spefified -- use  -d on CL")
+    WFILE = args[0]
+    DATA  = args[1]
+    APP   = args[2]
 
-    IO = TuningObjective(opts.WEIGHTS, opts.DATA, args[0])
+    np.random.seed(opts.SEED)
+
+    GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
+
     sys.stdout.flush()
 
-    PMIN = IO._SCLR.box[:,0]
-    PMAX = IO._SCLR.box[:,1]
+    PMIN = GOF._bounds[:,0]
+    PMAX = GOF._bounds[:,1]
     PLEN=[PMAX[i] - PMIN[i] for i in range(len(PMAX))]
     NP = len(PLEN)
-    PNAMES = IO.pnames
+    PNAMES = GOF.pnames
 
     def scaleParam(p, idx):
         return PMIN[idx] + p * PLEN[idx]
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     from collections import OrderedDict
     def loglike(cube, ndim, nparams):
         PP = [cube[i] for i in range(ndim)]
-        loli = -0.5 * IO(PP)
+        loli = -0.5 * GOF.objective(PP)
         return loli
 
     # Create output directory
@@ -125,4 +127,4 @@ if __name__ == "__main__":
         # print("Global Evidence:\n\t%.15e +- %.15e" % ( s['nested sampling global log-evidence'], s['nested sampling global log-evidence error'] ))
 
         print("\nDone! Output written to %s"%opts.OUTDIR)
-        print("You may wish to analyse the output with superplot --- https://arxiv.org/abs/1603.00555")
+        print("To plot do e.g. multinest_marginals_fancy.py %s"%(a.outputfiles_basename))
