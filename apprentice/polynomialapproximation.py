@@ -256,6 +256,13 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
         return HESS
 
+    def wraps(self, v):
+        dec=True
+        if self.vmin is not None and self.vmax is not None:
+            if self.vmin > v or self.vmax < v:dec=False
+        return dec
+
+
 
 if __name__=="__main__":
 
