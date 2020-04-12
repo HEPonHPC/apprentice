@@ -19,6 +19,7 @@ if __name__ == "__main__":
     op.add_option("-w", dest="WEIGHTS", default=None, help="Weight file to choose observables to predict (default: %default)")
     op.add_option("-p", dest="PARAMS", default=None, help="Parameter file (default: %default)")
     op.add_option("-o", "--output", dest="OUTPUT", default="pred.yoda", help="Output file name (default: %default)")
+    op.add_option("-e", "--errorapprox", dest="ERRAPP", default=None, help="Approximations of bin uncertainties (default: %default)")
     opts, args = op.parse_args()
 
 
@@ -34,6 +35,10 @@ if __name__ == "__main__":
     pd = dict(zip(NAMES,VALS))
 
     binids, RA = apprentice.tools.readApprox(args[0])
+    if opts.ERRAPP is not None:
+        eids, ERA = apprentice.tools.readApprox(opts.ERRAPP, usethese=binids)
+    else:
+        ERA = None
 
     # Consistency check
     for ptest in NAMES:
@@ -70,7 +75,12 @@ if __name__ == "__main__":
         DX = [0.5*(b-a) for a, b in zip(LOW, HIGH)]
         X  = [l+dx       for l, dx in zip(LOW, DX)]
 
-        P2D = [yoda.Point2D(x,y,dx,0) for x,y,dx in zip(X,Y,DX)]
+        if ERA is not None:
+            DY = [ERA[binids.index(x)].predict(P) for x in bids]
+        else:
+            DY = [0 for x in bids]
+
+        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X,Y,DX,DY)]
         S2D = yoda.Scatter2D(P2D, obs, obs)
         Y2D.append(S2D)
 
