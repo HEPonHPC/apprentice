@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import apprentice as app
+
+if __name__ == "__main__":
+    import optparse, os, sys
+    op = optparse.OptionParser(usage=__doc__)
+    op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+    op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+    op.add_option("-o", dest="OUTFILE", default="mc.hdf5", help="Output file name (default: %default)")
+    op.add_option("--pname", dest="PNAME", default="params.dat", help="Name of the params file to be found in each run directory (default: %default)")
+    opts, args = op.parse_args()
+
+    if opts.DEBUG:
+        print("NOTE: histograms are read in, converted to scaters. This has the effect that the nominal bin values are the bin heights. We multiply with the bin widths to correctly store the areas")
+
+    ## Import test
+    try: import yoda
+    except ImportError: raise Exception("YODA not found!")
+    try: import h5py
+    except ImportError: raise Exception("h5py not found!")
+
+    app.io.readInputDataYODA(args, opts.PNAME, opts.WEIGHTS, storeAsH5=opts.OUTFILE)
+
+    print("Done. Output written to %s"%opts.OUTFILE)
