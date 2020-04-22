@@ -106,7 +106,7 @@ if __name__ == "__main__":
         pass
 
     if opts.MODE not in ["la", "sip", "lasip"]:
-        print("Error: specified mode {} no known".format(opts.MODE))
+        print("Error: specified mode {} not known".format(opts.MODE))
         sys.exit(1)
 
     if len(args) == 0:
@@ -115,36 +115,34 @@ if __name__ == "__main__":
 
     if not os.path.exists(args[0]):
         print("Input '{}' not found.".format(args[0]))
+        sys.exit(1)
 
     # Prevent overwriting of input data
     assert(args[0]!=opts.OUTPUT)
 
-    pnames = app.tools.readPnamesH5(args[0], xfield="params") if rank==0 else []
-    pnames = comm.bcast(pnames, root=0)
+    # Data loading and distribution
+    pnames, observables, binids, IDX = None, None, None, None
     if rank==0:
-        observables = list(set(app.tools.readObs(opts.WEIGHTS))) if opts.WEIGHTS is not None else app.tools.readObsNames(args[0])
-    else: observables = []
+        pnames      = app.io.readPnamesH5(args[0], xfield="params")
+        observables = list(set(app.io.readObs(opts.WEIGHTS))) if opts.WEIGHTS is not None else app.io.readObsNames(args[0])
+        im          = app.io.indexMapH5(args[0], observables)
+        IDX         = np.sort(np.concatenate(list(im.values())))
+        binids      = app.io.readIndexH5(args[0])
+
+    pnames      = comm.bcast(pnames     , root=0)
     observables = comm.bcast(observables, root=0)
+    binids      = comm.bcast(binids     , root=0)
 
-    if rank == 0:
-        im = app.tools.indexMap(args[0], observables)
-        _IDX = np.sort(np.concatenate(list(im.values())))
-    else: _IDX = []
-
-    IDX = comm.bcast(_IDX, root=0)
-    rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else []
+    rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else None
     rankIdx = comm.scatter(rankIdx, root=0)
 
-    binids = app.tools.readIndex(args[0]) if rank==0 else []
-    binids = comm.bcast(binids, root=0)
-
-    DATA = app.tools.readH53(args[0], rankIdx)
+    DATA = app.io.readH5(args[0], rankIdx)
     comm.barrier()
-    print("[{}] will proceed to calculate approximations for {} objects)".format(rank, len(rankIdx)))
+    print("[{}] will proceed to calculate approximations for {} objects".format(rank, len(rankIdx)))
     sys.stdout.flush()
 
     apps = []
-    M,N=[int(x) for x in opts.ORDER.split(",")]
+    M,N = [int(x) for x in opts.ORDER.split(",")]
 
     import time
     t4   = time.time()
@@ -198,8 +196,8 @@ if __name__ == "__main__":
         print()
         print("Approximation calculation took {} seconds".format(t5-t4))
         sys.stdout.flush()
-    if rank==0:
-        binids = app.tools.readIndex(args[0])
+
+        # Store in JSON
         JD = {}
         for rankApps in APPS:
             for idx, app in rankApps:
