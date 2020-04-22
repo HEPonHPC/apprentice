@@ -16,7 +16,7 @@ if __name__ == "__main__":
     opts, args = op.parse_args()
 
 
-    binids, RA = apprentice.tools.readApprox(args[0])
+    binids, RA = apprentice.io.readApprox(args[0])
     hnames = sorted(list(set([b.split("#")[0] for b in binids])))
 
 
