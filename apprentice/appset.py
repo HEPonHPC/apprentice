@@ -88,7 +88,7 @@ class AppSet(object):
     def dim(self): return self._dim
 
     def mkFromFile(self, f_approx, binids=None, **kwargs):
-        binids, RA = apprentice.tools.readApprox(f_approx, set_structures=False, usethese=binids)
+        binids, RA = apprentice.io.readApprox(f_approx, set_structures=False, usethese=binids)
         self._binids=np.array(binids)
         self._RA = np.array(RA)
         self.setAttributes(**kwargs)
@@ -306,6 +306,17 @@ class TuningObjective2(object):
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
 
+    def envelope(self, nmultistart=10, sel=None):
+        if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
+            if self._RA[0].vmin is None or self._RA[0].vmax is None:
+                return np.where(self._Y)  # use everything
+
+            VMIN = np.array([r.vmin for r in self._RA])
+            VMAX = np.array([r.vmax for r in self._RA])
+            return np.where(np.logical_and(VMAX > self._Y, VMIN < self._Y))
+        else:
+            return np.where(self._Y)  # use everything
+
     def mkFromFiles(self, f_weights, f_data, f_approx, f_errors=None, **kwargs):
         AS = AppSet(f_approx)
         hnames  = [    b.split("#")[0]  for b in AS._binids]
@@ -314,7 +325,7 @@ class TuningObjective2(object):
         nonzero = np.where(weights>0)
 
         # Filter here to use only certain bins/histos
-        dd = apprentice.tools.readExpData(f_data, [str(b) for b in AS._binids[nonzero]])
+        dd = apprentice.io.readExpData(f_data, [str(b) for b in AS._binids[nonzero]])
         Y = np.array([dd[b][0] for b in AS._binids[nonzero]], dtype=np.float64)
         E = np.array([dd[b][1] for b in AS._binids[nonzero]], dtype=np.float64)
 
@@ -322,16 +333,23 @@ class TuningObjective2(object):
         good = []
         for num, bid in enumerate(AS._binids[nonzero]):
             if E[num] > 0:
-                if AS._RA[0]._scaler != AS._RA[num]._scaler:
+                _num = np.where(AS._binids==bid)[0][0]
+                if AS._RA[0]._scaler != AS._RA[_num]._scaler:
                     if self._debug: print("Warning, dropping bin with id {} to guarantee caching works".format(bid))
                     continue
+                if not AS._RA[_num].wraps(Y[num]):
+                    if self._debug: print("Warning, dropping bin with id {} as it is not wrapping the data".format(bid))
+                    continue
+                else:
+                    pass#print("check passed")
+                # check for Enveloped data
                 good.append(num)
             else:
                 if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[nonzero][num],E[num]))
         self._good = good
 
         # TODO This needs some re-engineering to allow fow multiple filterings
-        RA = [AS._RA[nonzero][g] for g in good]
+        RA =           [AS._RA[nonzero][g]     for g in good]
         self._binids = [AS._binids[nonzero][g] for g in good]
         self._AS = AppSet(RA, self._binids)
         self._E = E[good]
@@ -365,6 +383,14 @@ class TuningObjective2(object):
         E = self._E[keep]
         W2 = self._W2[keep]
         return TuningObjective2(AS, EAS, Y, E, W2, **kwargs)
+
+    def setReduced(self, keep, **kwargs):
+        self._AS = self._AS.mkReduced(keep, **kwargs)
+        if self._EAS is not None:  self._EAS = self._EAS.mkReduced(keep, **kwargs)
+        else:                      self._EAS = None
+        self._Y = self._Y[keep]
+        self._E = self._E[keep]
+        self._W2 = self._W2[keep]
 
     def mkPoint(self, _x):
         x=np.empty(self._dim, dtype=np.float64)
