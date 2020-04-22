@@ -2,6 +2,75 @@ import numpy as np
 from collections import OrderedDict
 
 
+def regularise(app, threshold=1e-6):
+    pc = np.zeros_like(app._pcoeff)
+    for num, c in enumerate(app._pcoeff):
+        if abs(c)>threshold: pc[num] = c
+    app._pcoeff=pc
+
+    if hasattr(app, "qcoeff"):
+        qc = np.zeros_like(app._qcoeff)
+        for num, c in enumerate(app._qcoeff):
+            if abs(c)>threshold: qc[num] = c
+        app._qcoeff=qc
+
+def denomMinMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
+    from scipy import optimize
+    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+def denomMaxMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
+    from scipy import optimize
+    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
+    Y = [o["fun"] for o in opt]
+    X = [o["x"]   for o in opt]
+    return X[np.argmin(Y)]
+
+def denomChangesSignMS(rapp, multistart=10):
+    xmin = denomMinMS(rapp, multistart)
+    xmax = denomMaxMS(rapp, multistart)
+    bad  = rapp.denom(xmin) * rapp.denom(xmax) <0
+    if bad: return True,  xmin, xmax
+    else:   return False, xmin, xmax
+
+
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200):
+    M, N = order
+    import apprentice as app
+    if N==0:
+        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames)
+        hasPole=False
+    else:
+        if mode == "la":    _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+        elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol, debug=debug)
+        elif mode == "sip":
+            try:
+                _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+        elif mode == "lasip":
+            try:
+                _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2, debug=debug)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+            has_pole = denomChangesSignMS(_app, 100)[0]
+            if has_pole:
+                try:
+                    _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp)
+                except Exception as e:
+                    print("Exception:", e)
+                    return None, True
+        else:
+            raise Exception("Specified mode {} does not exist, choose la|onb|sip".format(mode))
+        hasPole = denomChangesSignMS(_app, testforPoles)[0]
+
+    return _app, hasPole
 
 def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
     PF = 1 if mode=="min" else -1
