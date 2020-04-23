@@ -7,8 +7,6 @@ import time
 def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
     temp = TO._fixIdx
     import pylab
-    A14 = np.array([0.14, 1.88, 1.56, 0.91, 1.05, 0.127, 0.127, 2.09, 0.126, 1.71])
-    A14 = A14[TO._freeIdx]
     pnames = np.array(TO.pnames)[TO._freeIdx]
 
     XX = [TO.lineScan(x0,i) for i in range(len(x0))]
@@ -27,16 +25,17 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
         X=TO.lineScan(x0,i)
         Y   =[TO.objective(x) for x in X]
         Yunb=[TO.objective(x, unbiased=True) for x in X]
-        pylab.axvline(A14[i], label="A14 NNPDF, x=%.2f"%A14[i], color="r")
         pylab.axvline(x0[i], label="x0=%.5f"%x0[i], color="k")
         y0=TO.objective(x0, unbiased=True)
-        pylab.axhline(y0, label="unbiased y0=%.2f"%y0, color="k")
+        # pylab.axhline(y0, label="unbiased y0=%.2f"%y0, color="k")
         pylab.plot(X[:,i], Y,    label="biased")
-        pylab.plot(X[:,i], Yunb, linestyle="dashed", label="unbiased")
+        # pylab.plot(X[:,i], Yunb, linestyle="dashed", label="unbiased")
+        #TODO just normalized ratio of bias vs unbiased
         pylab.ylabel("objective")
         pylab.xlabel(pnames[i])
         pylab.ylim((0.9*ymin, 1.1*ymax))
-        pylab.yscale("log")
+        # if abs(ymin-ymax)>1000:
+            # pylab.yscale("log")
         pylab.legend()
         pylab.tight_layout()
         pylab.savefig(prefix+"valley_{}.pdf".format(i))
@@ -103,17 +102,30 @@ res = GOF.minimize(opts.SURVEY, opts.RESTART, method=opts.ALG, tol=opts.TOL, sad
 t1=time.time()
 if opts.DEBUG: print(res)
 
-
 chi2 = GOF.objective(res.x, unbiased=True)
-print("Objective value at best fit point: {} ({} without weights)".format(res.fun, chi2))
+print("Objective value at best fit point: %.2f (%.2f without weights)"%(res.fun, chi2))
 ndf = GOF.ndf
 print("Degrees of freedom: {}".format(ndf))
 print("phi2/ndf: %.3f"%(chi2/ndf))
 print("Best fit point:")
 print(GOF.printParams(res.x))
+#TODO add message if fixed params
 print("\n\tMinimisation took {} seconds".format(t1-t0))
 
+# if   any(r.x==GOF._bounds[:,0]): print("WARNING: Minimisation ended up at lower boundary")
+# elif any(r.x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
+# elif any(r.x< GOF._bounds[:,0]): print("WARNING: Minimisation ended up outside lower boundary")
+# elif any(r.x> GOF._bounds[:,1]): print("WARNING: Minimisation ended up outside upper boundary")
+# elif isSaddle(GOF.hessian(r.x, np.where(GOF._hnames==obs))): print("WARNING: Minimisation ended up at saddle point")
+# else:
+
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
+
+try:
+    import yoda
+    app.tools.prediction2YODA(APP, GOF.mkPoint(res.x), opts.OUTDIR+"/{}_predictions.yoda".format(outcommon), opts.ERRAPP)
+except ImportError:
+    pass
 
 mkPlotsCorrelation(GOF, res.x, opts.OUTDIR+"/{}_".format(outcommon))
 GOF.writeParams(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
@@ -122,6 +134,8 @@ if opts.PLOTVALLEY:
     if not os.path.exists(plotout): os.makedirs(plotout)
     mkPlotsMinimum(GOF, res.x, prefix=plotout+"/")
 
+
+#TODO also copy limits
 import shutil
 shutil.copy(WFILE, os.path.join(opts.OUTDIR, "weights_{}.txt".format(outcommon)))
 
