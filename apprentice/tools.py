@@ -400,6 +400,37 @@ def mkCov(yerrs):
     return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
 
 
+
+def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=None):
+    import apprentice as app
+    vals = app.AppSet(fvals)
+    errs = app.AppSet(ferrs) if ferrs is not None else None
+
+    P = [Peval[x] for x in vals._SCLR.pnames] if type(Peval)==dict else Peval
+
+    Y  = vals.vals(P)
+    dY = errs.vals(P) if errs is not None else np.zeros_like(Y)
+
+    hids=np.array([b.split("#")[0] for b in vals._binids])
+    hnames = sorted(set(hids))
+    observables = sorted([x for x in set(app.io.readObs(wfile)) if x in hnames]) if wfile is not None else hnames
+
+    with open(fvals) as f:
+        import json
+        rd = json.load(f)
+        xmin = np.array(rd["__xmin"])
+        xmax = np.array(rd["__xmax"])
+
+    DX = (xmax-xmin)*0.5
+    X  = xmin + DX
+    Y2D = []
+    import yoda
+    for obs in observables:
+        idx = np.where(hids==obs)
+        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
+        Y2D.append(yoda.Scatter2D(P2D, obs, obs))
+    yoda.write(Y2D, fout)
+
 class TuningObjective(object):
 
     def __init__(self, *args, **kwargs):
