@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
-import apprentice
+import apprentice as app
 import numpy as np
-
-def readObs(fname):
-    with open(fname) as f:
-        r=[l.strip().split()[0] for l in f if not l.startswith("#")]
-    return r
 
 if __name__ == "__main__":
     import sys
@@ -22,7 +17,6 @@ if __name__ == "__main__":
     op.add_option("-e", "--errorapprox", dest="ERRAPP", default=None, help="Approximations of bin uncertainties (default: %default)")
     opts, args = op.parse_args()
 
-
     if opts.PARAMS is None:
         print("No parameter files specified, (-p) exiting\n\n")
         sys.exit(1)
@@ -34,55 +28,5 @@ if __name__ == "__main__":
     with open(opts.PARAMS) as f: NAMES = [      l.strip().split()[0]   for l in f if not l.startswith("#")]
     pd = dict(zip(NAMES,VALS))
 
-    binids, RA = apprentice.tools.readApprox(args[0])
-    if opts.ERRAPP is not None:
-        eids, ERA = apprentice.tools.readApprox(opts.ERRAPP, usethese=binids)
-    else:
-        ERA = None
-
-    # Consistency check
-    for ptest in NAMES:
-        if not ptest in RA[0]._scaler.pnames:
-            print("Parameter {} is not in this approximation:\n{}\n".format(ptest, RA[0]._scaler.pnames))
-            exit(1)
-
-    for ptest in RA[0]._scaler.pnames:
-        if not ptest in NAMES:
-            print("Parameter {} missing in parameter file:\n{}\n".format(ptest, NAMES))
-            exit(1)
-
-    # This is the parameter point with the values in the same order as in the approximation so we can call predict now
-    P = [pd[x] for x in RA[0]._scaler.pnames]
-
-
-    hnames = sorted(list(set([b.split("#")[0] for b in binids])))
-    observables = [x for x in list(set(readObs(opts.WEIGHTS))) if x in hnames] if opts.WEIGHTS is not None else hnames
-
-    import yoda
-    with open(args[0]) as f:
-        import json
-        rd = json.load(f)
-        xmin = rd["__xmin"]
-        xmax = rd["__xmax"]
-
-    Y2D = []
-    for obs in observables:
-        bids = [x for x in binids if x.startswith(obs)]
-        bids = sorted(bids, key=lambda x: int(x.split("#")[-1]))
-        Y = [RA[binids.index(x)].predict(P) for x in bids]
-        LOW  = [xmin[binids.index(x)] for x in bids]
-        HIGH = [xmax[binids.index(x)] for x in bids]
-        DX = [0.5*(b-a) for a, b in zip(LOW, HIGH)]
-        X  = [l+dx       for l, dx in zip(LOW, DX)]
-
-        if ERA is not None:
-            DY = [ERA[binids.index(x)].predict(P) for x in bids]
-        else:
-            DY = [0 for x in bids]
-
-        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X,Y,DX,DY)]
-        S2D = yoda.Scatter2D(P2D, obs, obs)
-        Y2D.append(S2D)
-
-    yoda.write(Y2D, opts.OUTPUT)
-    print("Output written to {}".format(opts.OUTPUT))
+    app.tools.prediction2YODA(args[0], pd, opts.OUTPUT, opts.ERRAPP, opts.WEIGHTS)
+    exit(0)
