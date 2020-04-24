@@ -362,14 +362,35 @@ def readApprentice(fname):
         app = apprentice.PolynomialApproximation(fname=fname)
     return app
 
+def yodaDir2Dict(dname):
+    """
+    Recursively find and read all files ending with '.yoad' from directory dname.
+    """
+    import apprentice as app
+    import pathlib
+    bindict = {}
+    for f in pathlib.Path(dname).rglob('*.yoda'):
+        histos = app.io.read_histos(str(f.resolve()))
+        for refname in sorted(histos.keys()):
+            bins = histos[refname]
+            hname=refname.replace("/REF", "",1)
+            for num, b in enumerate(bins):
+                binid="{}#{}".format(hname, num)
+                bindict[binid]=(b[2], b[3])
+    return bindict
 
-# Todo add binwidth in data model
-def readExpData(fname, binids):
-    import json
+# TODO add binwidth in data model?
+# TODO what to do in case of missing refdata --- be robust or be precise?
+def readExpData(fin, binids):
     import numpy as np
-    with open(fname) as f: dd = json.load(f)
-    Y = np.array([dd[b][0] for b in binids])
-    E = np.array([dd[b][1] for b in binids])
+    import json, os
+    if os.path.isdir(fin):
+        bindict = yodaDir2Dict(fin)
+    else:
+         with open(fin) as f:
+             bindict = json.load(f)
+    Y = np.array([bindict[b][0] for b in binids])
+    E = np.array([bindict[b][1] for b in binids])
     return dict([(b, (y, e)) for b, y, e in zip(binids, Y, E)])
 
 
