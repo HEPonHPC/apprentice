@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+
+import apprentice as app
+
+import optparse, os, sys
+op = optparse.OptionParser(usage=__doc__)
+op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+op.add_option("-o", dest="OUTPUT", default="data.json", help="Output file (default: %default)")
+opts, args = op.parse_args()
+
+
+if not os.path.isdir(args[0]):
+    print("Specified input directory '{}' does not exist".format(args[0]))
+    exit(1)
+
+bindict = app.io.yodaDir2Dict(args[0])
+
+import json
+with open(opts.OUTPUT, "w") as f: json.dump(bindict, f, indent=4)
+print("Output written to {}.".format(opts.OUTPUT))
