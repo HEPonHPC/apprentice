@@ -142,8 +142,6 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
                     xg=xg.reshape(xg.shape[1:])
                 _data.append([xg, np.array(vals)[USE], np.array(errs)[USE]])
 
-
-        # 
         if storeAsH5 is not None:
             writeInputDataSetH5(storeAsH5, _data, runs, BNAMES, pnames, xmin, xmax)
 
@@ -189,12 +187,44 @@ def writeInputDataSetH5(fname, data, runs, BNAMES, pnames, xmin, xmax, compressi
 
 
 def read_histos(path):
-    "Load histograms from a YODA-supported file type, into a dict of path -> yoda.Histo[DataBin]"
+    """
+    Load histograms from a YODA-supported file type, into a dict of path -> yoda.Histo[DataBin]
+    """
+    import yoda
+    from packaging import version
+    if version.Version(yoda.__version__.decode()) < version.parse("1.8.0"):
+        return read_yoda_pre180(path)
+
     histos = {}
+    s2s, types = [], []
+    aos = yoda.read(path, asdict=False)
     try:
-        import yoda
-        s2s = []
-        types = []
+        for ao in aos:
+            import os
+            if os.path.basename(ao.path()).startswith("_"): continue
+            if "/RAW/" in ao.path(): continue
+            types.append(ao.type())
+            s2s.append(ao.mkScatter())
+        del aos
+        for s2, tp in zip(s2s, types):
+            if s2.dim()!=2: continue
+            bins = [(p.xMin(), p.xMax(), p.y(), p.yErrAvg()) for p in s2.points()] # This stores the bin heights as y-values
+            histos[s2.path()] = bins
+        del s2s
+    except Exception as e:
+        print("read_histos --- Can't load histos from file '%s': %s" % (path, e))
+    return histos
+
+def read_yoda_pre180(path):
+    """
+    Load histograms from a YODA-supported file type, into a dict of path -> yoda.Histo[DataBin]
+    This is for yoda versions < 1.8.0
+    """
+    histos = {}
+    import yoda
+    s2s = []
+    types = []
+    try:
         aos = yoda.read(path, asdict=False)
         for ao in aos:
             import os
@@ -212,9 +242,8 @@ def read_histos(path):
             histos[s2.path] = bins
         del s2s #< pro-active YODA memory clean-up
     except Exception as e:
-        print("Can't load histos from file '%s': %s" % (path, e))
+        print("read_yoda_pre180 --- Can't load histos from file '%s': %s" % (path, e))
     return histos
-
 
 def read_paramsfile(path):
     """
@@ -254,16 +283,16 @@ def read_rundata(dirs, pfname="params.dat", verbosity=1):
             else:
                 if f.endswith("yoda"):
                     try:
-                        ## Read as a path -> Histo dict
+                        # Read as a path -> Histo dict
                         hs = app.io.read_histos(f)
-                        ## Restructure into the path -> run -> Histo return dict
+                        # Restructure into the path -> run -> Histo return dict
                         for path, hist in hs.items():
                             histos.setdefault(path, {})[d] = hist
                     except Exception as e:
                         print("Whoopsiedoodles {}".format(e))
                         pass #< skip files that can't be read as histos
 
-        ## Check that a params file was found and read in this dir... or that no attempt was made to find one
+        # Check that a params file was found and read in this dir... or that no attempt was made to find one
         if pfname:
             if d not in params.keys():
                 raise Exception("No params file '%s' found in run dir '%s'" % (pfname, d))
