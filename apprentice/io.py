@@ -310,8 +310,8 @@ def read_limitsandfixed(fname):
     if fname is not None:
         with open(fname) as f:
             for l in f:
-                if not l.startswith("#"):
-                    temp = l.split()
+                if not l.startswith("#") and not len(l.strip())==0:
+                    temp = l.split("#")[0].split()
                     if len(temp) == 2:
                         fixed[temp[0]] = float(temp[1])
                     elif len(temp) == 3:
