@@ -24,8 +24,8 @@ if __name__ == "__main__":
         print("Specified parameter file {} does not exist, exiting\n\n".format(opts.PARAMS))
         sys.exit(1)
 
-    with open(opts.PARAMS) as f: VALS  = [float(l.strip().split()[-1]) for l in f if not l.startswith("#")]
-    with open(opts.PARAMS) as f: NAMES = [      l.strip().split()[0]   for l in f if not l.startswith("#")]
+    with open(opts.PARAMS) as f: VALS  = [float(l.strip().split("#")[0].split()[-1]) for l in f if not l.startswith("#") and not len(l.strip())==0]
+    with open(opts.PARAMS) as f: NAMES = [      l.strip().split("#")[0].split()[0]   for l in f if not l.startswith("#") and not len(l.strip())==0]
     pd = dict(zip(NAMES,VALS))
 
     app.tools.prediction2YODA(args[0], pd, opts.OUTPUT, opts.ERRAPP, opts.WEIGHTS)
