@@ -28,7 +28,7 @@ def mkPlotsMinimum(TO, x0, y0=None, prefix=""):
         pylab.axvline(x0[i], label="x0=%.5f"%x0[i], color="k")
         y0=TO.objective(x0, unbiased=True)
         # pylab.axhline(y0, label="unbiased y0=%.2f"%y0, color="k")
-        pylab.plot(X[:,i], Y,    label="biased")
+        pylab.plot(X[:,i], Y, label="objective")
         # pylab.plot(X[:,i], Yunb, linestyle="dashed", label="unbiased")
         #TODO just normalized ratio of bias vs unbiased
         pylab.ylabel("objective")
@@ -110,7 +110,7 @@ print("phi2/ndf: %.3f"%(chi2/ndf))
 print("Best fit point:")
 print(GOF.printParams(res.x))
 #TODO add message if fixed params
-print("\n\tMinimisation took {} seconds".format(t1-t0))
+print("\nMinimisation took {} seconds".format(t1-t0))
 
 
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
@@ -132,4 +132,4 @@ if opts.PLOTVALLEY:
 import shutil
 shutil.copy(WFILE, os.path.join(opts.OUTDIR, "weights_{}.txt".format(outcommon)))
 
-print("Done. Output written to directory {}.".format(opts.OUTDIR))
+print("Output written to directory {}.".format(opts.OUTDIR))
