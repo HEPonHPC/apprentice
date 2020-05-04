@@ -112,30 +112,23 @@ print(GOF.printParams(res.x))
 #TODO add message if fixed params
 print("\n\tMinimisation took {} seconds".format(t1-t0))
 
-# if   any(r.x==GOF._bounds[:,0]): print("WARNING: Minimisation ended up at lower boundary")
-# elif any(r.x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
-# elif any(r.x< GOF._bounds[:,0]): print("WARNING: Minimisation ended up outside lower boundary")
-# elif any(r.x> GOF._bounds[:,1]): print("WARNING: Minimisation ended up outside upper boundary")
-# elif isSaddle(GOF.hessian(r.x, np.where(GOF._hnames==obs))): print("WARNING: Minimisation ended up at saddle point")
-# else:
 
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
 
 try:
     import yoda
-    app.tools.prediction2YODA(APP, GOF.mkPoint(res.x), opts.OUTDIR+"/{}_predictions.yoda".format(outcommon), opts.ERRAPP)
+    app.tools.prediction2YODA(APP, GOF.mkPoint(res.x), opts.OUTDIR+"/predictions_{}.yoda".format(outcommon), opts.ERRAPP)
 except ImportError:
     pass
 
 mkPlotsCorrelation(GOF, res.x, opts.OUTDIR+"/{}_".format(outcommon))
-GOF.writeParams(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
+GOF.writeResult(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
 if opts.PLOTVALLEY:
     plotout = os.path.join(opts.OUTDIR, "valleys_{}".format(outcommon))
     if not os.path.exists(plotout): os.makedirs(plotout)
     mkPlotsMinimum(GOF, res.x, prefix=plotout+"/")
 
 
-#TODO also copy limits
 import shutil
 shutil.copy(WFILE, os.path.join(opts.OUTDIR, "weights_{}.txt".format(outcommon)))
 
