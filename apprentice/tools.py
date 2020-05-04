@@ -399,8 +399,6 @@ def mkCov(yerrs):
     import numpy as np
     return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
 
-
-
 def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=None):
     import apprentice as app
     vals = app.AppSet(fvals)
@@ -430,6 +428,36 @@ def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=Non
         P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
         Y2D.append(yoda.Scatter2D(P2D, obs, obs))
     yoda.write(Y2D, fout)
+
+def envelope2YODA(fvals, fout_up="envelope_up.yoda", fout_dn="envelope_dn.yoda", wfile=None):
+    import apprentice as app
+    vals = app.AppSet(fvals)
+
+    Yup = np.array([r.vmax for r in vals._RA])
+    Ydn = np.array([r.vmin for r in vals._RA])
+    dY = np.zeros_like(Yup)
+    hids=np.array([b.split("#")[0] for b in vals._binids])
+    hnames = sorted(set(hids))
+    observables = sorted([x for x in set(app.io.readObs(wfile)) if x in hnames]) if wfile is not None else hnames
+
+    with open(fvals) as f:
+        import json
+        rd = json.load(f)
+        xmin = np.array(rd["__xmin"])
+        xmax = np.array(rd["__xmax"])
+
+    DX = (xmax-xmin)*0.5
+    X  = xmin + DX
+    Y2Dup, Y2Ddn = [], []
+    import yoda
+    for obs in observables:
+        idx = np.where(hids==obs)
+        P2Dup = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Yup[idx], DX[idx], dY[idx])]
+        Y2Dup.append(yoda.Scatter2D(P2Dup, obs, obs))
+        P2Ddn = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Ydn[idx], DX[idx], dY[idx])]
+        Y2Ddn.append(yoda.Scatter2D(P2Ddn, obs, obs))
+    yoda.write(Y2Dup, fout_up)
+    yoda.write(Y2Ddn, fout_dn)
 
 class TuningObjective(object):
 
