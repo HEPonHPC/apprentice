@@ -419,7 +419,7 @@ class TuningObjective2(object):
         else:
             err= np.zeros_like(vals)
             egrads = np.zeros_like(grads)
-        return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err,grads, egrads)[self._freeIdx]
+        return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err, grads, egrads)[self._freeIdx]
 
     def hessian(self, _x, sel=slice(None, None, None)):
         x=self.mkPoint(_x)
