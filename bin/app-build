@@ -105,8 +105,12 @@ if __name__ == "__main__":
 
         if opts.ERRS:
             temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            vmin = np.min(E)
+            vmax = np.max(E)
         else:
             temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            vmin = np.min(Y)
+            vmax = np.max(Y)
         if temp is None:
             print("Unable to calculate value approximation for {} --- skipping".format(thisBinId))
             import sys
@@ -117,6 +121,8 @@ if __name__ == "__main__":
                 print("Warning: pole detected in {}".format(thisBinId))
                 import sys
                 sys.stdout.flush()
+        temp._vmin = vmin
+        temp._vmax = vmax
         apps.append((temp, xmin[num], xmax[num]))
         dapps[thisBinId]= temp.asDict
         binedges[thisBinId] = (xmin[num], xmax[num])
