@@ -16,7 +16,7 @@ setup(
    'h5py',
    'mpi4py'
  ],
-  scripts=["bin/app-ls", "bin/app-tune2", "bin/app-build", "bin/app-predict", "bin/app-datadirtojson", "bin/app-yoda2h5", "bin/app-sample", "etc/extrema.py"],
+  scripts=["bin/app-ls", "bin/app-tune2", "bin/app-build", "bin/app-predict", "bin/app-datadirtojson", "bin/app-yoda2h5", "bin/app-yodaenvelope", "bin/app-sample", "etc/extrema.py"],
   extras_require = {
   },
   entry_points = {

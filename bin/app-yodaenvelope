@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+
+import apprentice as app
+import optparse, os, sys
+
+
+def mk_output_filenames(pfx):
+    """
+    Generate output file names for upper and lower part of envelopes.
+    If a slash is found in pfx, check if folder exists and create it
+    if it doesn't.
+    """
+
+    if "/" in pfx:
+        d_out = os.path.dirname(os.path.abspath(pfx))
+        if not os.path.exists(d_out): os.makedirs(d_out)
+
+    return "{}_up.yoda".format(pfx), "{}_dn.yoda".format(pfx)
+
+
+op = optparse.OptionParser(usage=__doc__)
+op.add_option("-v", "--debug", dest="DEBUG", action="store_true", default=False, help="Turn on some debug messages")
+op.add_option("-o", dest="OUTPUT", default="envelope", help="Prefix for output files (default: %default)")
+op.add_option("-w", dest="WEIGHTS", default=None, help="Obervable file (default: %default)")
+
+opts, args = op.parse_args()
+
+fup, fdn = mk_output_filenames(opts.OUTPUT)
+if opts.DEBUG:
+    print("Writing output to {} and {}".format(fup, fdn))
+
+app.tools.envelope2YODA(args[0], fup, fdn, wfile=opts.WEIGHTS)
