@@ -284,7 +284,7 @@ class TuningObjective2(object):
         self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
     def setLimitsAndFixed(self, fname):
-        lim, fix = apprentice.tools.read_limitsandfixed(fname)
+        lim, fix = apprentice.io.read_limitsandfixed(fname)
 
         i_fix, v_fix, i_free =[], [], []
         for num, pn in enumerate(self.pnames):
@@ -616,30 +616,37 @@ class TuningObjective2(object):
 
     def writeResult(self, x, fname):
         with open(fname, "w") as f:
-            f.write("{}\n".format(self.printParams(x)))
+            f.write("{}".format(self.printParams(x)))
 
 
-    def printParams(self, x):
-        s= ""
-        slen = max([len(p) for p in self.pnames])
+    def printParams(self, x_):
+        x=self.mkPoint(x_)
+        slen = max((max([len(p) for p in self.pnames]), 6))
         x_aligned = dot_aligned(x)
-        plen = max([len(p) for p in x_aligned])
+        plen = max((max([len(p) for p in x_aligned]), 6))
 
         b_dn = dot_aligned(self._SCLR.box[:,0])
         b_up = dot_aligned(self._SCLR.box[:,1])
-        dnlen = max([len(p) for p in b_dn])
-        uplen = max([len(p) for p in b_up])
+        dnlen = max((max([len(p) for p in b_dn]), 5))
+        uplen = max((max([len(p) for p in b_up]), 6))
 
         islowbound = x==self._bounds[:,0]
         isupbound  = x==self._bounds[:,1]
         isbound = islowbound + isupbound
 
+        isfixed = [i in self._fixIdx[0] for i in range(self.dim)]
 
-        for pn, val, bdn, bup, isb in zip(self.pnames, x_aligned, b_dn, b_up, isbound):
-            if isb:
-                s+= ("{:<{slen}}\t{:<{plen}} # ***ON BOUNDARY*** [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+        s= ""
+        s+= ("#\n#{:<{slen}}\t{:<{plen}} #    COMMENT    [ {:<{dnlen}}  ...  {:<{uplen}} ]\n#\n".format(" PNAME", " PVALUE", " PLOW", " PHIGH", slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+        for pn, val, bdn, bup, isf, isb in zip(self.pnames, x_aligned, b_dn, b_up, isfixed, isbound):
+            if isb and isf:
+                s+= ("{:<{slen}}\t{:<{plen}} # FIX & ONBOUND [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+            elif isb and not isf:
+                s+= ("{:<{slen}}\t{:<{plen}} #       ONBOUND [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+            elif not isb and isf:
+                s+= ("{:<{slen}}\t{:<{plen}} # FIX           [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
             else:
-                s+= ("{:<{slen}}\t{:<{plen}} #                   [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+                s+= ("{:<{slen}}\t{:<{plen}} #               [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
         return s
 
     def lineScan(self, x0, dim, npoints=100, bounds=None):
