@@ -1,6 +1,13 @@
 import apprentice
 import numpy as np
 
+# https://stackoverflow.com/questions/32808383/formatting-numbers-so-they-align-on-decimal-point
+def dot_aligned(seq):
+    snums = [str(n) for n in seq]
+    dots = [s.find('.') for s in snums]
+    m = max(dots)
+    return [' '*(m - d) + s for s, d in zip(snums, dots)]
+
 ## legacy Prof2 code
 def calcHistoCov(h, COV_P, result):
     """
@@ -306,7 +313,7 @@ class TuningObjective2(object):
         if kwargs.get("limits") is not None: self.setLimits(kwargs["limits"])
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
 
-    def envelope(self, nmultistart=10, sel=None):
+    def envelope(self):
         if hasattr(self._RA[0], 'vmin') and hasattr(self._RA[0], "vmax"):
             if self._RA[0].vmin is None or self._RA[0].vmax is None:
                 return np.where(self._Y)  # use everything
@@ -322,6 +329,8 @@ class TuningObjective2(object):
         hnames  = [    b.split("#")[0]  for b in AS._binids]
         bnums   = [int(b.split("#")[1]) for b in AS._binids]
         weights = self.initWeights(f_weights, hnames, bnums)
+        if sum(weights)==0:
+            raise Exception("No observables selected. Check weight file and if it is compatible with experimental data supplied.")
         nonzero = np.where(weights>0)
 
         # Filter here to use only certain bins/histos
@@ -347,6 +356,9 @@ class TuningObjective2(object):
             else:
                 if self._debug: print("Warning, dropping bin with id {} as its weight or error is 0. W = {}, E = {}".format(bid,weights[nonzero][num],E[num]))
         self._good = good
+
+        if len(good)==0:
+            raise Exception("No bins left after filtering.")
 
         # TODO This needs some re-engineering to allow fow multiple filterings
         RA =           [AS._RA[nonzero][g]     for g in good]
@@ -602,10 +614,32 @@ class TuningObjective2(object):
             for pn, val in zip(self.pnames, x):
                 f.write("{}\t{}\n".format(pn, val))
 
+    def writeResult(self, x, fname):
+        with open(fname, "w") as f:
+            f.write("{}\n".format(self.printParams(x)))
+
+
     def printParams(self, x):
         s= ""
-        for num, (pn, val) in enumerate(zip(self.pnames, x)):
-            s+= ("{}\t{}  [{} ... {}]\n".format(pn, val, self._SCLR.box[num][0], self._SCLR.box[num][1]))
+        slen = max([len(p) for p in self.pnames])
+        x_aligned = dot_aligned(x)
+        plen = max([len(p) for p in x_aligned])
+
+        b_dn = dot_aligned(self._SCLR.box[:,0])
+        b_up = dot_aligned(self._SCLR.box[:,1])
+        dnlen = max([len(p) for p in b_dn])
+        uplen = max([len(p) for p in b_up])
+
+        islowbound = x==self._bounds[:,0]
+        isupbound  = x==self._bounds[:,1]
+        isbound = islowbound + isupbound
+
+
+        for pn, val, bdn, bup, isb in zip(self.pnames, x_aligned, b_dn, b_up, isbound):
+            if isb:
+                s+= ("{:<{slen}}\t{:<{plen}} # ***ON BOUNDARY*** [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+            else:
+                s+= ("{:<{slen}}\t{:<{plen}} #                   [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
         return s
 
     def lineScan(self, x0, dim, npoints=100, bounds=None):
