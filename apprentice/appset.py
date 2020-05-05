@@ -251,6 +251,7 @@ class AppSet(object):
 
 class TuningObjective2(object):
     def __init__(self, *args, **kwargs):
+        self._manual_sp=None;
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else False
         if type(args[0]) == str: self.mkFromFiles(*args, **kwargs)
         else:                    self.mkFromData( *args, **kwargs) # NOT implemented --- also add a mkReduced for small scale tests
@@ -260,6 +261,12 @@ class TuningObjective2(object):
 
     @property
     def pnames(self): return self._SCLR.pnames
+
+    def setManualStartPoint(self, p0):
+        self._manual_sp = p0
+
+    def unsetManualStartPoint(self):
+        self._manual_sp = None
 
     def rbox(self, ntrials):
         return self._AS.rbox(ntrials)
@@ -465,7 +472,10 @@ class TuningObjective2(object):
 
         return np.sum( self._W2[sel]*(spans), axis=2)
 
-    def startPoint(self, ntrials, sel=slice(None, None, None)):
+    def startPoint(self, ntrials, sel=slice(None, None, None), method="lhs"):
+        if self._manual_sp is not None:
+            if self._debug: print("Manual start point: {}".format(self._manual_sp))
+            return self._manual_sp
         if ntrials == 0:
             if self._debug: print("StartPoint: {}".format(self._SCLR.center))
             x0 =self._bounds[:,0] + 0.5*(self._bounds[:,1]-self._bounds[:,0])
@@ -473,7 +483,16 @@ class TuningObjective2(object):
         import numpy as np
         import time
         t0=time.time()
-        _PP = np.random.uniform(low=self._bounds[self._freeIdx][:,0], high=self._bounds[self._freeIdx][:,1], size=(ntrials, len(self._freeIdx[0])))
+        if   method == "uniform":
+            _PP = np.random.uniform(low=self._bounds[self._freeIdx][:,0], high=self._bounds[self._freeIdx][:,1], size=(ntrials, len(self._freeIdx[0])))
+        elif method == "lhs":
+            import pyDOE2
+            a = self._bounds[self._freeIdx][:,0]
+            b = self._bounds[self._freeIdx][:,1]
+            _PP = a + (b-a) * pyDOE2.lhs(len(self._freeIdx[0]), samples=ntrials, criterion="maximin")
+        else:
+            raise Exception("Startpoint sampling method {} not known, exiting".format(method))
+
         _CH = [self.objective(p, sel=sel) for p in _PP]
         t1=time.time()
         if self._debug: print("StartPoint: {}, evaluation took {} seconds".format(_PP[_CH.index(min(_CH))], t1-t0))

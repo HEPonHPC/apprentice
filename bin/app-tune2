@@ -71,6 +71,7 @@ op.add_option("-e", "--errorapprox", dest="ERRAPP", default=None, help="Approxim
 op.add_option("-s", "--survey", dest="SURVEY", default=1, type=int, help="Size of survey when determining start point (default: %default)")
 op.add_option("-r", "--restart", dest="RESTART", default=1, type=int, help="Minimiser restarts (default: %default)")
 op.add_option("--seed", dest="SEED", default=1234, type=int, help="The base random seed (default: %default)")
+op.add_option("--msp", dest="MSP", default=None, help="Manual startpoint, comma separated string (default: %default)")
 op.add_option("-a", "--algorithm", dest="ALG", default="tnc", help="The minimisation algrithm tnc, ncg, lbfgsb, trust (default: %default)")
 op.add_option("-l", "--limits", dest="LIMITS", default=None, help="Parameter file with limits and fixed parameters (default: %default)")
 op.add_option("-f", dest="FORCE", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
@@ -95,6 +96,10 @@ np.random.seed(opts.SEED)
 GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
 if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
 
+if opts.MSP is not None:
+    x0 = [float(x) for x in opts.MSP.split(",")]
+    GOF.setManualStartPoint(x0)
+
 import time
 t0=time.time()
 res = GOF.minimize(opts.SURVEY, opts.RESTART, method=opts.ALG, tol=opts.TOL, saddlePointCheck=not opts.NOCHECK)
@@ -109,7 +114,6 @@ print("Degrees of freedom: {}".format(ndf))
 print("phi2/ndf: %.3f"%(chi2/ndf))
 print("Best fit point:")
 print(GOF.printParams(res.x))
-#TODO add message if fixed params
 print("\nMinimisation took {} seconds".format(t1-t0))
 
 
