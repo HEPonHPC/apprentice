@@ -489,7 +489,7 @@ class TuningObjective2(object):
             import pyDOE2
             a = self._bounds[self._freeIdx][:,0]
             b = self._bounds[self._freeIdx][:,1]
-            _PP = a + (b-a) * pyDOE2.lhs(len(self._freeIdx[0]), samples=ntrials, criterion="maximin")
+            _PP = a + (b-a) * pyDOE2.lhs(len(self._freeIdx[0]), samples=max(ntrials,2), criterion="maximin")
         else:
             raise Exception("Startpoint sampling method {} not known, exiting".format(method))
 
@@ -566,6 +566,7 @@ class TuningObjective2(object):
         t0=time.time()
         for t in range(nrestart):
             isSaddle = True
+            maxtries=10
             while (isSaddle):
                 x0 = np.array(self.startPointMPI(nstart, sel=sel), dtype=np.float64) if use_MPI_for_x0 else np.array(
                             self.startPoint(nstart, sel=sel), dtype=np.float64)
@@ -578,7 +579,12 @@ class TuningObjective2(object):
 
 
                 isSaddle = False if not saddlePointCheck else self.isSaddle(res.x)
-                if isSaddle and self._debug: print("Minimisation ended up in saddle point, retrying")
+                if isSaddle and maxtries>0:
+                    if self._debug: print("Minimisation ended up in saddle point, retrying, {} tries left".format(maxtries))
+                    maxtries -= 1
+                elif isSaddle and maxtries==0:
+                    if self._debug: print("Minimisation ended up in saddle point")
+                    break
 
             if res["fun"] < minobj:
                 minobj = res["fun"]
