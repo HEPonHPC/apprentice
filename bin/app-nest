@@ -18,9 +18,6 @@ except:
     pass
 
 
-
-
-
 if __name__ == "__main__":
     import sys
     from scipy import optimize
@@ -47,9 +44,13 @@ if __name__ == "__main__":
     op.add_option("--points", dest="POINTS", default=400, type=int, help="Number of live points in PyMultinest (default: %default)")
     op.add_option("--resume", dest="RESUME", default=False, action='store_true', help="Resume on previous run.")
     op.add_option("--imp", dest="IMPORTANCE", default=False, action='store_true', help="Do importance sampling.")
-    op.add_option("--mm", dest="MM", default=False, action='store_true', help="Run in multimodeal mode.")
+    op.add_option("--mm", dest="MM", default=False, action='store_true', help="Run in multimodal mode.")
     op.add_option("--update", dest="UPDATE", default=10000, type=int, help="Update interval (default: %default iterations)")
     opts, args = op.parse_args()
+
+    if len(args) != 3:
+        print("Error, not enough arguments. Provide, weight, experimental data and approximation.")
+        exit(1)
 
     WFILE = args[0]
     DATA  = args[1]
@@ -57,15 +58,19 @@ if __name__ == "__main__":
 
     np.random.seed(opts.SEED)
 
-    GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
+    if rank == 0:
+        GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
+        if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
+    else: GOF = None
+    GOF = comm.bcast(GOF, root=0)
 
     sys.stdout.flush()
 
-    PMIN = GOF._bounds[:,0]
-    PMAX = GOF._bounds[:,1]
+    PMIN = GOF._bounds[GOF._freeIdx][:,0]
+    PMAX = GOF._bounds[GOF._freeIdx][:,1]
     PLEN=[PMAX[i] - PMIN[i] for i in range(len(PMAX))]
     NP = len(PLEN)
-    PNAMES = GOF.pnames
+    PNAMES = [GOF.pnames[i] for i in GOF._freeIdx[0]]
 
     def scaleParam(p, idx):
         return PMIN[idx] + p * PLEN[idx]
@@ -74,9 +79,6 @@ if __name__ == "__main__":
         for i in range(ndim):
             cube[i] = scaleParam(cube[i], i)
 
-
-    from math import exp, log
-    from collections import OrderedDict
     def loglike(cube, ndim, nparams):
         PP = [cube[i] for i in range(ndim)]
         loli = -0.5 * GOF.objective(PP)
@@ -123,8 +125,12 @@ if __name__ == "__main__":
         pbest = a.get_best_fit()["parameters"]
         for n, p in zip(PNAMES, pbest):
             print("\t{}\t{}".format(n,p))
-
-        # print("Global Evidence:\n\t%.15e +- %.15e" % ( s['nested sampling global log-evidence'], s['nested sampling global log-evidence error'] ))
+        try:
+            import yoda
+            app.tools.prediction2YODA(APP, GOF.mkPoint(pbest), opts.OUTDIR+"/predictions.yoda", opts.ERRAPP)
+        except ImportError:
+            pass
 
         print("\nDone! Output written to %s"%opts.OUTDIR)
         print("To plot do e.g. multinest_marginals_fancy.py %s"%(a.outputfiles_basename))
+        print("See also https://github.com/JohannesBuchner/PyMultiNest")
