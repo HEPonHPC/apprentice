@@ -108,14 +108,17 @@ t1=time.time()
 if opts.DEBUG: print(res)
 
 chi2 = GOF.objective(res.x, unbiased=True)
-print("Objective value at best fit point: %.2f (%.2f without weights)"%(res.fun, chi2))
 ndf = GOF.ndf
-print("Degrees of freedom: {}".format(ndf))
-print("phi2/ndf: %.3f"%(chi2/ndf))
-print("Best fit point:")
-print(GOF.printParams(res.x))
-print("\nMinimisation took {} seconds".format(t1-t0))
 
+meta  = "# Objective value at best fit point: %.2f (%.2f without weights)\n"%(res.fun, chi2)
+meta += "# Degrees of freedom: {}\n".format(ndf)
+meta += "# phi2/ndf: %.3f\n"%(chi2/ndf)
+meta += "# Minimisation took {} seconds\n".format(t1-t0)
+meta += "# Command line: {}\n".format(" ".join(sys.argv))
+meta += "# Best fit point:"
+
+print(meta)
+print(GOF.printParams(res.x))
 
 outcommon = "{}_{}_{}".format(opts.ALG, opts.SURVEY, opts.RESTART, opts.SEED)
 
@@ -126,7 +129,7 @@ except ImportError:
     pass
 
 mkPlotsCorrelation(GOF, res.x, opts.OUTDIR+"/{}_".format(outcommon))
-GOF.writeResult(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)))
+GOF.writeResult(res.x, os.path.join(opts.OUTDIR, "minimum_{}.txt".format(outcommon)), meta=meta)
 if opts.PLOTVALLEY:
     plotout = os.path.join(opts.OUTDIR, "valleys_{}".format(outcommon))
     if not os.path.exists(plotout): os.makedirs(plotout)

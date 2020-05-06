@@ -639,8 +639,10 @@ class TuningObjective2(object):
             for pn, val in zip(self.pnames, x):
                 f.write("{}\t{}\n".format(pn, val))
 
-    def writeResult(self, x, fname):
+    def writeResult(self, x, fname, meta=None):
         with open(fname, "w") as f:
+            if meta is not None:
+                f.write("{}".format(meta))
             f.write("{}".format(self.printParams(x)))
 
 
@@ -659,19 +661,30 @@ class TuningObjective2(object):
         isupbound  = x==self._bounds[:,1]
         isbound = islowbound + isupbound
 
+        isbelow = x < self._SCLR.box[:,0]
+        isabove = x > self._SCLR.box[:,1]
+        isoutside = isbelow + isabove
+
         isfixed = [i in self._fixIdx[0] for i in range(self.dim)]
 
         s= ""
         s+= ("#\n#{:<{slen}}\t{:<{plen}} #    COMMENT    [ {:<{dnlen}}  ...  {:<{uplen}} ]\n#\n".format(" PNAME", " PVALUE", " PLOW", " PHIGH", slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
-        for pn, val, bdn, bup, isf, isb in zip(self.pnames, x_aligned, b_dn, b_up, isfixed, isbound):
+        for pn, val, bdn, bup, isf, isb, iso in zip(self.pnames, x_aligned, b_dn, b_up, isfixed, isbound, isoutside):
+
             if isb and isf:
-                s+= ("{:<{slen}}\t{:<{plen}} # FIX & ONBOUND [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+                comment = "FIX & ONBOUND"
             elif isb and not isf:
-                s+= ("{:<{slen}}\t{:<{plen}} #       ONBOUND [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+                comment="ONBOUND"
             elif not isb and isf:
-                s+= ("{:<{slen}}\t{:<{plen}} # FIX           [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+                comment="FIX"
+            elif iso and not isf:
+                coment = "OUTSIDE"
+            elif iso and isf:
+                coment = "FIX & OUTSIDE"
             else:
-                s+= ("{:<{slen}}\t{:<{plen}} #               [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
+                comment = ""
+
+            s+= ("{:<{slen}}\t{:<{plen}} # {:<13} [ {:<{dnlen}}  ...  {:<{uplen}} ]\n".format(pn, val, comment, bdn, bup, slen=slen, plen=plen, uplen=uplen, dnlen=dnlen))
         return s
 
     def lineScan(self, x0, dim, npoints=100, bounds=None):
