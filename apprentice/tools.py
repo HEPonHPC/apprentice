@@ -497,7 +497,7 @@ class TuningObjective(object):
         cache_recursions = kwargs["cache_recursions"] if kwargs.get("cache_recursions") is not None else True
         import apprentice
         import numpy as np
-        binids, RA = apprentice.tools.readApprox(f_approx, set_structures=False)
+        binids, RA = apprentice.io.readApprox(f_approx, set_structures=False)
         hnames = [b.split("#")[0] for b in binids]
         bnums = [int(b.split("#")[1]) for b in binids]
 
@@ -505,7 +505,7 @@ class TuningObjective(object):
         weights = self.initWeights(f_weights, hnames, bnums)
 
         # Filter here to use only certain bins/histos
-        dd = apprentice.tools.readExpData(f_data, [str(b) for b in binids])
+        dd = apprentice.io.readExpData(f_data, [str(b) for b in binids])
         Y = np.array([dd[b][0] for b in binids])
         E = np.array([dd[b][1] for b in binids])
 
