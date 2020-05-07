@@ -51,6 +51,7 @@ def sample(boxdef, npoints):
     xmax = [B[x][1] for x in porder]
 
     # Randomly sampled points
+    # TODO add lhs as preferred option?
     RSP = np.random.uniform(low=xmin, high=xmax,size=(npoints, len(xmin)))
     for p in porder:
         print(p)
