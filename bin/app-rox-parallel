@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from numba import jit
 import apprentice as app
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # Prevent overwriting of input data
     assert(args[0]!=opts.OUTPUT)
 
-    pnames = app.tools.readPnamesH5(args[0], xfield="params") if rank==0 else []
+    pnames = app.io.readPnamesH5(args[0], xfield="params") if rank==0 else []
     pnames = comm.bcast(pnames, root=0)
     if rank==0:
         observables = list(set(app.tools.readObs(opts.WEIGHTS))) if opts.WEIGHTS is not None else app.tools.readObsNames(args[0])
