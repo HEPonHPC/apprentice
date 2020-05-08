@@ -575,7 +575,7 @@ class TuningObjective2(object):
                 elif method=="ncg":    res = self.minimizeNCG(   x0, sel, tol=tol)
                 elif method=="trust":  res = self.minimizeTrust( x0, sel, tol=tol)
                 elif method=="lbfgsb": res = self.minimizeLBFGSB(x0, sel, tol=tol)
-                else: raise Exception("Unknown minimser {}".format(method))
+                else: raise Exception("Unknown minimiser {}".format(method))
 
 
                 isSaddle = False if not saddlePointCheck else self.isSaddle(res.x)
@@ -678,9 +678,9 @@ class TuningObjective2(object):
             elif not isb and isf:
                 comment="FIX"
             elif iso and not isf:
-                coment = "OUTSIDE"
+                comment = "OUTSIDE"
             elif iso and isf:
-                coment = "FIX & OUTSIDE"
+                comment = "FIX & OUTSIDE"
             else:
                 comment = ""
 
