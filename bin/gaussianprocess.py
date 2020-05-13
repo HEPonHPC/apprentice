@@ -38,7 +38,7 @@ class GaussianProcess():
         return self.meanappset.grads(x)
 
     def buildGPmodel(self):
-        Ntr = 10
+        Ntr = 300
         Ns = 25
         seed = 992739462
         np.random.seed(seed)
@@ -74,11 +74,17 @@ class GaussianProcess():
         sys.stdout.flush()
 
         if self.nprocess >1:
-            model.optimize_restarts(num_restarts=self.nrestart,
-                                    robust=True,
+            print("Something is wrong with parallel runs. FIX required\nQuitting for now")
+            sys.exit(1)
+            model.optimize_restarts(robust=True,
                                     parallel=True,
-                                    num_processes=self.nprocess)
+                                    # messages=True,
+                                    num_processes=self.nprocess,
+                                    num_restarts=self.nrestart
+                                )
+
         else:
+            model.optimize()
             model.optimize_restarts(num_restarts=self.nrestart,
                                     robust=True)
         print(timer()-start)
