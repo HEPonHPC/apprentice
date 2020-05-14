@@ -38,81 +38,144 @@ class GaussianProcess():
         return self.meanappset.grads(x)
 
     def buildGPmodel(self):
-        Ntr = 300
-        Ns = 25
-        seed = 992739462
-        np.random.seed(seed)
-        Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
-        Xtr = np.repeat(self.X[Xtrindex, :],[Ns]*len(Xtrindex),axis=0)
-        MCtr = np.repeat(self.MC[Xtrindex],Ns)
-        DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
-
-        # Get Ns samples of each of the Ntr training distribution
-        Ytr = np.random.normal(MCtr,DeltaMCtr)
-        M = [self.approxmeancountval(x) for x in Xtr]
-        # Y-M (Training labels)
-        Ytrmm = Ytr-M
-        Ytrmm2D = np.array([Ytrmm]).transpose()
-
-        # Homoscedastic noise (for now) that we will find during parameter tuning
-        lik = GPy.likelihoods.Gaussian()
-        kernel = GPy.kern.RBF(input_dim=self.nparam,ARD=True)
-
-        # 0 mean GP to model f
-        model = GPy.core.GP(Xtr,
-                        Ytrmm2D,
-                        kernel=kernel,
-                        likelihood=lik
-        )
-
-        print(model.likelihood.variance)
-        print(model.kern.parameters)
-        start=timer()
-        print("##############################")
-        print(datetime.datetime.now())
-        print("##############################")
-        sys.stdout.flush()
-
-        if self.nprocess >1:
-            print("Something is wrong with parallel runs. FIX required\nQuitting for now")
-            sys.exit(1)
-            model.optimize_restarts(robust=True,
-                                    parallel=True,
-                                    # messages=True,
-                                    num_processes=self.nprocess,
-                                    num_restarts=self.nrestart
-                                )
-
-        else:
-            model.optimize()
-            model.optimize_restarts(num_restarts=self.nrestart,
-                                    robust=True)
-        print(timer()-start)
-        print(model.likelihood.variance)
-        print(model.kern.parameters)
-        print(model)
-        print("##############################")
-        print(datetime.datetime.now())
-        print("##############################")
-        sys.stdout.flush()
-        dir = os.path.join(self.outdir,"ParamSave")
-        os.makedirs(dir,exist_ok=True)
-        savefn = os.path.join(dir,"{}.npy".format(self.obsname.replace("/","_")))
-        np.save(savefn, model.param_array)
+        import json
+        dir = os.path.join(self.outdir, "ParamSave")
+        os.makedirs(dir, exist_ok=True)
+        savefn1 = os.path.join(dir, "{}.npy".format(self.obsname.replace("/", "_")))
         dir = os.path.join(self.outdir, "XinfoSave")
         os.makedirs(dir, exist_ok=True)
-        savefn = os.path.join(dir, "{}.json".format(self.obsname.replace("/", "_")))
-        data ={"Ntr":Ntr,"Ns":Ns,'seed':seed,"Xtrindex":Xtrindex.tolist(),"Ytrmm":Ytrmm.tolist()}
-        import json
-        with open(savefn, 'w') as f:
-            json.dump(data, f, indent=4)
-        return model
+        savefn2 = os.path.join(dir, "{}.json".format(self.obsname.replace("/", "_")))
+        model = None
+        if not os.path.exists(savefn1) and not os.path.exists(savefn2):
+            Ntr = 300
+            Ns = 25
+            seed = 992739462
+            np.random.seed(seed)
+            Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
+            Xtr = np.repeat(self.X[Xtrindex, :],[Ns]*len(Xtrindex),axis=0)
+            MCtr = np.repeat(self.MC[Xtrindex],Ns)
+            DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
 
-        # Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-        # Xte = self.X[~Xteindex, :]
-        # MCte = self.MC[~Xteindex]
-        # DeltaMCte =self.DeltaMC[~Xteindex]
-        # Ntest = len(MCte)
+            # Get Ns samples of each of the Ntr training distribution
+            Ytr = np.random.normal(MCtr,DeltaMCtr)
+            M = [self.approxmeancountval(x) for x in Xtr]
+            # Y-M (Training labels)
+            Ytrmm = Ytr-M
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+
+            # Homoscedastic noise (for now) that we will find during parameter tuning
+            lik = GPy.likelihoods.Gaussian()
+            kernel = GPy.kern.RBF(input_dim=self.nparam,ARD=True)
+
+            # 0 mean GP to model f
+            model = GPy.core.GP(Xtr,
+                            Ytrmm2D,
+                            kernel=kernel,
+                            likelihood=lik
+            )
+
+            print(model.likelihood.variance)
+            print(model.kern.parameters)
+            start=timer()
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+
+            if self.nprocess >1:
+                print("Something is wrong with parallel runs. FIX required\nQuitting for now")
+                sys.exit(1)
+                model.optimize_restarts(robust=True,
+                                        parallel=True,
+                                        # messages=True,
+                                        num_processes=self.nprocess,
+                                        num_restarts=self.nrestart
+                                    )
+
+            else:
+                model.optimize()
+                model.optimize_restarts(num_restarts=self.nrestart,
+                                        robust=True)
+            print(timer()-start)
+            print(model.likelihood.variance)
+            print(model.kern.parameters)
+            print(model)
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+
+            np.save(savefn1, model.param_array)
+
+            data ={"Ntr":Ntr,"Ns":Ns,'seed':seed,"Xtrindex":Xtrindex.tolist(),"Ytrmm":Ytrmm.tolist()}
+            with open(savefn2, 'w') as f:
+                json.dump(data, f, indent=4)
+        else:
+            with open(savefn2, 'r') as f:
+                ds = json.load(f)
+            Ntr = ds['Ntr']
+            Ns = ds['Ns']
+            seed = ds['seed']
+            np.random.seed(seed)
+            Xtrindex = ds['Xtrindex']
+            Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            MCtr = np.repeat(self.MC[Xtrindex], Ns)
+            DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+
+            # Homoscedastic noise (for now) that we will find during parameter tuning
+            lik = GPy.likelihoods.Gaussian()
+            kernel = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+
+            # 0 mean GP to model f
+            model = GPy.core.GP(Xtr,
+                                Ytrmm2D,
+                                kernel=kernel,
+                                likelihood=lik,
+                                )
+            model.update_model(False)
+            model.initialize_parameter()
+            model[:] = np.load(savefn1)
+            model.update_model(True)
+
+            Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+            Xte = self.X[~Xteindex, :]
+            MCte = self.MC[~Xteindex]
+            DeltaMCte =self.DeltaMC[~Xteindex]
+            Ntest = len(MCte)
+            ybar,vy = model.predict(Xte)
+            predmean = np.array([y[0] for y in ybar])
+            predvar = np.array([y[0] for y in vy])
+            M = np.array([self.approxmeancountval(x) for x in Xte])
+            predmean+=M
+            KLarr = []
+            KLdirect = np.log(np.sqrt(predvar)/DeltaMCte)\
+                            + ((DeltaMCte**2 + (predmean-MCte)**2)/(2*predvar))-0.5
+            JSarr = []
+            from scipy.stats import entropy
+            from scipy.spatial.distance import jensenshannon
+            for pm,pvar,mcm,mcsd in zip(predmean,predvar,MCte,DeltaMCte):
+                mcsample = np.random.normal(mcm,mcsd,100)
+                predsample = np.random.normal(pm,np.sqrt(pvar),100)
+                KLarr.append(entropy(mcsample,predsample))
+                JSarr.append(jensenshannon(mcsample, predsample))
+
+
+
+            print("MSE predmean {}".format(np.mean((predmean - MCte)**2)))
+            print("MSE ramean {}".format(np.mean((M - MCte) ** 2)))
+            print("MSE predvar {}".format(np.mean((predvar - DeltaMCte) ** 2)))
+            print("\nKLDirect:")
+            print(np.mean(KLdirect))
+            print("\nKL:")
+            print(np.mean(KLarr))
+            print("\nJS Dist:")
+            print(np.mean(JSarr))
+
+
+
+        return model
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
