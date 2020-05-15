@@ -170,6 +170,7 @@ class GaussianProcess():
         Xtrindex = ds['Xtrindex']
         Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
         Xte = self.X[~Xteindex, :]
+        ntest = len(Xte)
         MCte = self.MC[~Xteindex]
         DeltaMCte = self.DeltaMC[~Xteindex]
         ybar, vy = model.predict(Xte)
@@ -194,6 +195,19 @@ class GaussianProcess():
         print(np.mean(KLarr))
         print("\nJS Dist:")
         print(np.mean(JSarr))
+
+        import matplotlib.pyplot as plt
+        plt.plot(MCte, predmean, ls='', marker='.')
+        plt.plot(np.linspace(min(MCte), max(MCte), 100),
+                 np.linspace(min(MCte), max(MCte), 100))
+        plt.fill_between(np.linspace(min(MCte), max(MCte), ntest),
+                         np.linspace(min(MCte),max(MCte),ntest) + 2 * np.sqrt(predvar),
+                         np.linspace(min(MCte),max(MCte),ntest) - 2 * np.sqrt(predvar),
+                         color='gray', alpha=.5)
+        plt.xlabel('MC mean count')
+        plt.ylabel('predicted mean count')
+        plt.show()
+
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
