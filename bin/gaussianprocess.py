@@ -150,8 +150,6 @@ class GaussianProcess():
             M = np.array([self.approxmeancountval(x) for x in Xte])
             predmean+=M
             KLarr = []
-            KLdirect = np.log(np.sqrt(predvar)/DeltaMCte)\
-                            + ((DeltaMCte**2 + (predmean-MCte)**2)/(2*predvar))-0.5
             JSarr = []
             from scipy.stats import entropy
             from scipy.spatial.distance import jensenshannon
@@ -166,9 +164,7 @@ class GaussianProcess():
             print("MSE predmean {}".format(np.mean((predmean - MCte)**2)))
             print("MSE ramean {}".format(np.mean((M - MCte) ** 2)))
             print("MSE predvar {}".format(np.mean((predvar - DeltaMCte) ** 2)))
-            print("\nKLDirect:")
-            print(np.mean(KLdirect))
-            print("\nKL:")
+            print("\nKL Divergence:")
             print(np.mean(KLarr))
             print("\nJS Dist:")
             print(np.mean(JSarr))
