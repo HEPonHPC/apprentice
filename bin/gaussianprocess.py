@@ -44,9 +44,9 @@ class GaussianProcess():
                   "This code does not support multi output GP")
             exit(1)
         if self.buildtype == 'data':
-            self.buildGPmodelFromData()
+            self.model = self.buildGPmodelFromData()
         elif self.buildtype == 'savedparam':
-            self.buildGPmodelFromSavedParam()
+            self.model = self.buildGPmodelFromSavedParam()
 
     def approxmeancountval(self, x):
         return self.meanappset.vals(x)[0]
