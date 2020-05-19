@@ -10,26 +10,26 @@ import argparse
 
 
 class GaussianProcess():
-    def __init__(self, *args, scargs, **kwargs):
-        datafile = scargs.DATAFILE
+    def __init__(self, *args, **kwargs):
+        datafile = kwargs['DATAFILE']
         data = pd.read_csv(datafile,header=None)
         D = data.values
         self.X = D[:, :-2]
         self.MC = D[:, -2]
         self.DeltaMC = D[:, -1]
         self.nens,self.nparam = self.X.shape
-        self.buildtype = scargs.BUILDTYPE
+        self.buildtype = kwargs['BUILDTYPE']
 
         if self.buildtype=="data":
-            self.kernel = scargs.KERNEL
-            self.obsname = scargs.OBS
-            self.nprocess = scargs.NPROCESS
-            self.nrestart = scargs.NRESTART
-            self.keepout = scargs.KEEPOUT/100
-            os.makedirs(scargs.OUTDIR,exist_ok=True)
-            self.outfile = os.path.join(scargs.OUTDIR, "{}_K{}.json".format(self.obsname.replace('/', '_'), self.kernel))
+            self.kernel = kwargs['KERNEL']
+            self.obsname = kwargs['OBS']
+            self.nprocess = kwargs['NPROCESS']
+            self.nrestart = kwargs['NRESTART']
+            self.keepout = kwargs['KEEPOUT']/100
+            os.makedirs(kwargs['OUTDIR'],exist_ok=True)
+            self.outfile = os.path.join(kwargs['OUTDIR'], "{}_K{}.json".format(self.obsname.replace('/', '_'), self.kernel))
         elif self.buildtype=="savedparam":
-            self.paramsavefile = scargs.PARAMFILE
+            self.paramsavefile = kwargs['PARAMFILE']
             import json
             with open(self.paramsavefile, 'r') as f:
                 ds = json.load(f)
@@ -37,7 +37,7 @@ class GaussianProcess():
 
 
         import apprentice
-        self.meanappset = apprentice.appset.AppSet(scargs.APPROX, binids=self.obsname)
+        self.meanappset = apprentice.appset.AppSet(kwargs['APPROX'], binids=self.obsname)
         if len(self.meanappset._binids)!=1 or \
             self.meanappset._binids[0] != self.obsname:
             print("Something went wrong.\n"
@@ -188,78 +188,7 @@ class GaussianProcess():
         model.initialize_parameter()
         model[:] = ds['savedmodelparams']
         model.update_model(True)
-        if ds['keepout'] > 0:
-            self.testmodel(model)
         return model
-
-    def testmodel(self,model):
-        import json
-        with open(self.paramsavefile, 'r') as f:
-            ds = json.load(f)
-
-        if ds['keepout'] == 0:
-            print("keepout is set to 0. No test data available. Quitting Now!")
-            exit(1)
-        seed = ds['seed']
-        np.random.seed(seed)
-        Xtrindex = ds['Xtrindex']
-        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-        Xte = self.X[~Xteindex, :]
-        ntest = len(Xte)
-        MCte = self.MC[~Xteindex]
-        DeltaMCte = self.DeltaMC[~Xteindex]
-        ybar, vy = model.predict(Xte)
-        predmean = np.array([y[0] for y in ybar])
-        predvar = np.array([y[0] for y in vy])
-        predsd = np.sqrt(predvar)
-        print(predsd)
-        M = np.array([self.approxmeancountval(x) for x in Xte])
-        predmean += M
-        KLarr = []
-        JSarr = []
-        from scipy.stats import entropy
-        from scipy.spatial.distance import jensenshannon
-        for pm, psd, mcm, mcsd in zip(predmean, predsd, MCte, DeltaMCte):
-            mcsample = np.random.normal(mcm, mcsd, 100)
-            predsample = np.random.normal(pm, psd, 100)
-            KLarr.append(entropy(mcsample, predsample))
-            JSarr.append(jensenshannon(mcsample, predsample))
-
-        print("MSE1 predmean {}".format(np.mean((predmean - MCte) ** 2)))
-        print("MSE2 ramean {}".format(np.mean((M - MCte) ** 2)))
-        Ns = ds['Ns']
-        # Xterepeat = np.repeat(self.X[~Xteindex, :], [Ns] * ntest, axis=0)
-        MCterepeat = np.repeat(self.MC[~Xteindex], Ns)
-        DeltaMCterepeat = np.repeat(self.DeltaMC[~Xteindex], Ns)
-        ykj = np.random.normal(MCterepeat, DeltaMCterepeat)
-        predmeanrepeat = np.repeat(predmean, Ns)
-        predsdrepeat = np.repeat(predsd, Ns)
-        skj = np.random.normal(predmeanrepeat, predsdrepeat)
-        mse3 = np.mean((ykj-skj)**2)
-        print("MSE1 distr sample mean3 {}".format(mse3))
-        mse3ink =[]
-        for k in range(ntest):
-            mse3ink.append(np.mean((ykj[k*Ns:k*Ns+Ns]-skj[k*Ns:k*Ns+Ns])**2))
-        print("MSE1 distr sample mean3 test {}".format(np.mean(mse3ink)))
-        print("MSE predvar {}".format(np.mean((predvar - DeltaMCte) ** 2)))
-
-        print("\nKL Divergence:")
-        print(np.mean(KLarr))
-        print("\nJS Dist:")
-        print(np.mean(JSarr))
-
-        import matplotlib.pyplot as plt
-        plt.plot(MCte, predmean, ls='', marker='.')
-        plt.plot(np.linspace(min(MCte), max(MCte), 100),
-                 np.linspace(min(MCte), max(MCte), 100))
-        plt.fill_between(np.linspace(min(MCte), max(MCte), ntest),
-                         np.linspace(min(MCte),max(MCte),ntest) + 2 * predsd,
-                         np.linspace(min(MCte),max(MCte),ntest) - 2 * predsd,
-                         color='gray', alpha=.5)
-        plt.xlabel('MC mean count')
-        plt.ylabel('predicted mean count')
-        plt.show()
-
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -311,7 +240,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
-    GP = GaussianProcess(scargs=args)
+    GP = GaussianProcess(
+        DATAFILE=args.DATAFILE,
+        BUILDTYPE=args.BUILDTYPE,
+        KERNEL=args.KERNEL,
+        OBS=args.OBS,
+        NPROCESS=args.NPROCESS,
+        NRESTART=args.NRESTART,
+        KEEPOUT=args.KEEPOUT,
+        OUTDIR=args.OUTDIR,
+        APPROX=args.APPROX,
+        PARAMFILE=args.PARAMFILE
+    )
 
 
 
