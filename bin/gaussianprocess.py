@@ -176,15 +176,17 @@ class GaussianProcess():
         ybar, vy = model.predict(Xte)
         predmean = np.array([y[0] for y in ybar])
         predvar = np.array([y[0] for y in vy])
+        predsd = np.sqrt(predvar)
+        print(predsd)
         M = np.array([self.approxmeancountval(x) for x in Xte])
         predmean += M
         KLarr = []
         JSarr = []
         from scipy.stats import entropy
         from scipy.spatial.distance import jensenshannon
-        for pm, pvar, mcm, mcsd in zip(predmean, predvar, MCte, DeltaMCte):
+        for pm, psd, mcm, mcsd in zip(predmean, predsd, MCte, DeltaMCte):
             mcsample = np.random.normal(mcm, mcsd, 100)
-            predsample = np.random.normal(pm, np.sqrt(pvar), 100)
+            predsample = np.random.normal(pm, psd, 100)
             KLarr.append(entropy(mcsample, predsample))
             JSarr.append(jensenshannon(mcsample, predsample))
 
@@ -201,8 +203,8 @@ class GaussianProcess():
         plt.plot(np.linspace(min(MCte), max(MCte), 100),
                  np.linspace(min(MCte), max(MCte), 100))
         plt.fill_between(np.linspace(min(MCte), max(MCte), ntest),
-                         np.linspace(min(MCte),max(MCte),ntest) + 2 * np.sqrt(predvar),
-                         np.linspace(min(MCte),max(MCte),ntest) - 2 * np.sqrt(predvar),
+                         np.linspace(min(MCte),max(MCte),ntest) + 2 * predsd,
+                         np.linspace(min(MCte),max(MCte),ntest) - 2 * predsd,
                          color='gray', alpha=.5)
         plt.xlabel('MC mean count')
         plt.ylabel('predicted mean count')
