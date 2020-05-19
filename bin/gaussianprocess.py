@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import matplotlib.pyplot as plt
 import GPy
@@ -22,11 +21,13 @@ class GaussianProcess():
         self.buildtype = scargs.BUILDTYPE
 
         if self.buildtype=="data":
+            self.kernel = scargs.KERNEL
             self.obsname = scargs.OBS
             self.nprocess = scargs.NPROCESS
             self.nrestart = scargs.NRESTART
             self.keepout = scargs.KEEPOUT/100
-            self.outfile = scargs.OUTFILE
+            os.makedirs(scargs.OUTDIR,exist_ok=True)
+            self.outfile = os.path.join(scargs.OUTDIR, "{}_K{}.json".format(self.obsname.replace('/', '_'), self.kernel))
         elif self.buildtype=="savedparam":
             self.paramsavefile = scargs.PARAMFILE
             import json
@@ -74,12 +75,26 @@ class GaussianProcess():
 
         # Homoscedastic noise (for now) that we will find during parameter tuning
         lik = GPy.likelihoods.Gaussian()
-        kernel = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+        kernelObj = None
+        if self.kernel == "sqe":
+            kernelObj = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+        elif self.kernel == "ratquad":
+            kernelObj = GPy.kern.RatQuad(input_dim=self.nparam, ARD=True)
+        elif self.kernel == "matern32":
+            kernelObj = GPy.kern.Matern32(input_dim=self.nparam, ARD=True)
+        elif self.kernel == "matern52":
+            kernelObj = GPy.kern.Matern52(input_dim=self.nparam, ARD=True)
+        elif self.kernel == "poly":
+            polyorder = 3.
+            kernelObj = GPy.kern.Poly(input_dim=self.nparam,order=polyorder)
+        else:
+            print("Kernel {} unknown. Quitting now!".format(self.kernel))
+            exit(1)
 
         # 0 mean GP to model f
         model = GPy.core.GP(Xtr,
                             Ytrmm2D,
-                            kernel=kernel,
+                            kernel=kernelObj,
                             likelihood=lik
                             )
 
@@ -119,11 +134,14 @@ class GaussianProcess():
             "Ntr": Ntr,
             "Ns": Ns,
             'seed': seed,
+            'kernel':self.kernel,
             "keepout":self.keepout*100,
             "obsname":self.obsname,
             "Xtrindex": Xtrindex.tolist(),
             "Ytrmm": Ytrmm.tolist()
         }
+        if self.kernel =='poly':
+            data['polyorder'] = polyorder
         with open(self.outfile, 'w') as f:
             json.dump(data, f, indent=4)
 
@@ -140,15 +158,30 @@ class GaussianProcess():
         Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
         Ytrmm = ds['Ytrmm']
         Ytrmm2D = np.array([Ytrmm]).transpose()
+        kernel = ds['kernel']
 
         # Homoscedastic noise (for now) that we will find during parameter tuning
         lik = GPy.likelihoods.Gaussian()
-        kernel = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+        kernelObj = None
+        if kernel == "sqe":
+            kernelObj = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+        elif kernel == "ratquad":
+            kernelObj = GPy.kern.RatQuad(input_dim=self.nparam, ARD=True)
+        elif kernel == "matern32":
+            kernelObj = GPy.kern.Matern32(input_dim=self.nparam, ARD=True)
+        elif kernel == "matern52":
+            kernelObj = GPy.kern.Matern52(input_dim=self.nparam, ARD=True)
+        elif kernel == "poly":
+            order = ds['polyorder']
+            kernelObj = GPy.kern.Poly(input_dim=self.nparam, order=order)
+        else:
+            print("Kernel {} unknown. Quitting now!".format(kernel))
+            exit(1)
 
         # 0 mean GP to model f
         model = GPy.core.GP(Xtr,
                             Ytrmm2D,
-                            kernel=kernel,
+                            kernel=kernelObj,
                             likelihood=lik,
                             )
         model.update_model(False)
@@ -237,8 +270,8 @@ if __name__ == "__main__":
                         help="Percentage in \[0,100\] of the data to be left out as test data. \n"
                              "Train on the (100-keepout) percent data and then test on the rest. \n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
-    parser.add_argument("-o", "--outtfile", dest="OUTFILE", type=str, default=None,
-                        help="Output Dir \n"
+    parser.add_argument("-o", "--outdir", dest="OUTDIR", type=str, default=None,
+                        help="Output Directory \n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
     parser.add_argument("--nprocess", dest="NPROCESS", type=int, default=1,
                         help="Number of processes to use in optimization. "
@@ -247,6 +280,10 @@ if __name__ == "__main__":
     parser.add_argument("--nrestart", dest="NRESTART", type=int, default=1,
                         help="Number of optimization restarts (multistart)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+    parser.add_argument("-k", "--kernel", dest="KERNEL", type=str, default="sqe", required=True,
+                               choices=["matern32", "matern52","sqe","ratquad","poly"],
+                               help="Kernel to use (ARD will be set to True for all (where applicable)\n"
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
 
 
     parser.add_argument("-p", "--paramfile", dest="PARAMFILE", type=str, default=None,
