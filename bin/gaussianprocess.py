@@ -200,6 +200,8 @@ class GaussianProcess():
         if ds['keepout'] == 0:
             print("keepout is set to 0. No test data available. Quitting Now!")
             exit(1)
+        seed = ds['seed']
+        np.random.seed(seed)
         Xtrindex = ds['Xtrindex']
         Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
         Xte = self.X[~Xteindex, :]
@@ -223,9 +225,24 @@ class GaussianProcess():
             KLarr.append(entropy(mcsample, predsample))
             JSarr.append(jensenshannon(mcsample, predsample))
 
-        print("MSE predmean {}".format(np.mean((predmean - MCte) ** 2)))
-        print("MSE ramean {}".format(np.mean((M - MCte) ** 2)))
+        print("MSE1 predmean {}".format(np.mean((predmean - MCte) ** 2)))
+        print("MSE2 ramean {}".format(np.mean((M - MCte) ** 2)))
+        Ns = ds['Ns']
+        # Xterepeat = np.repeat(self.X[~Xteindex, :], [Ns] * ntest, axis=0)
+        MCterepeat = np.repeat(self.MC[~Xteindex], Ns)
+        DeltaMCterepeat = np.repeat(self.DeltaMC[~Xteindex], Ns)
+        ykj = np.random.normal(MCterepeat, DeltaMCterepeat)
+        predmeanrepeat = np.repeat(predmean, Ns)
+        predsdrepeat = np.repeat(predsd, Ns)
+        skj = np.random.normal(predmeanrepeat, predsdrepeat)
+        mse3 = np.mean((ykj-skj)**2)
+        print("MSE1 distr sample mean3 {}".format(mse3))
+        mse3ink =[]
+        for k in range(ntest):
+            mse3ink.append(np.mean((ykj[k*Ns:k*Ns+Ns]-skj[k*Ns:k*Ns+Ns])**2))
+        print("MSE1 distr sample mean3 test {}".format(np.mean(mse3ink)))
         print("MSE predvar {}".format(np.mean((predvar - DeltaMCte) ** 2)))
+
         print("\nKL Divergence:")
         print(np.mean(KLarr))
         print("\nJS Dist:")
@@ -280,7 +297,7 @@ if __name__ == "__main__":
     parser.add_argument("--nrestart", dest="NRESTART", type=int, default=1,
                         help="Number of optimization restarts (multistart)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
-    parser.add_argument("-k", "--kernel", dest="KERNEL", type=str, default="sqe", required=True,
+    parser.add_argument("-k", "--kernel", dest="KERNEL", type=str, default="sqe",
                                choices=["matern32", "matern52","sqe","ratquad","poly"],
                                help="Kernel to use (ARD will be set to True for all (where applicable)\n"
                                     "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
