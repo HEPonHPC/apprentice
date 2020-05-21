@@ -13,6 +13,15 @@ def refitPoly(p, sc):
     z  = np.linalg.solve(A,b)
     return z
 
+def refitPolyAX(p, A, X):
+    """
+    Recalculate coefficients of polynomial p for domain
+    of scaler sc.
+    """
+    b  = p.predictArray(X)
+    z  = np.linalg.solve(A,b)
+    return z
+
 def regularise(app, threshold=1e-6):
     pc = np.zeros_like(app._pcoeff)
     for num, c in enumerate(app._pcoeff):
