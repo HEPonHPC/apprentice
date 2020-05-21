@@ -1,6 +1,20 @@
 import numpy as np
 from collections import OrderedDict
 
+def refitPoly(p, sc):
+    """
+    Recalculate coefficients of polynomial p for domain
+    of scaler sc.
+    """
+    NC = app.tools.numCoeffsPoly(p.dim, p.m)
+    A = np.zeros((NC, NC))
+    b = np.zeros(NC)
+    X = p._scaler.drawSamples(NC)
+    for num, x in enumerate(X):
+        A[num] = p.recurrence(sc.scale(x), p._struct_p)
+        b[num] = p(x)
+    z = np.linalg.solve(A,b)
+    return z
 
 def regularise(app, threshold=1e-6):
     pc = np.zeros_like(app._pcoeff)
