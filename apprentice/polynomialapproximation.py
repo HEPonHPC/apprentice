@@ -42,7 +42,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self._m=order
             self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
             self._X   = self._scaler.scaledPoints
-            self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
             self._Y   = np.array(Y, dtype=np.float64)
             self._trainingsize=len(X)
@@ -123,7 +122,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         Evaluation of the numer poly at many points X.
         """
-        XS=pp._scaler.scale(X)
+        XS=self._scaler.scale(X)
         try: # This fails for 1D ...
             rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
         except:
