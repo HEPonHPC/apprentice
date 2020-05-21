@@ -6,14 +6,11 @@ def refitPoly(p, sc):
     Recalculate coefficients of polynomial p for domain
     of scaler sc.
     """
-    NC = app.tools.numCoeffsPoly(p.dim, p.m)
-    A = np.zeros((NC, NC))
-    b = np.zeros(NC)
-    X = p._scaler.drawSamples(NC)
-    for num, x in enumerate(X):
-        A[num] = p.recurrence(sc.scale(x), p._struct_p)
-        b[num] = p(x)
-    z = np.linalg.solve(A,b)
+    NC = numCoeffsPoly(p.dim, p.m)
+    X  = p._scaler.drawSamples(NC)
+    A  = np.prod(np.power(sc.scale(X), p._struct_p[:, np.newaxis]), axis=2).T
+    b  = p.predictArray(X)
+    z  = np.linalg.solve(A,b)
     return z
 
 def regularise(app, threshold=1e-6):
