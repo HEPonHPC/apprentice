@@ -1,5 +1,5 @@
 import apprentice as app
-
+import numpy as np
 
 
 ####
@@ -29,11 +29,16 @@ if __name__ == "__main__":
     sc = app.Scaler([xmin, xmax])
     sc._pnames = SC[0].pnames
 
+    NC = app.tools.numCoeffsPoly(P[0].dim, P[0].m)
+    X  = P[0]._scaler.drawSamples(NC)
+    A  = np.prod(np.power(sc.scale(X), P[0]._struct_p[:, np.newaxis]), axis=2).T
+
     Z = []
     import time
     t0=time.time()
     for num, p in enumerate(P):
-        cnew = app.tools.refitPoly(p, sc)
+        # cnew = app.tools.refitPoly(p, sc)
+        cnew = app.tools.refitPolyAX(p, A, X)
         Z.append(cnew)
         if (num+1)%50==0:
             print("{}/{} after {} seconds".format(num+1, len(P), time.time()-t0))
