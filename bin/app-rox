@@ -562,8 +562,32 @@ if __name__ == "__main__":
 
     # This reads the data
     try:
-        X,Y = apprentice.tools.readData(args[0])
-        app = mkBestRACPL(X, Y, m_max=4, n_max=4, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN, mode=opts.MODE, strategy=opts.PARETO)
+        X,Y = apprentice.io.readData(args[0])
+        # app = mkBestRACPL(X, Y, m_max=4, n_max=4, pnames=None, f_plot=opts.PLOTPREFIX, split=opts.SPLIT, train_fact=opts.TRAIN, mode=opts.MODE, strategy=opts.PARETO)
+        print("SHORT CIRCUITING CODE 05/21/2020 - MK")
+        M, N = [int(x) for x in opts.ORDER.split(",")]
+        _N, _dim = X.shape
+        train_fact = 2
+        split = 0.6
+        i_train = sorted(list(np.random.choice(range(_N), int(np.ceil(split * _N)))))
+        i_train_o = np.random.choice(i_train, int(train_fact * apprentice.tools.numCoeffsRapp(_dim, (M, N))))
+        app = apprentice.RationalApproximationSIP(X, Y, m=M, n=N,
+                                                       trainingscale="Cp", roboptstrategy='ms', localoptsolver='scipy',
+                                                       fitstrategy='scipy', strategy=0)
+        print("Testing for poles:")
+
+        if hasattr(app, "n"):
+            if denomChangesSignMS(app, 100)[0]:
+                print("Pole found in {}".format(0))
+            else:
+                print("No pole found in {}!".format(0))
+
+        import json
+
+        with open(opts.OUTPUT, "w") as f:
+            json.dump(app.asDict, f, indent=4)
+
+        print("Done --- approximation of 1 objects written to {}".format(opts.OUTPUT))
     except:
         import time
         t1   = time.time()
