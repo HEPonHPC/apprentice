@@ -64,6 +64,12 @@ def recurrence(X, structure):
     """
     return np.prod(X**structure, axis=1, dtype=np.float64)
 
+
+def recurrence2(X, structure, nnz):
+    temp = np.ones((len(structure), len(X)))
+    np.power(X, structure, where=nnz, out=(temp))
+    return np.prod(temp, axis=1)
+
 def vandermonde(params, order):
     """
     Construct the Vandermonde matrix.
