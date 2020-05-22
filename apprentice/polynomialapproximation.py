@@ -69,6 +69,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
 
+        self._nnz = self._struct_p>0
+
     # @timeit
     def coeffSolve(self, VM):
         """
@@ -87,7 +89,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Least square solve coefficients.
         """
         rcond = -1 if np.version.version < "1.15" else None
-        x, res, rank, s  = np.linalg.lstsq(VM, self._Y, rcond=None)
+        x, res, rank, s  = np.linalg.lstsq(VM, self._Y, rcond=rcond)
         self._pcoeff = x
 
     def fit(self, **kwargs):
@@ -109,7 +111,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
-    # FIXME two differently named functions
     def predict(self, X):
         """
         Evaluation of the numer poly at X.
@@ -118,14 +119,26 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         rec_p = np.array(self.recurrence(X, self._struct_p))
         return self._pcoeff.dot(rec_p)
 
+    def predict2(self, X):
+        """
+        Evaluation of the numer poly at X.
+        10% faster than predict --- exploit structure somewhat
+        """
+        X=self._scaler.scale(np.array(X))
+        rec_p = apprentice.monomial.recurrence2(X, self._struct_p, self._nnz)
+        return self._pcoeff.dot(rec_p)
+
     def predictArray(self, X):
         """
         Evaluation of the numer poly at many points X.
         """
         XS=self._scaler.scale(X)
-        try: # This fails for 1D ...
-            rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
-        except:
+        if self.dim > 1:
+            zz=np.ones((len(XS), *self._struct_p.shape))
+            np.power(XS, self._struct_p[:, np.newaxis], out=(zz), where=self._struct_p[:, np.newaxis]>0)
+            rec_p = np.prod(zz, axis=2)
+            # rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
+        else:
             rec_p = np.power(XS, self._struct_p[:, np.newaxis])
         return self._pcoeff.dot(rec_p)
 
