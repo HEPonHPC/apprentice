@@ -34,6 +34,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         self._vmin=None
         self._vmax=None
+        self._xmin=None
+        self._xmax=None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -63,6 +65,10 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
     def vmin(self): return self._vmin
     @property
     def vmax(self): return self._vmax
+    @property
+    def xmin(self): return self._xmin
+    @property
+    def xmax(self): return self._xmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
@@ -168,6 +174,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         d["scaler"] = self._scaler.asDict
         if self._vmin is not None: d["vmin"] = self._vmin
         if self._vmax is not None: d["vmax"] = self._vmax
+        if self._xmin is not None: d["xmin"] = self._xmin
+        if self._xmax is not None: d["xmax"] = self._xmax
         return d
 
     def save(self, fname):
@@ -189,6 +197,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         else           : self.recurrence=apprentice.monomial.recurrence
         if "vmin" in pdict: self._vmin = pdict["vmin"]
         if "vmax" in pdict: self._vmax = pdict["vmax"]
+        if "xmin" in pdict: self._xmin = pdict["xmin"]
+        if "xmax" in pdict: self._xmax = pdict["xmax"]
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:
