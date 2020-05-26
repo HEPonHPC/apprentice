@@ -36,8 +36,10 @@ def testmodel(GP,model,paramsavefile):
         KLarr.append(entropy(mcsample, predsample))
         JSarr.append(jensenshannon(mcsample, predsample))
 
-    print("MSE1 predmean {}".format(np.mean((predmean - MCte) ** 2)))
-    print("MSE2 ramean {}".format(np.mean((M - MCte) ** 2)))
+    mse1 = np.mean((predmean - MCte) ** 2)
+    mse2 = np.mean((M - MCte) ** 2)
+    print("MSE1 predmean {}".format(mse1))
+    print("MSE2 ramean {}".format(mse2))
     Ns = ds['Ns']
     # Xterepeat = np.repeat(self.X[~Xteindex, :], [Ns] * ntest, axis=0)
     MCterepeat = np.repeat(GP.MC[~Xteindex], Ns)
@@ -55,9 +57,11 @@ def testmodel(GP,model,paramsavefile):
     print("MSE predvar {}".format(np.mean((predvar - DeltaMCte) ** 2)))
 
     print("\nKL Divergence:")
-    print(np.mean(KLarr))
+    kl = np.mean(KLarr)
+    print(kl)
     print("\nJS Dist:")
-    print(np.mean(JSarr))
+    jsd = np.mean(JSarr)
+    print(jsd)
 
     # import matplotlib.pyplot as plt
     # plt.plot(MCte, predmean, ls='', marker='.')
@@ -71,12 +75,46 @@ def testmodel(GP,model,paramsavefile):
     # plt.ylabel('predicted mean count')
     # plt.show()
 
+    return mse1,mse2,mse3,kl,jsd
+
 def getGPmodelFromSavedParamFile(GP,paramfile):
     oldparamfile = GP.paramsavefile
     GP.paramsavefile = paramfile
     model = GP.buildGPmodelFromSavedParam()
     GP.paramsavefile = oldparamfile
     return model
+
+def printresults(GP,paramarr):
+    msepredmeandict, meanradict, meansampledict,kldict,jsddict = ({},{},{},{},{})
+    for pno, pfile in enumerate(paramarr):
+        model = getGPmodelFromSavedParamFile(GP,pfile)
+        msepredmean, meanra, meansample,kl,jsd =  testmodel(GP,model,pfile)
+        msepredmeandict[pfile] =  msepredmean
+        meanradict[pfile] =  meanra
+        meansampledict[pfile] =  meansample
+        kldict[pfile] =  kl
+        jsddict[pfile] =  jsd
+
+    print("mse predmean")
+    for k, v in sorted(msepredmeandict.items(), key=lambda item: item[1]):
+        print("%.8E %s"%(v,os.path.basename(k)))
+
+    print("kl divergence")
+    for k, v in sorted(kldict.items(), key=lambda item: item[1]):
+        print("%.8E %s"%(v,os.path.basename(k)))
+
+    print("js distance")
+    for k, v in sorted(jsddict.items(), key=lambda item: item[1]):
+        print("%.8E %s"%(v,os.path.basename(k)))
+
+    print("mse sample")
+    for k, v in sorted(meansampledict.items(), key=lambda item: item[1]):
+        print("%.8E %s"%(v,os.path.basename(k)))
+
+    print("mse ra")
+    for k, v in sorted(meanradict.items(), key=lambda item: item[1]):
+        print("%.8E %s"%(v,os.path.basename(k)))
+
 
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
@@ -98,10 +136,9 @@ if __name__ == "__main__":
                              "column is MC and nth column is DeltaMC\n"
                              "REQUIRED argument")
 
-    requiredNamed.add_argument("-p", "--paramfile", dest="PARAMFILE", type=str, default=None,required=True,
-                        help="Parameter and Xinfo JSON file.\n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparam\"")
-
+    requiredNamed.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+', required=True,
+                               help="Parameter and Xinfo JSON file.\n"
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparam\"")
 
 
     args = parser.parse_args()
@@ -111,9 +148,9 @@ if __name__ == "__main__":
         DATAFILE=args.DATAFILE,
         BUILDTYPE=args.BUILDTYPE,
         APPROX=args.APPROX,
-        PARAMFILE=args.PARAMFILE
+        PARAMFILE=args.PARAMFILES[0]
     )
-    testmodel(GP,GP.model,args.PARAMFILE)
+    printresults(GP,args.PARAMFILES)
 
 
 
