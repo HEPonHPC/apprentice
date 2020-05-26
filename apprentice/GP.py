@@ -23,7 +23,7 @@ class GaussianProcess():
         if self.buildtype=="data":
             self.kernel = kwargs['KERNEL']
             self.obsname = kwargs['OBS']
-            self.nprocess = kwargs['NPROCESS']
+            # self.nprocess = kwargs['NPROCESS']
             self.nrestart = kwargs['NRESTART']
             self.keepout = kwargs['KEEPOUT']/100
             os.makedirs(kwargs['OUTDIR'],exist_ok=True)
@@ -55,6 +55,29 @@ class GaussianProcess():
     def approxmeancountgrad(self, x):
         return self.meanappset.grads(x)
 
+    def getKernel(self, kernelStr, polyorder):
+        kernelObj = None
+        availablekernels = ["sqe","ratquad","matern32","matern52","poly"]
+        if kernelStr == "sqe":
+            kernelObj = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
+        elif kernelStr == "ratquad":
+            kernelObj = GPy.kern.RatQuad(input_dim=self.nparam, ARD=True)
+        elif kernelStr == "matern32":
+            kernelObj = GPy.kern.Matern32(input_dim=self.nparam, ARD=True)
+        elif kernelStr == "matern52":
+            kernelObj = GPy.kern.Matern52(input_dim=self.nparam, ARD=True)
+        elif kernelStr == "poly":
+            kernelObj = GPy.kern.Poly(input_dim=self.nparam, order=polyorder)
+        elif kernelStr == "or":
+            kernelObj = self.getKernel(availablekernels[0],polyorder)
+            for i in range(1,len(availablekernels)):
+                kernelObj += self.getKernel(availablekernels[i],polyorder)
+        else:
+            print("Kernel {} unknown. Quitting now!".format(kernelStr))
+            exit(1)
+        return kernelObj
+
+
     def buildGPmodelFromData(self):
         import json
         Ntr = int((1-self.keepout) *self.nens)
@@ -75,21 +98,12 @@ class GaussianProcess():
 
         # Homoscedastic noise (for now) that we will find during parameter tuning
         lik = GPy.likelihoods.Gaussian()
-        kernelObj = None
-        if self.kernel == "sqe":
-            kernelObj = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
-        elif self.kernel == "ratquad":
-            kernelObj = GPy.kern.RatQuad(input_dim=self.nparam, ARD=True)
-        elif self.kernel == "matern32":
-            kernelObj = GPy.kern.Matern32(input_dim=self.nparam, ARD=True)
-        elif self.kernel == "matern52":
-            kernelObj = GPy.kern.Matern52(input_dim=self.nparam, ARD=True)
-        elif self.kernel == "poly":
-            polyorder = 3.
-            kernelObj = GPy.kern.Poly(input_dim=self.nparam,order=polyorder)
-        else:
-            print("Kernel {} unknown. Quitting now!".format(self.kernel))
-            exit(1)
+
+        polyorder = None
+        if self.kernel in ['poly','or']:
+            polyorder = 3
+
+        kernelObj = self.getKernel(self.kernel,polyorder)
 
         # 0 mean GP to model f
         model = GPy.core.GP(Xtr,
@@ -100,29 +114,33 @@ class GaussianProcess():
 
         print(model.likelihood.variance)
         print(model.kern.parameters)
+        print(model.kern.param_array)
+        print(model.param_array.tolist())
         start = timer()
         print("##############################")
         print(datetime.datetime.now())
         print("##############################")
         sys.stdout.flush()
 
-        if self.nprocess > 1:
-            print("Something is wrong with parallel runs. FIX required\nQuitting for now")
-            sys.exit(1)
-            model.optimize_restarts(robust=True,
-                                    parallel=True,
-                                    # messages=True,
-                                    num_processes=self.nprocess,
-                                    num_restarts=self.nrestart
-                                    )
+        # if self.nprocess > 1:
+        #     print("Something is wrong with parallel runs. FIX required\nQuitting for now")
+        #     sys.exit(1)
+        #     model.optimize_restarts(robust=True,
+        #                             parallel=True,
+        #                             # messages=True,
+        #                             num_processes=self.nprocess,
+        #                             num_restarts=self.nrestart
+        #                             )
+        #
+        # else:
 
-        else:
-            model.optimize()
-            model.optimize_restarts(num_restarts=self.nrestart,
-                                    robust=True)
+        model.optimize()
+        model.optimize_restarts(num_restarts=self.nrestart,
+                                robust=True)
         print(timer() - start)
         print(model.likelihood.variance)
-        print(model.kern.parameters)
+        print(model.kern.param_array)
+        print(model.param_array.tolist())
         print(model)
         print("##############################")
         print(datetime.datetime.now())
@@ -140,7 +158,7 @@ class GaussianProcess():
             "Xtrindex": Xtrindex.tolist(),
             "Ytrmm": Ytrmm.tolist()
         }
-        if self.kernel =='poly':
+        if self.kernel in ['poly','or']:
             data['polyorder'] = polyorder
         with open(self.outfile, 'w') as f:
             json.dump(data, f, indent=4)
@@ -162,21 +180,10 @@ class GaussianProcess():
 
         # Homoscedastic noise (for now) that we will find during parameter tuning
         lik = GPy.likelihoods.Gaussian()
-        kernelObj = None
-        if kernel == "sqe":
-            kernelObj = GPy.kern.RBF(input_dim=self.nparam, ARD=True)
-        elif kernel == "ratquad":
-            kernelObj = GPy.kern.RatQuad(input_dim=self.nparam, ARD=True)
-        elif kernel == "matern32":
-            kernelObj = GPy.kern.Matern32(input_dim=self.nparam, ARD=True)
-        elif kernel == "matern52":
-            kernelObj = GPy.kern.Matern52(input_dim=self.nparam, ARD=True)
-        elif kernel == "poly":
-            order = ds['polyorder']
-            kernelObj = GPy.kern.Poly(input_dim=self.nparam, order=order)
-        else:
-            print("Kernel {} unknown. Quitting now!".format(kernel))
-            exit(1)
+        polyorder = None
+        if kernel in ['poly', 'or']:
+            polyorder = ds['polyorder']
+        kernelObj = self.getKernel(kernel,polyorder)
 
         # 0 mean GP to model f
         model = GPy.core.GP(Xtr,
@@ -219,15 +226,15 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outdir", dest="OUTDIR", type=str, default=None,
                         help="Output Directory \n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
-    parser.add_argument("--nprocess", dest="NPROCESS", type=int, default=1,
-                        help="Number of processes to use in optimization. "
-                             "If >1, parallel version of optmimize used \n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+    # parser.add_argument("--nprocess", dest="NPROCESS", type=int, default=1,
+    #                     help="Number of processes to use in optimization. "
+    #                          "If >1, parallel version of optmimize used \n"
+    #                          "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
     parser.add_argument("--nrestart", dest="NRESTART", type=int, default=1,
                         help="Number of optimization restarts (multistart)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
     parser.add_argument("-k", "--kernel", dest="KERNEL", type=str, default="sqe",
-                               choices=["matern32", "matern52","sqe","ratquad","poly"],
+                               choices=["matern32", "matern52","sqe","ratquad","poly","or"],
                                help="Kernel to use (ARD will be set to True for all (where applicable)\n"
                                     "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
 
@@ -245,7 +252,7 @@ if __name__ == "__main__":
         BUILDTYPE=args.BUILDTYPE,
         KERNEL=args.KERNEL,
         OBS=args.OBS,
-        NPROCESS=args.NPROCESS,
+        # NPROCESS=args.NPROCESS,
         NRESTART=args.NRESTART,
         KEEPOUT=args.KEEPOUT,
         OUTDIR=args.OUTDIR,
