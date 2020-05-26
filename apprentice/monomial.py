@@ -41,6 +41,8 @@ def genStruct(dim, mnm):
         yield mnm
         mnm =  mono_next_grlex(dim, mnm)
 
+from functools import lru_cache
+@lru_cache(maxsize=32)
 def monomialStructure(dim, order):
     import numpy as np
     import copy
@@ -64,6 +66,12 @@ def recurrence(X, structure):
     """
     return np.prod(X**structure, axis=1, dtype=np.float64)
 
+
+def recurrence2(X, structure, nnz):
+    temp = np.ones((len(structure), len(X)))
+    np.power(X, structure, where=nnz, out=(temp))
+    return np.prod(temp, axis=1)
+
 def vandermonde(params, order):
     """
     Construct the Vandermonde matrix.
@@ -75,13 +83,15 @@ def vandermonde(params, order):
         dim = 1
 
     from apprentice import tools
-    V = np.zeros((len(params), tools.numCoeffsPoly(dim, order)), dtype=np.float64)
     s = monomialStructure(dim, order)
     if len(params[0]) == 1:
+        V = np.zeros((len(params), tools.numCoeffsPoly(dim, order)), dtype=np.float64)
         for a, p in enumerate(params): V[a]=recurrence1D(p, s)
+        return V
     else:
-        for a, p in enumerate(params): V[a]=recurrence(p, s)
-    return V
+        V = np.ones((tools.numCoeffsPoly(dim, order), *params.shape), dtype=np.float64)
+        np.power(params, s[:, np.newaxis], out=(V), where=s[:, np.newaxis]>0)
+        return np.prod(V, axis=2).T
 
 if __name__=="__main__":
     print(monomialStructure(2,3))

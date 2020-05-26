@@ -19,8 +19,10 @@ def refitPolyAX(p, A, X):
     of scaler sc.
     """
     b  = p.predictArray(X)
-    z  = np.linalg.solve(A,b)
-    return z
+    return np.linalg.solve(A,b)
+    # Minimally faster
+    # import scipy
+    # return scipy.linalg.lapack.dgesv(A,b)[2]
 
 def regularise(app, threshold=1e-6):
     pc = np.zeros_like(app._pcoeff)

@@ -123,13 +123,12 @@ if __name__ == "__main__":
                 sys.stdout.flush()
         temp._vmin = vmin
         temp._vmax = vmax
+        temp._xmin = xmin[num]
+        temp._xmax = xmax[num]
         apps.append((temp, xmin[num], xmax[num]))
         dapps[thisBinId]= temp.asDict
         binedges[thisBinId] = (xmin[num], xmax[num])
 
-
-    DD  = [(i, a[0].asDict, a[1], a[2]) for a, i  in zip(apps,rankIdx)]
-    APPS = comm.gather(DD, root=0)
 
     DAPPS = comm.gather(dapps, root=0)
     DEDGE = comm.gather(binedges, root=0)
@@ -155,6 +154,7 @@ if __name__ == "__main__":
             xmin.append(e[k][0])
             xmax.append(e[k][1])
             JD[k] = a[k]
+        # TODO delete __xmin __xmax
         JD["__xmin"]=xmin
         JD["__xmax"]=xmax
 

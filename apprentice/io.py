@@ -320,7 +320,7 @@ def read_limitsandfixed(fname):
 
 def readObs(fname):
     with open(fname) as f:
-        r = [l.strip().split()[0] for l in f if not l.startswith("#")]
+        r = [l.strip().split()[0].split("#")[0].split("@")[0] for l in f if not l.startswith("#")]
     return r
 
 def indexMapH5(fname, lsub):
@@ -427,7 +427,6 @@ def readTuneResult(fname):
     import json
     with open(fname) as f:
         return json.load(f)
-
 
 def readApprox(fname, set_structures=True, usethese=None):
     import json, apprentice

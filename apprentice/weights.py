@@ -63,7 +63,7 @@ class PointMatcher(object):
     def search_path(self, path):
         return self.path.search(path) is not None
 
-    def match_pos(self, p):
+    def match_pos(self, p, low=None, up=None):
         """Decide if a given point p is in the match range.
 
         p must be an integer at the moment
@@ -76,6 +76,13 @@ class PointMatcher(object):
                 accept = (p == int(self.index))
             else:
                 accept = (p >= self.index[0] and p < self.index[1])
+        elif self.indextype == "@":
+            if low is None or up is None:
+                raise Exception("upper and lower edges cannot be None")
+            if type(self.index) is float:
+                accept = (self.index >= low and self.index < up)
+            else:
+                accept = (up > self.index[0] and low <= self.index[1])
         else:
             raise Exception("indextype {} not implemented".format(self.indextype))
         return accept

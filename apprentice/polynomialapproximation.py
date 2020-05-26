@@ -34,6 +34,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         """
         self._vmin=None
         self._vmax=None
+        self._xmin=None
+        self._xmax=None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -63,11 +65,17 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
     def vmin(self): return self._vmin
     @property
     def vmax(self): return self._vmax
+    @property
+    def xmin(self): return self._xmin
+    @property
+    def xmax(self): return self._xmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
         from apprentice import tools
         self._M        = tools.numCoeffsPoly(self.dim, self.m)
+
+        self._nnz = self._struct_p>0
 
     # @timeit
     def coeffSolve(self, VM):
@@ -87,7 +95,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         Least square solve coefficients.
         """
         rcond = -1 if np.version.version < "1.15" else None
-        x, res, rank, s  = np.linalg.lstsq(VM, self._Y, rcond=None)
+        x, res, rank, s  = np.linalg.lstsq(VM, self._Y, rcond=rcond)
         self._pcoeff = x
 
     def fit(self, **kwargs):
@@ -109,7 +117,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
-    # FIXME two differently named functions
     def predict(self, X):
         """
         Evaluation of the numer poly at X.
@@ -118,14 +125,26 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         rec_p = np.array(self.recurrence(X, self._struct_p))
         return self._pcoeff.dot(rec_p)
 
+    def predict2(self, X):
+        """
+        Evaluation of the numer poly at X.
+        10% faster than predict --- exploit structure somewhat
+        """
+        X=self._scaler.scale(np.array(X))
+        rec_p = apprentice.monomial.recurrence2(X, self._struct_p, self._nnz)
+        return self._pcoeff.dot(rec_p)
+
     def predictArray(self, X):
         """
         Evaluation of the numer poly at many points X.
         """
         XS=self._scaler.scale(X)
-        try: # This fails for 1D ...
-            rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
-        except:
+        if self.dim > 1:
+            zz=np.ones((len(XS), *self._struct_p.shape))
+            np.power(XS, self._struct_p[:, np.newaxis], out=(zz), where=self._struct_p[:, np.newaxis]>0)
+            rec_p = np.prod(zz, axis=2)
+            # rec_p = np.prod(np.power(XS, self._struct_p[:, np.newaxis]), axis=2)
+        else:
             rec_p = np.power(XS, self._struct_p[:, np.newaxis])
         return self._pcoeff.dot(rec_p)
 
@@ -155,6 +174,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         d["scaler"] = self._scaler.asDict
         if self._vmin is not None: d["vmin"] = self._vmin
         if self._vmax is not None: d["vmax"] = self._vmax
+        if self._xmin is not None: d["xmin"] = self._xmin
+        if self._xmax is not None: d["xmax"] = self._xmax
         return d
 
     def save(self, fname):
@@ -176,6 +197,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         else           : self.recurrence=apprentice.monomial.recurrence
         if "vmin" in pdict: self._vmin = pdict["vmin"]
         if "vmax" in pdict: self._vmax = pdict["vmax"]
+        if "xmin" in pdict: self._xmin = pdict["xmin"]
+        if "xmax" in pdict: self._xmax = pdict["xmax"]
         try:
             self._trainingsize = int(pdict["trainingsize"])
         except:

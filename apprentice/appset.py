@@ -271,12 +271,12 @@ class TuningObjective2(object):
     def rbox(self, ntrials):
         return self._AS.rbox(ntrials)
 
-    def initWeights(self, fname, hnames, bnums):
+    def initWeights(self, fname, hnames, bnums, blows, bups):
         matchers = apprentice.weights.read_pointmatchers(fname)
         weights = []
-        for hn, bnum in zip(hnames, bnums):
+        for hn, bnum, blow, bup in zip(hnames, bnums, blows, bups):
             pathmatch_matchers = [(m, wstr) for  m, wstr  in matchers.items()    if m.match_path(hn)]
-            posmatch_matchers  = [(m, wstr) for (m, wstr) in pathmatch_matchers if m.match_pos(bnum)]
+            posmatch_matchers  = [(m, wstr) for (m, wstr) in pathmatch_matchers if m.match_pos(bnum, blow, bup)]
             w = float(posmatch_matchers[-1][1]) if posmatch_matchers else 0  # < NB. using last match
             weights.append(w)
         return np.array(weights)
@@ -335,7 +335,9 @@ class TuningObjective2(object):
         AS = AppSet(f_approx)
         hnames  = [    b.split("#")[0]  for b in AS._binids]
         bnums   = [int(b.split("#")[1]) for b in AS._binids]
-        weights = self.initWeights(f_weights, hnames, bnums)
+        blow    = [float(ra.xmin) if ra.xmin is not None else None for ra in AS._RA]
+        bup     = [float(ra.xmax) if ra.xmax is not None else None for ra in AS._RA]
+        weights = self.initWeights(f_weights, hnames, bnums, blow, bup)
         if sum(weights)==0:
             raise Exception("No observables selected. Check weight file and if it is compatible with experimental data supplied.")
         nonzero = np.where(weights>0)
