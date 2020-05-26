@@ -149,6 +149,8 @@ class GaussianProcess():
 
         data = {
             "savedmodelparams":model.param_array.tolist(),
+            "param_names_flat": model.parameter_names_flat().tolist(),
+            "param_names": model.parameter_names(),
             "Ntr": Ntr,
             "Ns": Ns,
             'seed': seed,
