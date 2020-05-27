@@ -31,9 +31,9 @@ class GaussianProcess():
             self.outfile = os.path.join(kwargs['OUTDIR'], "{}_K{}_S{}.json".format(self.obsname.replace('/', '_'),
                                                                                 self.kernel,self.SEED))
         elif self.buildtype=="savedparam":
-            self.paramsavefile = kwargs['PARAMFILE']
+            self.paramsavefiles = kwargs['PARAMFILES']
             import json
-            with open(self.paramsavefile, 'r') as f:
+            with open(self.paramsavefiles, 'r') as f:
                 ds = json.load(f)
             self.obsname = ds['obsname']
 
@@ -199,10 +199,12 @@ class GaussianProcess():
                 database['modelz']['savedmodelparams'] = []
                 database['modely']['objective'] = []
                 database['modelz']['objective'] = []
+                database['modelz']['Ztr'] = []
             database['modely']['savedmodelparams'].append(modely.param_array.tolist())
             database['modelz']['savedmodelparams'].append(modelz.param_array.tolist())
             database['modely']['objective'].append(modely.objective_function())
             database['modelz']['objective'].append(modelz.objective_function())
+            database['modelz']['Ztr'].append(Ztr)
             database['log']['iterations_done'] = iteration
             database['log']['timetaken'] = timer()-start
             iteration+=1
@@ -230,36 +232,53 @@ class GaussianProcess():
         return bestmodely,bestmodelz
 
     def  buildGPmodelFromSavedParam(self):
+        data = []
         import json
-        with open(self.paramsavefile, 'r') as f:
-            ds = json.load(f)
-        Ns = ds['Ns']
-        seed = ds['seed']
-        np.random.seed(seed)
-        Xtrindex = ds['Xtrindex']
-        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
-        Ytrmm = ds['Ytrmm']
-        Ytrmm2D = np.array([Ytrmm]).transpose()
-        kernel = ds['kernel']
+        for pfile in self.paramsavefiles:
+            with open(pfile, 'r') as f:
+                ds = json.load(f)
+            Ntr = ds['Ntr']
+            Ns = ds['Ns']
 
-        # Homoscedastic noise (for now) that we will find during parameter tuning
-        lik = GPy.likelihoods.Gaussian()
-        polyorder = None
-        if kernel in ['poly', 'or']:
-            polyorder = ds['polyorder']
-        kernelObj = self.getKernel(kernel,polyorder)
+            seed = ds['seed']
+            np.random.seed(seed)
 
-        # 0 mean GP to model f
-        model = GPy.core.GP(Xtr,
-                            Ytrmm2D,
-                            kernel=kernelObj,
-                            likelihood=lik,
-                            )
-        model.update_model(False)
-        model.initialize_parameter()
-        model[:] = ds['savedmodelparams']
-        model.update_model(True)
-        return model
+            kernel = ds['kernel']
+            polyorder = None
+            if kernel in ['poly', 'or']:
+                polyorder = ds['polyorder']
+            kernelObjy = self.getKernel(self.kernel, polyorder)
+            kernelObjz = self.getKernel(self.kernel, polyorder)
+
+            Xtrindex = ds['Xtrindex']
+            Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+
+            for i in range(len(ds['modely']['savedmodelparams'])):
+                modely = GPy.models.GPHeteroscedasticRegression(Xtr,
+                                                                Ytrmm2D,
+                                                                kernel=kernelObjy
+                                                                )
+                modelz = GPy.models.GPRegression(
+                    self.X[Xtrindex, :],
+                    Ztr2D,
+                    kernel=kernelObjz,
+                    normalizer=True
+                )
+                modely.update_model(False)
+                modely.initialize_parameter()
+                modely[:] = ds['modely']['savedmodelparams'][-1]
+                modely.update_model(True)
+
+            # # 0 mean GP to model f
+            # model = GPy.core.GP(Xtr,
+            #                     Ytrmm2D,
+            #                     kernel=kernelObj,
+            #                     likelihood=lik,
+            #                     )
+
+            return modely
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -308,10 +327,9 @@ if __name__ == "__main__":
                         help="Seed (Control for n-fold crossvalidation)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
 
-
-    parser.add_argument("-p", "--paramfile", dest="PARAMFILE", type=str, default=None,
-                        help="Parameter and Xinfo JSON file.\n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparam\"")
+    requiredNamed.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
+                               help="Parameter and Xinfo JSON file (s).\n"
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparam\"")
 
 
 
@@ -329,7 +347,7 @@ if __name__ == "__main__":
         APPROX=args.APPROX,
         SEED=args.SEED,
         STOPCOND=args.STOPCOND,
-        PARAMFILE=args.PARAMFILE
+        PARAMFILES=args.PARAMFILES
     )
 
 
