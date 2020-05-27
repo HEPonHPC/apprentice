@@ -30,10 +30,10 @@ class GaussianProcess():
             os.makedirs(kwargs['OUTDIR'],exist_ok=True)
             self.outfile = os.path.join(kwargs['OUTDIR'], "{}_K{}_S{}.json".format(self.obsname.replace('/', '_'),
                                                                                 self.kernel,self.SEED))
-        elif self.buildtype=="savedparam":
+        elif self.buildtype=="savedparams":
             self.paramsavefiles = kwargs['PARAMFILES']
             import json
-            with open(self.paramsavefiles, 'r') as f:
+            with open(self.paramsavefiles[0], 'r') as f:
                 ds = json.load(f)
             self.obsname = ds['obsname']
 
@@ -48,7 +48,7 @@ class GaussianProcess():
             exit(1)
         if self.buildtype == 'data':
             self.modely,self.modelz = self.buildGPmodelFromData()
-        elif self.buildtype == 'savedparam':
+        elif self.buildtype == 'savedparams':
             self.modely,self.modelz = self.buildGPmodelFromSavedParam()
 
     def approxmeancountval(self, x):
@@ -234,7 +234,12 @@ class GaussianProcess():
     def  buildGPmodelFromSavedParam(self):
         data = []
         import json
-        for pfile in self.paramsavefiles:
+        bestmodely = np.zeros(len(self.paramsavefiles),dtype=object)
+        bestmodelz = np.zeros(len(self.paramsavefiles), dtype=object)
+        bestmetric = np.zeros(len(self.paramsavefiles), dtype=np.float)
+        metricdataForPrint = {}
+        iterationdataForPrint = {}
+        for pno, pfile in enumerate(self.paramsavefiles):
             with open(pfile, 'r') as f:
                 ds = json.load(f)
             Ntr = ds['Ntr']
@@ -247,29 +252,67 @@ class GaussianProcess():
             polyorder = None
             if kernel in ['poly', 'or']:
                 polyorder = ds['polyorder']
-            kernelObjy = self.getKernel(self.kernel, polyorder)
-            kernelObjz = self.getKernel(self.kernel, polyorder)
+
 
             Xtrindex = ds['Xtrindex']
             Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
             Ytrmm = ds['Ytrmm']
             Ytrmm2D = np.array([Ytrmm]).transpose()
 
+            Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+            Xte = self.X[~Xteindex, :]
+            ntest = len(Xte)
+            MCte = self.MC[~Xteindex]
+            DeltaMCte = self.DeltaMC[~Xteindex]
+            Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
+            itermodely = np.zeros(len(ds['modely']['savedmodelparams']),
+                                  dtype=object)
+            itermodelz = np.zeros(len(ds['modely']['savedmodelparams']),
+                                  dtype=object)
             for i in range(len(ds['modely']['savedmodelparams'])):
+                kernelObjy = self.getKernel(kernel, polyorder)
+                kernelObjz = self.getKernel(kernel, polyorder)
                 modely = GPy.models.GPHeteroscedasticRegression(Xtr,
                                                                 Ytrmm2D,
                                                                 kernel=kernelObjy
                                                                 )
+
+                modely.update_model(False)
+                modely.initialize_parameter()
+                modely[:] = ds['modely']['savedmodelparams'][i]
+                modely.update_model(True)
+
+                Ztr = ds['modelz']['Ztr'][i]
+                Ztr2D = np.array([Ztr]).transpose()
+
                 modelz = GPy.models.GPRegression(
                     self.X[Xtrindex, :],
                     Ztr2D,
                     kernel=kernelObjz,
                     normalizer=True
                 )
-                modely.update_model(False)
-                modely.initialize_parameter()
-                modely[:] = ds['modely']['savedmodelparams'][-1]
-                modely.update_model(True)
+                modelz.update_model(False)
+                modelz.initialize_parameter()
+                modelz[:] = ds['modelz']['savedmodelparams'][i]
+                modelz.update_model(True)
+
+                itermodely[i] = modely
+                itermodelz[i] = modelz
+
+            (minindex,metric) = self.getBestModel(Xte,MCte,Mte,
+                modelyarr=itermodely,modelzarr=itermodelz)
+            bestmodely[pno] = itermodely[minindex]
+            bestmodelz[pno] = itermodelz[minindex]
+            bestmetric[pno] = metric
+            metricdataForPrint[pfile] = metric
+            iterationdataForPrint[pfile] = {'bestiter':minindex+1,
+                                            'totaliters':len(ds['modely']['savedmodelparams'])}
+        minbestindex = np.argmin(bestmetric)
+        for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
+            print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
+                  iterationdataForPrint[k]['bestiter'],
+                  iterationdataForPrint[k]['totaliters']))
 
             # # 0 mean GP to model f
             # model = GPy.core.GP(Xtr,
@@ -278,7 +321,43 @@ class GaussianProcess():
             #                     likelihood=lik,
             #                     )
 
-            return modely
+        return bestmodely[minbestindex],bestmodelz[minbestindex]
+
+    def getMetric(self,Xte,MCte,Mte,modely,modelz):
+        Zbar, Zv = modelz.predict(Xte)
+        Zmean = np.array([z[0] for z in Zbar])
+        Zvar = np.array([z[0] for z in Zv])
+        Vmean = np.exp(Zmean + (Zvar / 2))
+
+        ybar, vy = modely._raw_predict(Xte)
+
+        Ymean = np.array([y[0] for y in ybar])
+        Ymean += Mte
+
+        Yvar = np.array([y[0] for y in vy])
+        Yvar += Vmean
+        Ysd = np.sqrt(Yvar)
+
+        ############### METRIC
+        metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
+        # metric = np.mean((Ymean-MCte)**2)
+        return metric
+
+    def getBestModel(self,Xte,MCte,Mte,modelyarr,modelzarr):
+        metricarr = np.zeros(len(modelyarr),dtype=np.float)
+        for i in range(len(modelyarr)):
+            modely = modelyarr[i]
+            modelz = modelzarr[i]
+            metricarr[i] = self.getMetric(Xte,MCte,Mte,modely,modelz)
+        # print(metricarr)
+        minindex = np.argmin(metricarr)
+        # print(minindex)
+        return minindex,metricarr[minindex]
+
+
+
+
+
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -291,7 +370,7 @@ if __name__ == "__main__":
                         help="Polynomial/Rational approximation file over MC mean counts\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-b", "--buildtype", dest="BUILDTYPE", type=str, default="data", required=True,
-                        choices=["data","savedparam"],
+                        choices=["data","savedparams"],
                         help="Build type\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-d", "--datafile", dest="DATAFILE", type=str, default=None, required=True,
@@ -329,7 +408,7 @@ if __name__ == "__main__":
 
     requiredNamed.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
                                help="Parameter and Xinfo JSON file (s).\n"
-                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparam\"")
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
 
 
 
