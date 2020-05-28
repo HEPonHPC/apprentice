@@ -88,7 +88,7 @@ class GaussianProcess():
         if not useMPI:
             model.optimize_restarts(num_restarts=num_restarts,
                                     robust=robust,verbose=self._debug)
-            return model
+            return model.param_array
         else:
             import apprentice
             allWork = apprentice.tools.chunkIt([i for i in range(num_restarts)], size)
@@ -96,7 +96,7 @@ class GaussianProcess():
             import time
             import sys
             import datetime
-            _res = np.zeros(num_restarts, dtype=object)
+            _paramarray = np.zeros(num_restarts, dtype=object)
             _F = np.zeros(num_restarts)
             t0 = time.time()
             for ii in rankWork:
@@ -110,7 +110,7 @@ class GaussianProcess():
                         print(("Warning - optimization restart on rank {} failed".format(ii)))
                     else:
                         raise e
-                _res[ii] = model
+                _paramarray[ii] = model.param_array
                 _F[ii] = model.objective_function()
 
                 if rank == 0 and self._debug:
@@ -124,17 +124,18 @@ class GaussianProcess():
                         "[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(
                             rank, ii + 1, len(rankWork), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')))
                     sys.stdout.flush()
-            a = comm.gather(_res[rankWork])
+            a = comm.gather(_paramarray[rankWork])
             b = comm.gather(_F[rankWork])
             myreturnvalue = None
             if rank == 0:
                 allWork = apprentice.tools.chunkIt([i for i in range(num_restarts)], size)
-                for r in range(size): _res[allWork[r]] = a[r]
+                for r in range(size): _paramarray[allWork[r]] = a[r]
                 for r in range(size): _F[allWork[r]] = b[r]
-                myreturnvalue = _res[np.argmin(_F)]
+                myreturnvalue = _paramarray[np.argmin(_F)]
                 if self._debug:
                     print("Objective values from all parallel runs:")
                     print(_F)
+                    # print(_paramarray)
                     sys.stdout.flush()
             myreturnvalue = comm.bcast(myreturnvalue, root=0)
             return myreturnvalue
@@ -209,10 +210,11 @@ class GaussianProcess():
                                                     )
         modelzero['.*het_Gauss.variance'] =  DeltaMCtr2D
         modelzero.het_Gauss.variance.fix()
-        modelzero = self.mpitune(modelzero,num_restarts=self.nrestart,
+        modelzero[:] = self.mpitune(modelzero,num_restarts=self.nrestart,
                                  useMPI=self.MPITUNE,robust=True)
-        # if rank == 0:
-        #     print(modelzero.objective_function())
+        modelzero.update_model(True)
+        if self._debug and rank == 0:
+            print(modelzero.objective_function())
 
         currenthetobjective = modelzero.objective_function()
         oldhetobjective = np.infty
@@ -236,10 +238,11 @@ class GaussianProcess():
                                 kernel=kernelObjz,
                                 normalizer = True
                                 )
-            modelz = self.mpitune(modelz, num_restarts=self.nrestart,
+            modelz[:] = self.mpitune(modelz, num_restarts=self.nrestart,
                                   useMPI=self.MPITUNE, robust=True)
-            # if rank == 0:
-            #     print(modelz.objective_function())
+            modelz.update_model(True)
+            if self._debug and rank == 0:
+                 print(modelz.objective_function())
 
             Zbar,Zv = modelz.predict(Xtr)
             Zmean = np.array([z[0] for z in Zbar])
@@ -254,10 +257,11 @@ class GaussianProcess():
                                                             )
             modely['.*het_Gauss.variance'] = Vmean2D
             modely.het_Gauss.variance.fix()
-            modely = self.mpitune(modely, num_restarts=self.nrestart,
+            modely[:] = self.mpitune(modely, num_restarts=self.nrestart,
                                   useMPI=self.MPITUNE, robust=True)
-            # if rank == 0:
-            #     print(modely.objective_function())
+            modely.update_model(True)
+            if self._debug and rank == 0:
+                 print(modely.objective_function())
 
             oldhetobjective = currenthetobjective
             currenthetobjective = modely.objective_function()
