@@ -98,6 +98,13 @@ class GaussianProcess():
         DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
         DeltaMCtr2D = np.array([DeltaMCtr]).transpose()
 
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        ntest = len(Xte)
+        MCte = self.MC[~Xteindex]
+        DeltaMCte = self.DeltaMC[~Xteindex]
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
         # Get Ns samples of each of the Ntr training distribution
         Ytr = np.random.normal(MCtr, DeltaMCtr)
         Mtr = np.array([self.approxmeancountval(x) for x in Xtr])
@@ -201,6 +208,7 @@ class GaussianProcess():
                 database['modely']['savedmodelparams'] = []
                 database['modelz']['savedmodelparams'] = []
                 database['modely']['objective'] = []
+                database['modely']['metrics'] = {'msemetric': [], 'chi2metric': []}
                 database['modelz']['objective'] = []
                 database['modelz']['Ztr'] = []
             database['modely']['savedmodelparams'].append(modely.param_array.tolist())
@@ -208,6 +216,9 @@ class GaussianProcess():
             database['modely']['objective'].append(modely.objective_function())
             database['modelz']['objective'].append(modelz.objective_function())
             database['modelz']['Ztr'].append(Ztr)
+            (msemetric, chi2metric) = self.getMetrics(Xte, MCte, Mte, modely, modelz)
+            database['modely']['metrics']['msemetric'].append(msemetric)
+            database['modely']['metrics']['chi2metric'].append(chi2metric)
             database['log']['iterations_done'] = iteration
             database['log']['timetaken'] = timer()-start
             iteration+=1
@@ -235,7 +246,6 @@ class GaussianProcess():
         return bestmodely,bestmodelz
 
     def  buildGPmodelFromSavedParam(self):
-        data = []
         import json
         bestmetricval = np.infty
         bestmodely = None
@@ -331,7 +341,7 @@ class GaussianProcess():
 
         return bestmodely,bestmodelz
 
-    def getMetric(self,Xte,MCte,Mte,modely,modelz):
+    def getMetrics(self,Xte,MCte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
         Zvar = np.array([z[0] for z in Zv])
@@ -347,25 +357,21 @@ class GaussianProcess():
         Ysd = np.sqrt(Yvar)
 
         ############### METRIC
-        metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
-        # metric = np.mean((Ymean-MCte)**2)
-        return metric
+        chi2metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
+        msemetric = np.mean((Ymean-MCte)**2)
+        return msemetric,chi2metric
 
     def getBestModel(self,Xte,MCte,Mte,modelyarr,modelzarr):
         metricarr = np.zeros(len(modelyarr),dtype=np.float)
         for i in range(len(modelyarr)):
             modely = modelyarr[i]
             modelz = modelzarr[i]
-            metricarr[i] = self.getMetric(Xte,MCte,Mte,modely,modelz)
-        # print(metricarr)
+            (msemetric,chi2metric) = self.getMetrics(Xte,MCte,Mte,modely,modelz)
+            metricarr[i] = chi2metric
+        print(metricarr)
         minindex = np.argmin(metricarr)
         # print(minindex)
         return minindex,metricarr[minindex]
-
-
-
-
-
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
