@@ -19,6 +19,7 @@ class GaussianProcess():
         self.DeltaMC = D[:, -1]
         self.nens,self.nparam = self.X.shape
         self.buildtype = kwargs['BUILDTYPE']
+        self._debug = kwargs['DEBUG']
 
         if self.buildtype=="data":
             self.MPITUNE = kwargs['MPITUNE']
@@ -26,7 +27,6 @@ class GaussianProcess():
             self.STOPCOND = kwargs['STOPCOND']
             self.kernel = kwargs['KERNEL']
             self.obsname = kwargs['OBS']
-            # self.nprocess = kwargs['NPROCESS']
             self.nrestart = kwargs['NRESTART']
             self.keepout = kwargs['KEEPOUT']/100
             os.makedirs(kwargs['OUTDIR'],exist_ok=True)
@@ -81,10 +81,68 @@ class GaussianProcess():
             exit(1)
         return kernelObj
 
-    # def
+    def mpitune(self,model,num_restarts,useMPI=False,robust=True):
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+        if not useMPI:
+            model.optimize_restarts(num_restarts=num_restarts,
+                                    robust=robust,verbose=self._debug)
+            return model
+        else:
+            import apprentice
+            allWork = apprentice.tools.chunkIt([i for i in range(num_restarts)], size)
+            rankWork = comm.scatter(allWork, root=0)
+            import time
+            import sys
+            import datetime
+            _res = np.zeros(num_restarts, dtype=object)
+            _F = np.zeros(num_restarts)
+            t0 = time.time()
+            for ii in rankWork:
+                try:
+                    if ii > 0:
+                        for iii in range(ii):
+                            model.randomize()
+                    model.optimize_restarts(num_restarts=1,robust=robust,verbose=self._debug)
+                except Exception as e:
+                    if robust:
+                        print(("Warning - optimization restart on rank {} failed".format(ii)))
+                    else:
+                        raise e
+                _res[ii] = model
+                _F[ii] = model.objective_function()
+
+                if rank == 0 and self._debug:
+                    print("[{}] {}/{}".format(rank, ii, len(rankWork)))
+                    now = time.time()
+                    tel = now - t0
+                    ttg = tel * (len(rankWork) - ii) / (ii + 1)
+                    eta = now + ttg
+                    eta = datetime.datetime.fromtimestamp(now + ttg)
+                    sys.stdout.write(
+                        "[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(
+                            rank, ii + 1, len(rankWork), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')))
+                    sys.stdout.flush()
+            a = comm.gather(_res[rankWork])
+            b = comm.gather(_F[rankWork])
+            myreturnvalue = None
+            if rank == 0:
+                allWork = apprentice.tools.chunkIt([i for i in range(num_restarts)], size)
+                for r in range(size): _res[allWork[r]] = a[r]
+                for r in range(size): _F[allWork[r]] = b[r]
+                myreturnvalue = _res[np.argmin(_F)]
+                if self._debug:
+                    print("Objective values from all parallel runs:")
+                    print(_F)
+                    sys.stdout.flush()
+            myreturnvalue = comm.bcast(myreturnvalue, root=0)
+            return myreturnvalue
 
     def buildGPmodelFromData(self):
         import json
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
         Ntr = int((1-self.keepout) *self.nens)
         Ns = 25
 
@@ -115,33 +173,34 @@ class GaussianProcess():
         # Homoscedastic noise (for now) that we will find during parameter tuning
         # lik = GPy.likelihoods.Gaussian()
         start = timer()
-        print("##############################")
-        print(datetime.datetime.now())
-        print("##############################")
-        sys.stdout.flush()
+        if rank == 0:
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
 
         polyorder = None
         if self.kernel in ['poly','or']:
             polyorder = 3
-
-        database = {
-            # "savedmodelparams": model.param_array.tolist(),
-            # "param_names_flat": model.parameter_names_flat().tolist(),
-            # "param_names": model.parameter_names(),
-            "Ntr": Ntr,
-            "Ns": Ns,
-            'seed': self.SEED,
-            'kernel': self.kernel,
-            "keepout": self.keepout * 100,
-            "obsname": self.obsname,
-            "Xtrindex": Xtrindex.tolist(),
-            "Ytrmm": Ytrmm.tolist(),
-            'modely':{},
-            'modelz':{},
-            'log':{'stopcond':self.STOPCOND}
-        }
-        if self.kernel in ['poly', 'or']:
-            database['polyorder'] = polyorder
+        if rank == 0:
+            database = {
+                # "savedmodelparams": model.param_array.tolist(),
+                # "param_names_flat": model.parameter_names_flat().tolist(),
+                # "param_names": model.parameter_names(),
+                "Ntr": Ntr,
+                "Ns": Ns,
+                'seed': self.SEED,
+                'kernel': self.kernel,
+                "keepout": self.keepout * 100,
+                "obsname": self.obsname,
+                "Xtrindex": Xtrindex.tolist(),
+                "Ytrmm": Ytrmm.tolist(),
+                'modely':{},
+                'modelz':{},
+                'log':{'stopcond':self.STOPCOND}
+            }
+            if self.kernel in ['poly', 'or']:
+                database['polyorder'] = polyorder
 
         kernelObjZero = self.getKernel(self.kernel, polyorder)
         modelzero = GPy.models.GPHeteroscedasticRegression(Xtr,
@@ -150,8 +209,11 @@ class GaussianProcess():
                                                     )
         modelzero['.*het_Gauss.variance'] =  DeltaMCtr2D
         modelzero.het_Gauss.variance.fix()
-        modelzero.optimize_restarts(num_restarts=self.nrestart,
-                                robust=True)
+        modelzero = self.mpitune(modelzero,num_restarts=self.nrestart,
+                                 useMPI=self.MPITUNE,robust=True)
+        # if rank == 0:
+        #     print(modelzero.objective_function())
+
         currenthetobjective = modelzero.objective_function()
         oldhetobjective = np.infty
         modely = modelzero
@@ -174,8 +236,11 @@ class GaussianProcess():
                                 kernel=kernelObjz,
                                 normalizer = True
                                 )
-            modelz.optimize_restarts(num_restarts=self.nrestart,
-                                     robust=True)
+            modelz = self.mpitune(modelz, num_restarts=self.nrestart,
+                                  useMPI=self.MPITUNE, robust=True)
+            # if rank == 0:
+            #     print(modelz.objective_function())
+
             Zbar,Zv = modelz.predict(Xtr)
             Zmean = np.array([z[0] for z in Zbar])
             Zvar = np.array([z[0] for z in Zv])
@@ -189,60 +254,51 @@ class GaussianProcess():
                                                             )
             modely['.*het_Gauss.variance'] = Vmean2D
             modely.het_Gauss.variance.fix()
-            modely.optimize_restarts(num_restarts=self.nrestart,
-                                        robust=True)
+            modely = self.mpitune(modely, num_restarts=self.nrestart,
+                                  useMPI=self.MPITUNE, robust=True)
+            # if rank == 0:
+            #     print(modely.objective_function())
+
             oldhetobjective = currenthetobjective
             currenthetobjective = modely.objective_function()
-            print((currenthetobjective - oldhetobjective) ** 2)
-            sys.stdout.flush()
             if bestobjectivey > modely.objective_function():
                 bestobjectivey = modely.objective_function()
                 bestmodely = modely
                 bestmodelz = modelz
 
-            if iteration==0:
-                database['modely']['param_names_flat'] = modely.parameter_names_flat().tolist()
-                database['modelz']['param_names_flat'] = modelz.parameter_names_flat().tolist()
-                database['modely']["param_names"] = modely.parameter_names()
-                database['modelz']["param_names"] = modelz.parameter_names()
-                database['modely']['savedmodelparams'] = []
-                database['modelz']['savedmodelparams'] = []
-                database['modely']['objective'] = []
-                database['modely']['metrics'] = {'msemetric': [], 'chi2metric': []}
-                database['modelz']['objective'] = []
-                database['modelz']['Ztr'] = []
-            database['modely']['savedmodelparams'].append(modely.param_array.tolist())
-            database['modelz']['savedmodelparams'].append(modelz.param_array.tolist())
-            database['modely']['objective'].append(modely.objective_function())
-            database['modelz']['objective'].append(modelz.objective_function())
-            database['modelz']['Ztr'].append(Ztr)
-            (msemetric, chi2metric) = self.getMetrics(Xte, MCte, Mte, modely, modelz)
-            database['modely']['metrics']['msemetric'].append(msemetric)
-            database['modely']['metrics']['chi2metric'].append(chi2metric)
-            database['log']['iterations_done'] = iteration
-            database['log']['timetaken'] = timer()-start
-            iteration+=1
-            with open(self.outfile, 'w') as f:
-                json.dump(database, f, indent=4)
+            if rank == 0:
+                if iteration==0:
+                    database['modely']['param_names_flat'] = modely.parameter_names_flat().tolist()
+                    database['modelz']['param_names_flat'] = modelz.parameter_names_flat().tolist()
+                    database['modely']["param_names"] = modely.parameter_names()
+                    database['modelz']["param_names"] = modelz.parameter_names()
+                    database['modely']['savedmodelparams'] = []
+                    database['modelz']['savedmodelparams'] = []
+                    database['modely']['objective'] = []
+                    database['modely']['metrics'] = {'msemetric': [], 'chi2metric': []}
+                    database['modelz']['objective'] = []
+                    database['modelz']['Ztr'] = []
+                database['modely']['savedmodelparams'].append(modely.param_array.tolist())
+                database['modelz']['savedmodelparams'].append(modelz.param_array.tolist())
+                database['modely']['objective'].append(modely.objective_function())
+                database['modelz']['objective'].append(modelz.objective_function())
+                database['modelz']['Ztr'].append(Ztr)
+                (msemetric, chi2metric) = self.getMetrics(Xte, MCte, Mte, modely, modelz)
+                database['modely']['metrics']['msemetric'].append(msemetric)
+                database['modely']['metrics']['chi2metric'].append(chi2metric)
+                database['log']['iterations_done'] = iteration
+                database['log']['timetaken'] = timer()-start
+                with open(self.outfile, 'w') as f:
+                    json.dump(database, f, indent=4)
+                print('On iteration {}, OBJDIFF is {}\n'.format(iteration,(currenthetobjective-oldhetobjective)**2))
+                sys.stdout.flush()
+            iteration += 1
 
-
-        # if self.nprocess > 1:
-        #     print("Something is wrong with parallel runs. FIX required\nQuitting for now")
-        #     sys.exit(1)
-        #     model.optimize_restarts(robust=True,
-        #                             parallel=True,
-        #                             # messages=True,
-        #                             num_processes=self.nprocess,
-        #                             num_restarts=self.nrestart
-        #                             )
-        #
-        # else:
-
-
-        print("##############################")
-        print(datetime.datetime.now())
-        print("##############################")
-        sys.stdout.flush()
+        if rank == 0:
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
         return bestmodely,bestmodelz
 
     def  buildGPmodelFromSavedParam(self):
@@ -377,6 +433,8 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
     pass
 if __name__ == "__main__":
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
     parser = argparse.ArgumentParser(description='Baysian Optimal Experimental Design for Model Fitting',
                                      formatter_class=SaneFormatter)
     requiredNamed = parser.add_argument_group('required arguments')
@@ -425,16 +483,19 @@ if __name__ == "__main__":
                                help="Parameter and Xinfo JSON file (s).\n"
                                     "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
 
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
+
 
 
     args = parser.parse_args()
-    print(args)
+    if rank == 0:
+        print(args)
     GP = GaussianProcess(
         DATAFILE=args.DATAFILE,
         BUILDTYPE=args.BUILDTYPE,
         KERNEL=args.KERNEL,
         OBS=args.OBS,
-        # NPROCESS=args.NPROCESS,
         NRESTART=args.NRESTART,
         KEEPOUT=args.KEEPOUT,
         OUTDIR=args.OUTDIR,
@@ -442,7 +503,8 @@ if __name__ == "__main__":
         SEED=args.SEED,
         STOPCOND=args.STOPCOND,
         PARAMFILES=args.PARAMFILES,
-        MPITUNE = args.MPITUNE
+        MPITUNE = args.MPITUNE,
+        DEBUG = args.DEBUG
     )
 
 
