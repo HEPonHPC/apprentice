@@ -310,6 +310,8 @@ class GaussianProcess():
             iterationdataForPrint[pfile] = {'bestiter':minindex+1,
                                             'totaliters':len(ds['modely']['savedmodelparams'])}
             print("Done with file no. {} : {}".format(pno,pfile))
+            sys.stdout.flush()
+
         minbestindex = np.argmin(bestmetric)
         for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
             print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
