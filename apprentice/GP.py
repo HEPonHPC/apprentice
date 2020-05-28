@@ -239,6 +239,7 @@ class GaussianProcess():
         bestmetric = np.zeros(len(self.paramsavefiles), dtype=np.float)
         metricdataForPrint = {}
         iterationdataForPrint = {}
+        print("Total No. of files = {}".format(len(self.paramsavefiles)))
         for pno, pfile in enumerate(self.paramsavefiles):
             with open(pfile, 'r') as f:
                 ds = json.load(f)
@@ -308,6 +309,7 @@ class GaussianProcess():
             metricdataForPrint[pfile] = metric
             iterationdataForPrint[pfile] = {'bestiter':minindex+1,
                                             'totaliters':len(ds['modely']['savedmodelparams'])}
+            print("Done with file no. {} : {}".format(pno,pfile))
         minbestindex = np.argmin(bestmetric)
         for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
             print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
