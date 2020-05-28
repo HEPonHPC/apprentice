@@ -7,6 +7,7 @@ import sys
 import datetime
 from timeit import default_timer as timer
 import argparse
+from mpi4py import MPI
 
 class GaussianProcess():
     def __init__(self, *args, **kwargs):
@@ -20,6 +21,7 @@ class GaussianProcess():
         self.buildtype = kwargs['BUILDTYPE']
 
         if self.buildtype=="data":
+            self.MPITUNE = kwargs['MPITUNE']
             self.SEED  = kwargs['SEED']
             self.STOPCOND = kwargs['STOPCOND']
             self.kernel = kwargs['KERNEL']
@@ -79,6 +81,7 @@ class GaussianProcess():
             exit(1)
         return kernelObj
 
+    # def
 
     def buildGPmodelFromData(self):
         import json
@@ -234,9 +237,9 @@ class GaussianProcess():
     def  buildGPmodelFromSavedParam(self):
         data = []
         import json
-        bestmodely = np.zeros(len(self.paramsavefiles),dtype=object)
-        bestmodelz = np.zeros(len(self.paramsavefiles), dtype=object)
-        bestmetric = np.zeros(len(self.paramsavefiles), dtype=np.float)
+        bestmetricval = np.infty
+        bestmodely = None
+        bestmodelz = None
         metricdataForPrint = {}
         iterationdataForPrint = {}
         print("Total No. of files = {}".format(len(self.paramsavefiles)))
@@ -303,16 +306,17 @@ class GaussianProcess():
 
             (minindex,metric) = self.getBestModel(Xte,MCte,Mte,
                 modelyarr=itermodely,modelzarr=itermodelz)
-            bestmodely[pno] = itermodely[minindex]
-            bestmodelz[pno] = itermodelz[minindex]
-            bestmetric[pno] = metric
+            if metric < bestmetricval:
+                print("Updating best metric val. from {} to {}".format(bestmetricval, metric))
+                bestmetricval = metric
+                bestmodely = itermodely[minindex]
+                bestmodelz = itermodelz[minindex]
             metricdataForPrint[pfile] = metric
             iterationdataForPrint[pfile] = {'bestiter':minindex+1,
                                             'totaliters':len(ds['modely']['savedmodelparams'])}
             print("Done with file no. {} : {}".format(pno,pfile))
             sys.stdout.flush()
 
-        minbestindex = np.argmin(bestmetric)
         for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
             print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
                   iterationdataForPrint[k]['bestiter'],
@@ -325,7 +329,7 @@ class GaussianProcess():
             #                     likelihood=lik,
             #                     )
 
-        return bestmodely[minbestindex],bestmodelz[minbestindex]
+        return bestmodely,bestmodelz
 
     def getMetric(self,Xte,MCte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
@@ -392,10 +396,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outdir", dest="OUTDIR", type=str, default=None,
                         help="Output Directory \n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
-    # parser.add_argument("--nprocess", dest="NPROCESS", type=int, default=1,
-    #                     help="Number of processes to use in optimization. "
-    #                          "If >1, parallel version of optmimize used \n"
-    #                          "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+
+    parser.add_argument("--usempituning", dest="MPITUNE", default=False, action="store_true",
+                        help="Use MPI for Tuning\n"
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+
     parser.add_argument("--nrestart", dest="NRESTART", type=int, default=1,
                         help="Number of optimization restarts (multistart)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
@@ -430,7 +435,8 @@ if __name__ == "__main__":
         APPROX=args.APPROX,
         SEED=args.SEED,
         STOPCOND=args.STOPCOND,
-        PARAMFILES=args.PARAMFILES
+        PARAMFILES=args.PARAMFILES,
+        MPITUNE = args.MPITUNE
     )
 
 
