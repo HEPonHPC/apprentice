@@ -308,98 +308,80 @@ class GaussianProcess():
     def  buildGPmodelFromSavedParam(self):
         import json
         bestmetricval = np.infty
-        bestmodely = None
-        bestmodelz = None
+        bestparamfile = None
         metricdataForPrint = {}
         iterationdataForPrint = {}
         print("Total No. of files = {}".format(len(self.paramsavefiles)))
         for pno, pfile in enumerate(self.paramsavefiles):
             with open(pfile, 'r') as f:
                 ds = json.load(f)
-            Ntr = ds['Ntr']
-            Ns = ds['Ns']
-
-            seed = ds['seed']
-            np.random.seed(seed)
-
-            kernel = ds['kernel']
-            polyorder = None
-            if kernel in ['poly', 'or']:
-                polyorder = ds['polyorder']
-
-
-            Xtrindex = ds['Xtrindex']
-            Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
-            Ytrmm = ds['Ytrmm']
-            Ytrmm2D = np.array([Ytrmm]).transpose()
-
-            Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-            Xte = self.X[~Xteindex, :]
-            ntest = len(Xte)
-            MCte = self.MC[~Xteindex]
-            DeltaMCte = self.DeltaMC[~Xteindex]
-            Mte = np.array([self.approxmeancountval(x) for x in Xte])
-
-            itermodely = np.zeros(len(ds['modely']['savedmodelparams']),
-                                  dtype=object)
-            itermodelz = np.zeros(len(ds['modely']['savedmodelparams']),
-                                  dtype=object)
-            for i in range(len(ds['modely']['savedmodelparams'])):
-                kernelObjy = self.getKernel(kernel, polyorder)
-                kernelObjz = self.getKernel(kernel, polyorder)
-                modely = GPy.models.GPHeteroscedasticRegression(Xtr,
-                                                                Ytrmm2D,
-                                                                kernel=kernelObjy
-                                                                )
-
-                modely.update_model(False)
-                modely.initialize_parameter()
-                modely[:] = ds['modely']['savedmodelparams'][i]
-                modely.update_model(True)
-
-                Ztr = ds['modelz']['Ztr'][i]
-                Ztr2D = np.array([Ztr]).transpose()
-
-                modelz = GPy.models.GPRegression(
-                    self.X[Xtrindex, :],
-                    Ztr2D,
-                    kernel=kernelObjz,
-                    normalizer=True
-                )
-                modelz.update_model(False)
-                modelz.initialize_parameter()
-                modelz[:] = ds['modelz']['savedmodelparams'][i]
-                modelz.update_model(True)
-
-                itermodely[i] = modely
-                itermodelz[i] = modelz
-
-            (minindex,metric) = self.getBestModel(Xte,MCte,Mte,
-                modelyarr=itermodely,modelzarr=itermodelz)
+            metricarr = np.array(ds['modely']['metrics']['chi2metric'])
+            minindex = np.argmin(metricarr)
+            metric = metricarr[minindex]
             if metric < bestmetricval:
-                print("Updating best metric val. from {} to {}".format(bestmetricval, metric))
+                print("Updating best metric val. from {} to {} ({}:{})".format(bestmetricval, metric,
+                                                                               os.path.basename(pfile),minindex+1))
                 bestmetricval = metric
-                bestmodely = itermodely[minindex]
-                bestmodelz = itermodelz[minindex]
+                bestparamfile = pfile
+
             metricdataForPrint[pfile] = metric
-            iterationdataForPrint[pfile] = {'bestiter':minindex+1,
-                                            'totaliters':len(ds['modely']['savedmodelparams'])}
-            print("Done with file no. {} : {}".format(pno,pfile))
-            sys.stdout.flush()
+            iterationdataForPrint[pfile] = {'bestiter': minindex + 1,
+                                    'totaliters': len(ds['modely']['savedmodelparams'])}
+
+            # print("Done with file no. {} : {}".format(pno, pfile))
+            # sys.stdout.flush()
 
         for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
             print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
                   iterationdataForPrint[k]['bestiter'],
                   iterationdataForPrint[k]['totaliters']))
 
-            # # 0 mean GP to model f
-            # model = GPy.core.GP(Xtr,
-            #                     Ytrmm2D,
-            #                     kernel=kernelObj,
-            #                     likelihood=lik,
-            #                     )
+        with open(bestparamfile, 'r') as f:
+            ds = json.load(f)
+        metricarr = np.array(ds['modely']['metrics']['chi2metric'])
+        minindex = np.argmin(metricarr)
+        print("Best parameter file is: {} \nand best iteration no. is {}".format(bestparamfile,minindex+1))
+        Ns = ds['Ns']
 
-        return bestmodely,bestmodelz
+        seed = ds['seed']
+        np.random.seed(seed)
+
+        kernel = ds['kernel']
+        polyorder = None
+        if kernel in ['poly', 'or']:
+            polyorder = ds['polyorder']
+
+        Xtrindex = ds['Xtrindex']
+        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+        Ytrmm = ds['Ytrmm']
+        Ytrmm2D = np.array([Ytrmm]).transpose()
+
+        kernelObjy = self.getKernel(kernel, polyorder)
+        kernelObjz = self.getKernel(kernel, polyorder)
+        modely = GPy.models.GPHeteroscedasticRegression(Xtr,
+                                                        Ytrmm2D,
+                                                        kernel=kernelObjy
+                                                        )
+        modely.update_model(False)
+        modely.initialize_parameter()
+        modely[:] = ds['modely']['savedmodelparams'][minindex]
+        modely.update_model(True)
+
+        Ztr = ds['modelz']['Ztr'][minindex]
+        Ztr2D = np.array([Ztr]).transpose()
+
+        modelz = GPy.models.GPRegression(
+            self.X[Xtrindex, :],
+            Ztr2D,
+            kernel=kernelObjz,
+            normalizer=True
+        )
+        modelz.update_model(False)
+        modelz.initialize_parameter()
+        modelz[:] = ds['modelz']['savedmodelparams'][minindex]
+        modelz.update_model(True)
+
+        return modely,modelz
 
     def getMetrics(self,Xte,MCte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
