@@ -311,11 +311,16 @@ class GaussianProcess():
         bestparamfile = None
         metricdataForPrint = {}
         iterationdataForPrint = {}
+        if self._debug:
+            metrickey = 'chi2metric'
+        else:
+            metrickey = 'msemetric'
+        print("METRIC KEY is {}".format(metrickey))
         print("Total No. of files = {}".format(len(self.paramsavefiles)))
         for pno, pfile in enumerate(self.paramsavefiles):
             with open(pfile, 'r') as f:
                 ds = json.load(f)
-            metricarr = np.array(ds['modely']['metrics']['chi2metric'])
+            metricarr = np.array(ds['modely']['metrics'][metrickey])
             minindex = np.argmin(metricarr)
             metric = metricarr[minindex]
             if metric < bestmetricval:
@@ -338,10 +343,21 @@ class GaussianProcess():
 
         with open(bestparamfile, 'r') as f:
             ds = json.load(f)
-        metricarr = np.array(ds['modely']['metrics']['chi2metric'])
+        metricarr = np.array(ds['modely']['metrics'][metrickey])
         minindex = np.argmin(metricarr)
         print("Best parameter file is: {} \nand best iteration no. is {}".format(bestparamfile,minindex+1))
         Ns = ds['Ns']
+
+        Xtrindex = ds['Xtrindex']
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        MCte = self.MC[~Xteindex]
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+        DeltaMCte = self.DeltaMC[~Xteindex]
+        chi2metric_RA = np.mean(((Mte - MCte) / DeltaMCte) ** 2)
+        msemetric_RA = np.mean((Mte - MCte) ** 2)
+        print("RAMEAN (chi2metric_RA) is %.2E"%chi2metric_RA)
+        print("RAMEAN (msemetric_RA) is %.2E" %msemetric_RA)
 
         seed = ds['seed']
         np.random.seed(seed)
@@ -403,17 +419,17 @@ class GaussianProcess():
         msemetric = np.mean((Ymean-MCte)**2)
         return msemetric,chi2metric
 
-    def getBestModel(self,Xte,MCte,Mte,modelyarr,modelzarr):
-        metricarr = np.zeros(len(modelyarr),dtype=np.float)
-        for i in range(len(modelyarr)):
-            modely = modelyarr[i]
-            modelz = modelzarr[i]
-            (msemetric,chi2metric) = self.getMetrics(Xte,MCte,Mte,modely,modelz)
-            metricarr[i] = chi2metric
-        print(metricarr)
-        minindex = np.argmin(metricarr)
-        # print(minindex)
-        return minindex,metricarr[minindex]
+    # def getBestModel(self,Xte,MCte,Mte,modelyarr,modelzarr):
+    #     metricarr = np.zeros(len(modelyarr),dtype=np.float)
+    #     for i in range(len(modelyarr)):
+    #         modely = modelyarr[i]
+    #         modelz = modelzarr[i]
+    #         (msemetric,chi2metric) = self.getMetrics(Xte,MCte,Mte,modely,modelz)
+    #         metricarr[i] = chi2metric
+    #     print(metricarr)
+    #     minindex = np.argmin(metricarr)
+    #     # print(minindex)
+    #     return minindex,metricarr[minindex]
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -465,7 +481,7 @@ if __name__ == "__main__":
                         help="Seed (Control for n-fold crossvalidation)\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
 
-    requiredNamed.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
+    parser.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
                                help="Parameter and Xinfo JSON file (s).\n"
                                     "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
 
