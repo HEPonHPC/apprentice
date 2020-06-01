@@ -48,10 +48,24 @@ class GaussianProcess():
                   "Mean function could not be created.\n"
                   "This code does not support multi output GP")
             exit(1)
+        if self.buildtype == "savedparams":
+            path, filename = os.path.split(kwargs['APPROX'])
+            errfile = "err{}".format(filename)
+            errfilepath = os.path.join(path,errfile)
+            self.meanerrappset = apprentice.appset.AppSet(errfilepath, binids=self.obsname)
+            if len(self.meanappset._binids) != 1 or \
+                    self.meanappset._binids[0] != self.obsname:
+                print("Something went wrong.\n"
+                      "Error mean function could not be created.\n"
+                      "This code does not support multi output GP")
+                exit(1)
         if self.buildtype == 'data':
             self.modely,self.modelz = self.buildGPmodelFromData()
         elif self.buildtype == 'savedparams':
             self.modely,self.modelz = self.buildGPmodelFromSavedParam()
+
+    def errapproxmeancountval(self, x):
+        return self.meanerrappset.vals(x)[0]
 
     def approxmeancountval(self, x):
         return self.meanappset.vals(x)[0]
@@ -353,8 +367,8 @@ class GaussianProcess():
         Xte = self.X[~Xteindex, :]
         MCte = self.MC[~Xteindex]
         Mte = np.array([self.approxmeancountval(x) for x in Xte])
-        DeltaMCte = self.DeltaMC[~Xteindex]
-        chi2metric_RA = np.mean(((Mte - MCte) / DeltaMCte) ** 2)
+        DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
+        chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
         msemetric_RA = np.mean((Mte - MCte) ** 2)
         print("RAMEAN (chi2metric_RA) is %.2E"%chi2metric_RA)
         print("RAMEAN (msemetric_RA) is %.2E" %msemetric_RA)
