@@ -8,8 +8,10 @@ import datetime
 from timeit import default_timer as timer
 import argparse
 from mpi4py import MPI
+# from memory_profiler import profile
 
 class GaussianProcess():
+    # @profile
     def __init__(self, *args, **kwargs):
         datafile = kwargs['DATAFILE']
         data = pd.read_csv(datafile,header=None)
@@ -319,6 +321,7 @@ class GaussianProcess():
             sys.stdout.flush()
         return bestmodely,bestmodelz
 
+    # @profile
     def  buildGPmodelFromSavedParam(self):
         import json
         bestmetricval = np.infty
