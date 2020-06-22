@@ -23,7 +23,7 @@ class GaussianProcess():
         self.buildtype = kwargs['BUILDTYPE']
         self._debug = kwargs['DEBUG']
 
-        if self.buildtype=="data":
+        if self.buildtype in ["data","sk"]:
             self.MPITUNE = kwargs['MPITUNE']
             self.SEED  = kwargs['SEED']
             self.STOPCOND = kwargs['STOPCOND']
@@ -35,6 +35,7 @@ class GaussianProcess():
             self.outfile = os.path.join(kwargs['OUTDIR'], "{}_K{}_S{}.json".format(self.obsname.replace('/', '_'),
                                                                                 self.kernel,self.SEED))
         elif self.buildtype=="savedparams":
+            self.METRIC = kwargs['METRIC']
             self.paramsavefiles = kwargs['PARAMFILES']
             import json
             with open(self.paramsavefiles[0], 'r') as f:
@@ -63,8 +64,10 @@ class GaussianProcess():
                 exit(1)
         if self.buildtype == 'data':
             self.modely,self.modelz = self.buildGPmodelFromData()
+        elif self.buildtype == 'sk':
+            self.modely,self.modelz = self.buildSKmodelFromData()
         elif self.buildtype == 'savedparams':
-            self.modely,self.modelz = self.buildGPmodelFromSavedParam()
+            self.modely,self.modelz,bestparamfile = self.buildGPmodelFromSavedParam()
 
     def errapproxmeancountval(self, x):
         return self.meanerrappset.vals(x)[0]
@@ -155,6 +158,164 @@ class GaussianProcess():
                     sys.stdout.flush()
             myreturnvalue = comm.bcast(myreturnvalue, root=0)
             return myreturnvalue
+
+    def buildSKmodelFromData(self):
+        import json
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+
+        Ns = 25
+
+        np.random.seed(self.SEED)
+
+        ############################
+        # Training Data Prep
+        ############################
+        Ntr = int((1 - self.keepout) * self.nens)
+
+        Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
+        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+
+        MCtr = np.repeat(self.MC[Xtrindex], Ns)
+
+        DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
+        DeltaMCSqByNtr = (DeltaMCtr**2)/Ns
+        DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
+
+        Ytr = np.random.normal(MCtr, DeltaMCtr)
+        Mtr = np.array([self.approxmeancountval(x) for x in Xtr])
+        # Y-M (Training labels)
+        Ytrmm = Ytr - Mtr
+        Ytrmm2D = np.array([Ytrmm]).transpose()
+
+        ############################
+        # Testing Data Prep
+        ############################
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        ntest = len(Xte)
+        MCte = self.MC[~Xteindex]
+        DeltaMCte = self.DeltaMC[~Xteindex]
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
+
+        ############################
+        # Miscell Init
+        ############################
+        start = timer()
+        if rank == 0:
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+
+        polyorder = None
+        if self.kernel in ['poly', 'or']:
+            polyorder = 3
+        if rank == 0:
+            database = {
+                # "savedmodelparams": model.param_array.tolist(),
+                # "param_names_flat": model.parameter_names_flat().tolist(),
+                # "param_names": model.parameter_names(),
+                "Ntr": Ntr,
+                "Ns": Ns,
+                'seed': self.SEED,
+                'kernel': self.kernel,
+                "keepout": self.keepout * 100,
+                "obsname": self.obsname,
+                "Xtrindex": Xtrindex.tolist(),
+                "Ytrmm": Ytrmm.tolist(),
+                'modely': {},
+                'modelz': {},
+                'log': {'stopcond': self.STOPCOND}
+            }
+            if self.kernel in ['poly', 'or']:
+                database['polyorder'] = polyorder
+
+        ############################
+        # Kernel for y
+        ############################
+        kernelObjY = self.getKernel(self.kernel, polyorder)
+
+        ############################
+        # GP Model y
+        ############################
+        modelY = GPy.models.GPHeteroscedasticRegression(Xtr,
+                                                           Ytrmm2D,
+                                                           kernel=kernelObjY
+                                                           )
+        modelY['.*het_Gauss.variance'] = DeltaMCSqByNtr2D
+        modelY.het_Gauss.variance.fix()
+
+        ############################
+        # Tune GP Model y
+        ############################
+        modelY[:] = self.mpitune(modelY, num_restarts=self.nrestart,
+                                    useMPI=self.MPITUNE, robust=True)
+        modelY.update_model(True)
+        if self._debug and rank == 0:
+            print(modelY.objective_function())
+
+        ############################
+        # Kernel for z
+        ############################
+        kernelObjZ = self.getKernel(self.kernel, polyorder)
+
+        ############################
+        # GP Model z
+        ############################
+        Vtr = (self.DeltaMC[Xtrindex])**2
+        Ztr = [np.log(v) for v in Vtr]
+        Ztr2D = np.array([Ztr]).transpose()
+        modelZ = GPy.models.GPRegression(
+                            self.X[Xtrindex, :],
+                            Ztr2D,
+                            kernel=kernelObjZ,
+                            normalizer=True
+                )
+
+        ############################
+        # Tune GP Model z
+        ############################
+        modelZ[:] = self.mpitune(modelZ, num_restarts=self.nrestart,
+                                 useMPI=self.MPITUNE, robust=True)
+        modelZ.update_model(True)
+        if self._debug and rank == 0:
+            print(modelZ.objective_function())
+
+        ############################
+        # Dump Results and Exit
+        ############################
+        if rank == 0:
+            database['modely']['param_names_flat'] = modelY.parameter_names_flat().tolist()
+            database['modelz']['param_names_flat'] = modelZ.parameter_names_flat().tolist()
+            database['modely']["param_names"] = modelY.parameter_names()
+            database['modelz']["param_names"] = modelZ.parameter_names()
+            database['modely']['savedmodelparams'] = []
+            database['modelz']['savedmodelparams'] = []
+            database['modely']['objective'] = []
+            database['modely']['metrics'] = {'meanmsemetric': [], 'sdmsemetric':[],'chi2metric': []}
+            database['modelz']['objective'] = []
+            database['modelz']['Ztr'] = []
+            database['modely']['savedmodelparams'].append(modelY.param_array.tolist())
+            database['modelz']['savedmodelparams'].append(modelZ.param_array.tolist())
+            database['modely']['objective'].append(modelY.objective_function())
+            database['modelz']['objective'].append(modelZ.objective_function())
+            database['modelz']['Ztr'].append(Ztr)
+            (meanmsemetric, sdmsemetric, chi2metric) = self.getMetrics(Xte, MCte, DeltaMCte,Mte, modelY, modelZ)
+            database['modely']['metrics']['meanmsemetric'].append(meanmsemetric)
+            database['modely']['metrics']['sdmsemetric'].append(sdmsemetric)
+            database['modely']['metrics']['chi2metric'].append(chi2metric)
+            database['log']['iterations_done'] = None
+            database['log']['timetaken'] = timer() - start
+            with open(self.outfile, 'w') as f:
+                json.dump(database, f, indent=4)
+
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+        return modelY,modelZ
 
     def buildGPmodelFromData(self):
         import json
@@ -328,10 +489,7 @@ class GaussianProcess():
         bestparamfile = None
         metricdataForPrint = {}
         iterationdataForPrint = {}
-        if self._debug:
-            metrickey = 'chi2metric'
-        else:
-            metrickey = 'msemetric'
+        metrickey = self.METRIC
         print("METRIC KEY is {}".format(metrickey))
         print("Total No. of files = {}".format(len(self.paramsavefiles)))
         for pno, pfile in enumerate(self.paramsavefiles):
@@ -350,9 +508,6 @@ class GaussianProcess():
             iterationdataForPrint[pfile] = {'bestiter': minindex + 1,
                                     'totaliters': len(ds['modely']['savedmodelparams'])}
 
-            # print("Done with file no. {} : {}".format(pno, pfile))
-            # sys.stdout.flush()
-
         for k, v in sorted(metricdataForPrint.items(), key=lambda item: item[1]):
             print("%.2E \t %s (%d / %d)" % (v, os.path.basename(k),
                   iterationdataForPrint[k]['bestiter'],
@@ -365,16 +520,19 @@ class GaussianProcess():
         print("Best parameter file is: {} \nand best iteration no. is {}".format(bestparamfile,minindex+1))
         Ns = ds['Ns']
 
-        Xtrindex = ds['Xtrindex']
-        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-        Xte = self.X[~Xteindex, :]
-        MCte = self.MC[~Xteindex]
-        Mte = np.array([self.approxmeancountval(x) for x in Xte])
-        DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
-        chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
-        msemetric_RA = np.mean((Mte - MCte) ** 2)
-        print("RAMEAN (chi2metric_RA) is %.2E"%chi2metric_RA)
-        print("RAMEAN (msemetric_RA) is %.2E" %msemetric_RA)
+        # Xtrindex = ds['Xtrindex']
+        # Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        # Xte = self.X[~Xteindex, :]
+        # MCte = self.MC[~Xteindex]
+        # DeltaMCte = self.DeltaMC[~Xteindex]
+        # Mte = np.array([self.approxmeancountval(x) for x in Xte])
+        # DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
+        # chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
+        # meanmsemetric_RA = np.mean((Mte - MCte) ** 2)
+        # sdmsemetric_RA = np.mean((DeltaMte - DeltaMCte) ** 2)
+        # print("RAMEAN (chi2metric_RA) is %.2E"%chi2metric_RA)
+        # print("RAMEAN (meanmsemetric_RA) is %.2E" %meanmsemetric_RA)
+        # print("RAMEAN (sdmsemetric_RA) is %.2E" % sdmsemetric_RA)
 
         seed = ds['seed']
         np.random.seed(seed)
@@ -414,9 +572,9 @@ class GaussianProcess():
         modelz[:] = ds['modelz']['savedmodelparams'][minindex]
         modelz.update_model(True)
 
-        return modely,modelz
+        return modely,modelz,bestparamfile
 
-    def getMetrics(self,Xte,MCte,Mte,modely,modelz):
+    def getMetrics(self,Xte,MCte,DeltaMCte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
         Zvar = np.array([z[0] for z in Zv])
@@ -433,20 +591,9 @@ class GaussianProcess():
 
         ############### METRIC
         chi2metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
-        msemetric = np.mean((Ymean-MCte)**2)
-        return msemetric,chi2metric
-
-    # def getBestModel(self,Xte,MCte,Mte,modelyarr,modelzarr):
-    #     metricarr = np.zeros(len(modelyarr),dtype=np.float)
-    #     for i in range(len(modelyarr)):
-    #         modely = modelyarr[i]
-    #         modelz = modelzarr[i]
-    #         (msemetric,chi2metric) = self.getMetrics(Xte,MCte,Mte,modely,modelz)
-    #         metricarr[i] = chi2metric
-    #     print(metricarr)
-    #     minindex = np.argmin(metricarr)
-    #     # print(minindex)
-    #     return minindex,metricarr[minindex]
+        meanmsemetric = np.mean((Ymean-MCte)**2)
+        sdmsemetric = np.mean((Ysd-DeltaMCte)**2)
+        return meanmsemetric,sdmsemetric,chi2metric
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -454,6 +601,7 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    ttttt = "[\"data\", \"sk\"]"
     parser = argparse.ArgumentParser(description='Baysian Optimal Experimental Design for Model Fitting',
                                      formatter_class=SaneFormatter)
     requiredNamed = parser.add_argument_group('required arguments')
@@ -461,7 +609,7 @@ if __name__ == "__main__":
                         help="Polynomial/Rational approximation file over MC mean counts\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-b", "--buildtype", dest="BUILDTYPE", type=str, default="data", required=True,
-                        choices=["data","savedparams"],
+                        choices=["data","savedparams","sk"],
                         help="Build type\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-d", "--datafile", dest="DATAFILE", type=str, default=None, required=True,
@@ -471,36 +619,40 @@ if __name__ == "__main__":
 
     parser.add_argument("--obsname", dest="OBS", type=str, default=None,
                         help="Observable Name\n"
-                        "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                        "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
     parser.add_argument("--keepout", dest="KEEPOUT", type=float, default=20.,
                         help="Percentage in \[0,100\] of the data to be left out as test data. \n"
                              "Train on the (100-keepout) percent data and then test on the rest. \n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
     parser.add_argument("-o", "--outdir", dest="OUTDIR", type=str, default=None,
                         help="Output Directory \n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
 
     parser.add_argument("--usempituning", dest="MPITUNE", default=False, action="store_true",
                         help="Use MPI for Tuning\n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
 
     parser.add_argument("--nrestart", dest="NRESTART", type=int, default=1,
                         help="Number of optimization restarts (multistart)\n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
     parser.add_argument("-k", "--kernel", dest="KERNEL", type=str, default="sqe",
                                choices=["matern32", "matern52","sqe","ratquad","poly","or"],
                                help="Kernel to use (ARD will be set to True for all (where applicable)\n"
-                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
     parser.add_argument('--stopcond', dest="STOPCOND", default=10 **-4, type=float,
                         help="Stoping condition metric\n"
-                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                                    "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
     parser.add_argument('-s','--seed', dest="SEED", default=6391273, type=int,
                         help="Seed (Control for n-fold crossvalidation)\n"
-                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"data\"")
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is in "+ttttt)
 
     parser.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
                                help="Parameter and Xinfo JSON file (s).\n"
                                     "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
+    parser.add_argument("-m", "--metric", dest="METRIC", type=str, default="meanmsemetric",
+                        choices=["meanmsemetric", "sdmsemetric", "chi2metric"],
+                        help="Metric based on which to select the best GP parameters on.\n"
+                             "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
 
     parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
                         help="Turn on some debug messages")
@@ -523,6 +675,7 @@ if __name__ == "__main__":
         STOPCOND=args.STOPCOND,
         PARAMFILES=args.PARAMFILES,
         MPITUNE = args.MPITUNE,
+        METRIC = args.METRIC,
         DEBUG = args.DEBUG
     )
 
