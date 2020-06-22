@@ -667,9 +667,11 @@ class GaussianProcess():
         MCtr = self.MC[Xtrindex]
         DeltaMCtr = self.DeltaMC[Xtrindex]
 
-        MCoutfile = os.path.join(OUTDIR, 'RA',"{}_MCRA_S{}.json".format(self.obsname.replace('/', '_'),
+        path = os.path.join(OUTDIR, 'RA')
+        os.makedirs(path,exist_ok=True)
+        MCoutfile = os.path.join(path,"{}_MCRA_S{}.json".format(self.obsname.replace('/', '_'),
                                                                           self.SEED))
-        DeltaMCoutfile = os.path.join(OUTDIR, 'RA',"{}_DeltaMCRA_S{}.json".format(self.obsname.replace('/', '_'),
+        DeltaMCoutfile = os.path.join(path,"{}_DeltaMCRA_S{}.json".format(self.obsname.replace('/', '_'),
                                                                    self.SEED))
 
         m = 3
