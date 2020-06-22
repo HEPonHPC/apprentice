@@ -518,21 +518,8 @@ class GaussianProcess():
         metricarr = np.array(ds['modely']['metrics'][metrickey])
         minindex = np.argmin(metricarr)
         print("Best parameter file is: {} \nand best iteration no. is {}".format(bestparamfile,minindex+1))
+        print("with metric %.2E"%(metricarr[minindex]))
         Ns = ds['Ns']
-
-        # Xtrindex = ds['Xtrindex']
-        # Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-        # Xte = self.X[~Xteindex, :]
-        # MCte = self.MC[~Xteindex]
-        # DeltaMCte = self.DeltaMC[~Xteindex]
-        # Mte = np.array([self.approxmeancountval(x) for x in Xte])
-        # DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
-        # chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
-        # meanmsemetric_RA = np.mean((Mte - MCte) ** 2)
-        # sdmsemetric_RA = np.mean((DeltaMte - DeltaMCte) ** 2)
-        # print("RAMEAN (chi2metric_RA) is %.2E"%chi2metric_RA)
-        # print("RAMEAN (meanmsemetric_RA) is %.2E" %meanmsemetric_RA)
-        # print("RAMEAN (sdmsemetric_RA) is %.2E" % sdmsemetric_RA)
 
         seed = ds['seed']
         np.random.seed(seed)
@@ -595,6 +582,134 @@ class GaussianProcess():
         sdmsemetric = np.mean((Ysd-DeltaMCte)**2)
         return meanmsemetric,sdmsemetric,chi2metric
 
+    def printRAmetrics(self,RAFOLD):
+
+        print("\n\n\n\n")
+        modely,modelz,bestparamfile = self.buildGPmodelFromSavedParam()
+        import json
+        with open(bestparamfile, 'r') as f:
+            ds = json.load(f)
+
+        Xtrindex = ds['Xtrindex']
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        MCte = self.MC[~Xteindex]
+        DeltaMCte = self.DeltaMC[~Xteindex]
+
+        if RAFOLD:
+            import apprentice
+            metricarr = []
+            filearr = []
+            for pno, pfile in enumerate(self.paramsavefiles):
+                OUTDIR = os.path.dirname(pfile)
+                with open(pfile, 'r') as f:
+                    ds = json.load(f)
+                seed = ds['seed']
+                Moutfile = os.path.join(OUTDIR, 'RA',"{}_MCRA_S{}.json".format(self.obsname.replace('/', '_'),
+                                                                           seed))
+                DeltaMoutfile = os.path.join(OUTDIR, 'RA',"{}_DeltaMCRA_S{}.json".format(self.obsname.replace('/', '_'),
+                                                                            seed))
+                meanappset = apprentice.appset.AppSet(Moutfile, binids=self.obsname)
+                if len(meanappset._binids) != 1 or \
+                        meanappset._binids[0] != self.obsname:
+                    print("Something went wrong.\n"
+                          "RA Fold Mean function could not be created.")
+                    exit(1)
+                meanerrappset = apprentice.appset.AppSet(DeltaMoutfile, binids=self.obsname)
+                if len(meanerrappset._binids) != 1 or \
+                        meanerrappset._binids[0] != self.obsname:
+                    print("Something went wrong.\n"
+                          "RA Fold Error mean function could not be created.")
+                    exit(1)
+
+                Mte = np.array([meanappset.vals(x)[0] for x in Xte])
+                DeltaMte = np.array([meanerrappset.vals(x)[0] for x in Xte])
+
+                if self.METRIC == "meanmsemetric":
+                    filearr.append(os.path.basename(Moutfile))
+                    metricarr.append(np.mean((Mte - MCte) ** 2))
+                elif self.METRIC == "sdmsemetric":
+                    filearr.append(os.path.basename(DeltaMoutfile))
+                    metricarr.append(np.mean((DeltaMte - DeltaMCte) ** 2))
+                elif self.METRIC == "chi2metric":
+                    filearr.append(os.path.basename(Moutfile))
+                    metricarr.append(np.mean(((Mte - MCte) / DeltaMte) ** 2))
+
+            bestindex = np.argmin(metricarr)
+            print("Best file is %s"%(filearr[bestindex]))
+            if self.METRIC == "meanmsemetric":
+                print("RAMEAN (meanmsemetric_RA) is %.2E" % (metricarr[bestindex]))
+            elif self.METRIC == "sdmsemetric":
+                print("RAMEAN (sdmsemetric_RA) is %.2E" % (metricarr[bestindex]))
+            elif self.METRIC == "chi2metric":
+                print("RAMEAN (chi2metric_RA) is %.2E" % (metricarr[bestindex]))
+        else:
+            Mte = np.array([self.approxmeancountval(x) for x in Xte])
+            DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
+            if self.METRIC == "meanmsemetric":
+                meanmsemetric_RA = np.mean((Mte - MCte) ** 2)
+                print("RAMEAN (meanmsemetric_RA) is %.2E" % meanmsemetric_RA)
+            elif self.METRIC == "sdmsemetric":
+                sdmsemetric_RA = np.mean((DeltaMte - DeltaMCte) ** 2)
+                print("RAMEAN (sdmsemetric_RA) is %.2E" % sdmsemetric_RA)
+            elif self.METRIC == "chi2metric":
+                chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
+                print("RAMEAN (chi2metric_RA) is %.2E" % chi2metric_RA)
+
+    def buildRAmodelFromData(self,OUTDIR):
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+
+        Ntr = int((1 - self.keepout) * self.nens)
+        np.random.seed(self.SEED)
+        Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
+        Xtr = self.X[Xtrindex, :]
+        MCtr = self.MC[Xtrindex]
+        DeltaMCtr = self.DeltaMC[Xtrindex]
+
+        MCoutfile = os.path.join(OUTDIR, 'RA',"{}_MCRA_S{}.json".format(self.obsname.replace('/', '_'),
+                                                                          self.SEED))
+        DeltaMCoutfile = os.path.join(OUTDIR, 'RA',"{}_DeltaMCRA_S{}.json".format(self.obsname.replace('/', '_'),
+                                                                   self.SEED))
+
+        m = 3
+        n = 1
+        import apprentice
+        MCRA = apprentice.RationalApproximationSIP(Xtr, MCtr,
+                                            m=m,
+                                            n=n,
+                                            trainingscale="Cp",
+                                            roboptstrategy = 'ms',
+                                            localoptsolver = 'scipy',
+                                            fitstrategy = 'filter',
+                                            strategy=0,
+                                            pnames=None,
+                                            debug = self._debug
+                                            )
+
+        DeltaMCRA = apprentice.RationalApproximationSIP(Xtr, DeltaMCtr,
+                                                   m=m,
+                                                   n=n,
+                                                   trainingscale="Cp",
+                                                   roboptstrategy='ms',
+                                                   localoptsolver='scipy',
+                                                   fitstrategy='filter',
+                                                   strategy=0,
+                                                   pnames=None,
+                                                   debug=self._debug
+                                                   )
+        if rank==0:
+            import json
+            d = {self.obsname:MCRA.asDict}
+            with open(MCoutfile, "w") as f:
+                json.dump(d, f, indent=4, sort_keys=True)
+
+            d = {self.obsname: DeltaMCRA.asDict}
+            with open(DeltaMCoutfile, "w") as f:
+                json.dump(d, f, indent=4, sort_keys=True)
+
+
+
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
     pass
@@ -654,6 +769,13 @@ if __name__ == "__main__":
                         help="Metric based on which to select the best GP parameters on.\n"
                              "REQUIRED only build type (\"-b\", \"--buildtype\") is \"savedparams\"")
 
+    parser.add_argument("--dorafold", dest="DORAFOLD", default=False, action="store_true",
+                        help="When build type (\"-b\", \"--buildtype\") is in "+ttttt+",\n"
+                            "rational approx with order (3,1) will be calculated for the current data fold.\n"
+                            "When build type (\"-b\", \"--buildtype\") is is \"savedparams\",\n"
+                            "results of the rational approx from the best fold will be printed"
+                        )
+
     parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
                         help="Turn on some debug messages")
 
@@ -678,6 +800,14 @@ if __name__ == "__main__":
         METRIC = args.METRIC,
         DEBUG = args.DEBUG
     )
+
+    if args.DORAFOLD and args.BUILDTYPE in ["data","sk"] :
+        GP.buildRAmodelFromData(OUTDIR=args.OUTDIR)
+    if args.BUILDTYPE == "savedparams":
+        GP.printRAmetrics(
+            RAFOLD = args.DORAFOLD
+        )
+
 
 
 
