@@ -44,7 +44,7 @@ class GaussianProcess():
 
 
         import apprentice
-        self.meanappset = apprentice.appset.AppSet(kwargs['APPROX'], binids=self.obsname)
+        self.meanappset = apprentice.appset.AppSet(kwargs['APPROX'], binids=[self.obsname])
         if len(self.meanappset._binids)!=1 or \
             self.meanappset._binids[0] != self.obsname:
             print("Something went wrong.\n"
@@ -55,7 +55,7 @@ class GaussianProcess():
             path, filename = os.path.split(kwargs['APPROX'])
             errfile = "err{}".format(filename)
             errfilepath = os.path.join(path,errfile)
-            self.meanerrappset = apprentice.appset.AppSet(errfilepath, binids=self.obsname)
+            self.meanerrappset = apprentice.appset.AppSet(errfilepath, binids=[self.obsname])
             if len(self.meanappset._binids) != 1 or \
                     self.meanappset._binids[0] != self.obsname:
                 print("Something went wrong.\n"
@@ -624,13 +624,13 @@ class GaussianProcess():
                                                                            seed))
                 DeltaMoutfile = os.path.join(OUTDIR, 'RA',"{}_DeltaMCRA_S{}.json".format(self.obsname.replace('/', '_'),
                                                                             seed))
-                meanappset = apprentice.appset.AppSet(Moutfile, binids=self.obsname)
+                meanappset = apprentice.appset.AppSet(Moutfile, binids=[self.obsname])
                 if len(meanappset._binids) != 1 or \
                         meanappset._binids[0] != self.obsname:
                     print("Something went wrong.\n"
                           "RA Fold Mean function could not be created.")
                     exit(1)
-                meanerrappset = apprentice.appset.AppSet(DeltaMoutfile, binids=self.obsname)
+                meanerrappset = apprentice.appset.AppSet(DeltaMoutfile, binids=[self.obsname])
                 if len(meanerrappset._binids) != 1 or \
                         meanerrappset._binids[0] != self.obsname:
                     print("Something went wrong.\n"
