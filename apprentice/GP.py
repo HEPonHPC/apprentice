@@ -166,7 +166,7 @@ class GaussianProcess():
 
         Ns = 25
 
-        np.random.seed(self.SEED)
+
 
         ############################
         # Training Data Prep
@@ -321,10 +321,13 @@ class GaussianProcess():
         import json
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
-        Ntr = int((1-self.keepout) *self.nens)
         Ns = 25
-
         np.random.seed(self.SEED)
+
+        ############################
+        # Training Data Prep
+        ############################
+        Ntr = int((1-self.keepout) *self.nens)
 
         Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
         Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
@@ -332,14 +335,8 @@ class GaussianProcess():
         MCtr = np.repeat(self.MC[Xtrindex], Ns)
 
         DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
-        DeltaMCtr2D = np.array([DeltaMCtr]).transpose()
-
-        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
-        Xte = self.X[~Xteindex, :]
-        ntest = len(Xte)
-        MCte = self.MC[~Xteindex]
-        DeltaMCte = self.DeltaMC[~Xteindex]
-        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+        DeltaMCSqByNtr = (DeltaMCtr ** 2) / Ns
+        DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
 
         # Get Ns samples of each of the Ntr training distribution
         Ytr = np.random.normal(MCtr, DeltaMCtr)
@@ -348,8 +345,19 @@ class GaussianProcess():
         Ytrmm = Ytr - Mtr
         Ytrmm2D = np.array([Ytrmm]).transpose()
 
-        # Homoscedastic noise (for now) that we will find during parameter tuning
-        # lik = GPy.likelihoods.Gaussian()
+        ############################
+        # Testing Data Prep
+        ############################
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        ntest = len(Xte)
+        MCte = self.MC[~Xteindex]
+        DeltaMCte = self.DeltaMC[~Xteindex]
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
+        ############################
+        # Miscell Init
+        ############################
         start = timer()
         if rank == 0:
             print("##############################")
@@ -385,7 +393,7 @@ class GaussianProcess():
                                                        Ytrmm2D,
                                                        kernel=kernelObjZero
                                                     )
-        modelzero['.*het_Gauss.variance'] =  DeltaMCtr2D
+        modelzero['.*het_Gauss.variance'] =  DeltaMCSqByNtr2D
         modelzero.het_Gauss.variance.fix()
         modelzero[:] = self.mpitune(modelzero,num_restarts=self.nrestart,
                                  useMPI=self.MPITUNE,robust=True)
@@ -425,6 +433,7 @@ class GaussianProcess():
             Zmean = np.array([z[0] for z in Zbar])
             Zvar = np.array([z[0] for z in Zv])
             Vmean = np.exp(Zmean + (Zvar / 2))
+            Vmean = Vmean/Ns
             Vmean2D = np.array([Vmean]).transpose()
 
             kernelObjy = self.getKernel(self.kernel, polyorder)
@@ -456,7 +465,7 @@ class GaussianProcess():
                     database['modely']['savedmodelparams'] = []
                     database['modelz']['savedmodelparams'] = []
                     database['modely']['objective'] = []
-                    database['modely']['metrics'] = {'msemetric': [], 'chi2metric': []}
+                    database['modely']['metrics'] = {'meanmsemetric': [], 'sdmsemetric':[],'chi2metric': []}
                     database['modelz']['objective'] = []
                     database['modelz']['Ztr'] = []
                 database['modely']['savedmodelparams'].append(modely.param_array.tolist())
@@ -464,8 +473,9 @@ class GaussianProcess():
                 database['modely']['objective'].append(modely.objective_function())
                 database['modelz']['objective'].append(modelz.objective_function())
                 database['modelz']['Ztr'].append(Ztr)
-                (msemetric, chi2metric) = self.getMetrics(Xte, MCte, Mte, modely, modelz)
-                database['modely']['metrics']['msemetric'].append(msemetric)
+                (meanmsemetric, sdmsemetric, chi2metric) = self.getMetrics(Xte, MCte, DeltaMCte, Mte, modely, modelz)
+                database['modely']['metrics']['meanmsemetric'].append(meanmsemetric)
+                database['modely']['metrics']['sdmsemetric'].append(sdmsemetric)
                 database['modely']['metrics']['chi2metric'].append(chi2metric)
                 database['log']['iterations_done'] = iteration
                 database['log']['timetaken'] = timer()-start
@@ -490,7 +500,6 @@ class GaussianProcess():
         metricdataForPrint = {}
         iterationdataForPrint = {}
         metrickey = self.METRIC
-        print("METRIC KEY is {}".format(metrickey))
         print("Total No. of files = {}".format(len(self.paramsavefiles)))
         for pno, pfile in enumerate(self.paramsavefiles):
             with open(pfile, 'r') as f:
@@ -517,8 +526,12 @@ class GaussianProcess():
             ds = json.load(f)
         metricarr = np.array(ds['modely']['metrics'][metrickey])
         minindex = np.argmin(metricarr)
+        print("METRIC KEY is {}".format(metrickey))
+        print("Best Kernel is {}".format(ds['kernel']))
         print("Best parameter file is: {} \nand best iteration no. is {}".format(bestparamfile,minindex+1))
-        print("with metric %.2E"%(metricarr[minindex]))
+        print("with meanmsemetric %.2E"%(ds['modely']['metrics']['meanmsemetric'][minindex]))
+        print("with sdmsemetric %.2E" % (ds['modely']['metrics']['sdmsemetric'][minindex]))
+        print("with chi2metric %.2E" % (ds['modely']['metrics']['chi2metric'][minindex]))
         Ns = ds['Ns']
 
         seed = ds['seed']
@@ -598,8 +611,10 @@ class GaussianProcess():
 
         if RAFOLD:
             import apprentice
-            metricarr = []
             filearr = []
+            msemeanarr = []
+            sdmeanarr = []
+            chi2arr = []
             for pno, pfile in enumerate(self.paramsavefiles):
                 OUTDIR = os.path.dirname(pfile)
                 with open(pfile, 'r') as f:
@@ -625,24 +640,29 @@ class GaussianProcess():
                 Mte = np.array([meanappset.vals(x)[0] for x in Xte])
                 DeltaMte = np.array([meanerrappset.vals(x)[0] for x in Xte])
 
-                if self.METRIC == "meanmsemetric":
-                    filearr.append(os.path.basename(Moutfile))
-                    metricarr.append(np.mean((Mte - MCte) ** 2))
-                elif self.METRIC == "sdmsemetric":
-                    filearr.append(os.path.basename(DeltaMoutfile))
-                    metricarr.append(np.mean((DeltaMte - DeltaMCte) ** 2))
-                elif self.METRIC == "chi2metric":
-                    filearr.append(os.path.basename(Moutfile))
-                    metricarr.append(np.mean(((Mte - MCte) / DeltaMte) ** 2))
+                filearr.append(os.path.basename(Moutfile))
+                msemeanarr.append(np.mean((Mte - MCte) ** 2))
+                sdmeanarr.append(np.mean((DeltaMte - DeltaMCte) ** 2))
+                chi2arr.append(np.mean(((Mte - MCte) / DeltaMte) ** 2))
 
-            bestindex = np.argmin(metricarr)
-            print("Best file is %s"%(filearr[bestindex]))
             if self.METRIC == "meanmsemetric":
-                print("RAMEAN (meanmsemetric_RA) is %.2E" % (metricarr[bestindex]))
+                bestindex = np.argmin(msemeanarr)
+                print("Best file is %s" % (filearr[bestindex]))
+                print("RAMEAN (meanmsemetric_RA) is %.2E" % (msemeanarr[bestindex]))
+                print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmeanarr[bestindex]))
+                print("RAMEAN (chi2metric_RA) is %.2E" % (chi2arr[bestindex]))
             elif self.METRIC == "sdmsemetric":
-                print("RAMEAN (sdmsemetric_RA) is %.2E" % (metricarr[bestindex]))
+                bestindex = np.argmin(sdmeanarr)
+                print("Best file is %s" % (filearr[bestindex]))
+                print("RAMEAN (meanmsemetric_RA) is %.2E" % (msemeanarr[bestindex]))
+                print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmeanarr[bestindex]))
+                print("RAMEAN (chi2metric_RA) is %.2E" % (chi2arr[bestindex]))
             elif self.METRIC == "chi2metric":
-                print("RAMEAN (chi2metric_RA) is %.2E" % (metricarr[bestindex]))
+                bestindex = np.argmin(chi2arr)
+                print("Best file is %s" % (filearr[bestindex]))
+                print("RAMEAN (meanmsemetric_RA) is %.2E" % (msemeanarr[bestindex]))
+                print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmeanarr[bestindex]))
+                print("RAMEAN (chi2metric_RA) is %.2E" % (chi2arr[bestindex]))
         else:
             Mte = np.array([self.approxmeancountval(x) for x in Xte])
             DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
