@@ -67,7 +67,7 @@ class GaussianProcess():
         elif self.buildtype == 'sk':
             self.modely,self.modelz = self.buildSKmodelFromData()
         elif self.buildtype == 'savedparams':
-            self.modely,self.modelz,bestparamfile = self.buildGPmodelFromSavedParam()
+            self.modely,self.modelz,self.bestparamfile = self.buildGPmodelFromSavedParam()
 
     def errapproxmeancountval(self, x):
         return self.meanerrappset.vals(x)[0]
@@ -621,7 +621,7 @@ class GaussianProcess():
     def printRAmetrics(self,RAFOLD):
 
         print("\n\n\n\n")
-        modely,modelz,bestparamfile = self.buildGPmodelFromSavedParam()
+        bestparamfile = self.bestparamfile
         import json
         with open(bestparamfile, 'r') as f:
             ds = json.load(f)
