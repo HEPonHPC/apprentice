@@ -686,6 +686,7 @@ class GaussianProcess():
                 print("RAMEAN (meanmsemetric_RA) is %.2E" % (msemeanarr[bestindex]))
                 print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmeanarr[bestindex]))
                 print("RAMEAN (chi2metric_RA) is %.2E" % (chi2arr[bestindex]))
+            return self.paramsavefiles[bestindex]
         else:
             Mte = np.array([self.approxmeancountval(x) for x in Xte])
             DeltaMte = np.array([self.errapproxmeancountval(x) for x in Xte])
@@ -698,6 +699,7 @@ class GaussianProcess():
             elif self.METRIC == "chi2metric":
                 chi2metric_RA = np.mean(((Mte - MCte) / DeltaMte) ** 2)
                 print("RAMEAN (chi2metric_RA) is %.2E" % chi2metric_RA)
+        return None
 
     def buildRAmodelFromData(self,OUTDIR):
         comm = MPI.COMM_WORLD
