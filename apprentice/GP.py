@@ -574,7 +574,25 @@ class GaussianProcess():
 
         return modely,modelz,bestparamfile
 
-    def getMetrics(self,Xte,MCte,DeltaMCte,Mte,modely,modelz):
+    def predict(self,Xte):
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+        Zbar, Zv = self.modelz.predict(Xte)
+        Zmean = np.array([z[0] for z in Zbar])
+        Zvar = np.array([z[0] for z in Zv])
+        Vmean = np.exp(Zmean + (Zvar / 2))
+
+        ybar, vy = self.modely._raw_predict(Xte)
+
+        Ymean = np.array([y[0] for y in ybar])
+        Ymean += Mte
+
+        Yvar = np.array([y[0] for y in vy])
+        Yvar += Vmean
+        Ysd = np.sqrt(Yvar)
+
+        return Ymean,Ysd
+
+    def predictStatic(self,Xte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
         Zvar = np.array([z[0] for z in Zv])
@@ -588,6 +606,11 @@ class GaussianProcess():
         Yvar = np.array([y[0] for y in vy])
         Yvar += Vmean
         Ysd = np.sqrt(Yvar)
+
+        return Ymean,Ysd
+
+    def getMetrics(self,Xte,MCte,DeltaMCte,Mte,modely,modelz):
+        (Ymean, Ysd) = self.predictStatic(Xte,Mte,modely,modelz)
 
         ############### METRIC
         chi2metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
