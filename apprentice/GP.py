@@ -23,7 +23,7 @@ class GaussianProcess():
         self.buildtype = kwargs['BUILDTYPE']
         self._debug = kwargs['DEBUG']
 
-        if self.buildtype in ["data","sk"]:
+        if self.buildtype in ["data","sk","gp"]:
             self.MPITUNE = kwargs['MPITUNE']
             self.SEED  = kwargs['SEED']
             self.STOPCOND = kwargs['STOPCOND']
@@ -63,9 +63,12 @@ class GaussianProcess():
                       "This code does not support multi output GP")
                 exit(1)
         if self.buildtype == 'data':
-            self.modely,self.modelz = self.buildGPmodelFromData()
+            self.modely,self.modelz = self.buildHGPmodelFromData()
         elif self.buildtype == 'sk':
             self.modely,self.modelz = self.buildSKmodelFromData()
+        elif self.buildtype == 'gp':
+            self.modely = self.buildGPmodelFromData()
+            self.modelz = None
         elif self.buildtype == 'savedparams':
             self.modely,self.modelz,self.bestparamfile = self.buildGPmodelFromSavedParam()
 
@@ -321,6 +324,130 @@ class GaussianProcess():
         import json
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
+
+        Ns = 25
+        ############################
+        # Training Data Prep
+        ############################
+        Ntr = int((1 - self.keepout) * self.nens)
+
+        Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
+        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+
+        MCtr = np.repeat(self.MC[Xtrindex], Ns)
+
+        DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
+        DeltaMCSqByNtr = (DeltaMCtr**2)/Ns
+        DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
+
+        Ytr = np.random.normal(MCtr, DeltaMCtr)
+        Mtr = np.array([self.approxmeancountval(x) for x in Xtr])
+        # Y-M (Training labels)
+        Ytrmm = Ytr - Mtr
+        Ytrmm2D = np.array([Ytrmm]).transpose()
+
+        ############################
+        # Testing Data Prep
+        ############################
+        Xteindex = np.in1d(np.arange(self.nens), Xtrindex)
+        Xte = self.X[~Xteindex, :]
+        ntest = len(Xte)
+        MCte = self.MC[~Xteindex]
+        DeltaMCte = self.DeltaMC[~Xteindex]
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
+
+        ############################
+        # Miscell Init
+        ############################
+        start = timer()
+        if rank == 0:
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+
+        polyorder = None
+        if self.kernel in ['poly', 'or']:
+            polyorder = 3
+        if rank == 0:
+            database = {
+                # "savedmodelparams": model.param_array.tolist(),
+                # "param_names_flat": model.parameter_names_flat().tolist(),
+                # "param_names": model.parameter_names(),
+                "Ntr": Ntr,
+                "Ns": Ns,
+                'seed': self.SEED,
+                'kernel': self.kernel,
+                "keepout": self.keepout * 100,
+                "obsname": self.obsname,
+                "Xtrindex": Xtrindex.tolist(),
+                "Ytrmm": Ytrmm.tolist(),
+                'buildtype':self.buildtype,
+                'modely': {},
+                'log': {'stopcond': self.STOPCOND}
+
+            }
+            if self.kernel in ['poly', 'or']:
+                database['polyorder'] = polyorder
+
+        ############################
+        # Kernel for y
+        ############################
+        kernelObjY = self.getKernel(self.kernel, polyorder)
+
+        ############################
+        # Likelihood for y
+        ############################
+        liklihoodY = GPy.likelihoods.Gaussian()
+
+        ############################
+        # GP Model y
+        ############################
+        modelY = GPy.core.GP(Xtr,
+                            Ytrmm2D,
+                            kernel=kernelObjY,
+                            likelihood=liklihoodY
+                            )
+        ############################
+        # Tune GP Model y
+        ############################
+        modelY[:] = self.mpitune(modelY, num_restarts=self.nrestart,
+                                    useMPI=self.MPITUNE, robust=True)
+        modelY.update_model(True)
+        if self._debug and rank == 0:
+            print(modelY.objective_function())
+
+        ############################
+        # Dump Results and Exit
+        ############################
+        if rank == 0:
+            database['modely']['param_names_flat'] = modelY.parameter_names_flat().tolist()
+            database['modely']["param_names"] = modelY.parameter_names()
+            database['modely']['savedmodelparams'] = []
+            database['modely']['objective'] = []
+            database['modely']['metrics'] = {'meanmsemetric': [], 'sdmsemetric':[],'chi2metric': []}
+            database['modely']['savedmodelparams'].append(modelY.param_array.tolist())
+            database['modely']['objective'].append(modelY.objective_function())
+            (meanmsemetric, sdmsemetric, chi2metric) = self.getMetrics(Xte, MCte, DeltaMCte,Mte, modelY, None)
+            database['modely']['metrics']['meanmsemetric'].append(meanmsemetric)
+            database['modely']['metrics']['sdmsemetric'].append(sdmsemetric)
+            database['modely']['metrics']['chi2metric'].append(chi2metric)
+            database['log']['iterations_done'] = None
+            database['log']['timetaken'] = timer() - start
+            with open(self.outfile, 'w') as f:
+                json.dump(database, f, indent=4)
+
+            print("##############################")
+            print(datetime.datetime.now())
+            print("##############################")
+            sys.stdout.flush()
+        return modelY
+
+    def buildHGPmodelFromData(self):
+        import json
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
         Ns = 25
         np.random.seed(self.SEED)
 
@@ -548,33 +675,44 @@ class GaussianProcess():
         Ytrmm2D = np.array([Ytrmm]).transpose()
 
         kernelObjy = self.getKernel(kernel, polyorder)
-        kernelObjz = self.getKernel(kernel, polyorder)
-        modely = GPy.models.GPHeteroscedasticRegression(Xtr,
-                                                        Ytrmm2D,
-                                                        kernel=kernelObjy
-                                                        )
-        modely.update_model(False)
-        modely.initialize_parameter()
-        modely[:] = ds['modely']['savedmodelparams'][minindex]
-        modely.update_model(True)
+        if 'buildtype' not in ds or ds['buildtype'] != "gp":
+            modely = GPy.models.GPHeteroscedasticRegression(Xtr,
+                                                            Ytrmm2D,
+                                                            kernel=kernelObjy
+                                                            )
+        else:
+            liklihoodY = GPy.likelihoods.Gaussian()
+            modely = GPy.core.GP(Xtr,
+                            Ytrmm2D,
+                            kernel=kernelObjy,
+                            likelihood=liklihoodY
+                            )
+            modely.update_model(False)
+            modely.initialize_parameter()
+            modely[:] = ds['modely']['savedmodelparams'][minindex]
+            modely.update_model(True)
 
-        Ztr = ds['modelz']['Ztr'][minindex]
-        Ztr2D = np.array([Ztr]).transpose()
+        modelz = None
+        if 'buildtype' not in ds or ds['buildtype'] != "gp":
+            kernelObjz = self.getKernel(kernel, polyorder)
 
-        modelz = GPy.models.GPRegression(
-            self.X[Xtrindex, :],
-            Ztr2D,
-            kernel=kernelObjz,
-            normalizer=True
-        )
-        modelz.update_model(False)
-        modelz.initialize_parameter()
-        modelz[:] = ds['modelz']['savedmodelparams'][minindex]
-        modelz.update_model(True)
+            Ztr = ds['modelz']['Ztr'][minindex]
+            Ztr2D = np.array([Ztr]).transpose()
+
+            modelz = GPy.models.GPRegression(
+                self.X[Xtrindex, :],
+                Ztr2D,
+                kernel=kernelObjz,
+                normalizer=True
+            )
+            modelz.update_model(False)
+            modelz.initialize_parameter()
+            modelz[:] = ds['modelz']['savedmodelparams'][minindex]
+            modelz.update_model(True)
 
         return modely,modelz,bestparamfile
 
-    def predict(self,Xte):
+    def predictHeteroscedastic(self,Xte):
         Mte = np.array([self.approxmeancountval(x) for x in Xte])
         Zbar, Zv = self.modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
@@ -592,7 +730,18 @@ class GaussianProcess():
 
         return Ymean,Ysd
 
-    def predictStatic(self,Xte,Mte,modely,modelz):
+    def predictStaticHomoscedastic(self, Xte, Mte, modely):
+        ybar, vy = modely.predict(Xte)
+
+        Ymean = np.array([y[0] for y in ybar])
+        Ymean += Mte
+
+        Yvar = np.array([y[0] for y in vy])
+        Ysd = np.sqrt(Yvar)
+
+        return Ymean, Ysd
+
+    def predictStaticHeteroscedastic(self,Xte,Mte,modely,modelz):
         Zbar, Zv = modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
         Zvar = np.array([z[0] for z in Zv])
@@ -610,7 +759,10 @@ class GaussianProcess():
         return Ymean,Ysd
 
     def getMetrics(self,Xte,MCte,DeltaMCte,Mte,modely,modelz):
-        (Ymean, Ysd) = self.predictStatic(Xte,Mte,modely,modelz)
+        if modelz is None:
+            (Ymean, Ysd) = self.predictStaticHomoscedastic(Xte,Mte,modely)
+        else:
+            (Ymean, Ysd) = self.predictStaticHeteroscedastic(Xte, Mte, modely, modelz)
 
         ############### METRIC
         chi2metric = np.mean(((Ymean - MCte) / Ysd) ** 2)
@@ -763,7 +915,8 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    ttttt = "[\"data\", \"sk\"]"
+    #TODO Change "data" type to "hgp"
+    ttttt = "[\"data\", \"sk\", \"gp\"]"
     parser = argparse.ArgumentParser(description='Baysian Optimal Experimental Design for Model Fitting',
                                      formatter_class=SaneFormatter)
     requiredNamed = parser.add_argument_group('required arguments')
@@ -771,7 +924,7 @@ if __name__ == "__main__":
                         help="Polynomial/Rational approximation file over MC mean counts\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-b", "--buildtype", dest="BUILDTYPE", type=str, default="data", required=True,
-                        choices=["data","savedparams","sk"],
+                        choices=["data","savedparams","sk","gp"],
                         help="Build type\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-d", "--datafile", dest="DATAFILE", type=str, default=None, required=True,
@@ -848,7 +1001,7 @@ if __name__ == "__main__":
         DEBUG = args.DEBUG
     )
 
-    if args.DORAFOLD and args.BUILDTYPE in ["data","sk"] :
+    if args.DORAFOLD and args.BUILDTYPE in ["data","sk","gp"] :
         GP.buildRAmodelFromData(OUTDIR=args.OUTDIR)
     if args.BUILDTYPE == "savedparams":
         GP.printRAmetrics(
