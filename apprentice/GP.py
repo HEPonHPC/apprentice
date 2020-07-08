@@ -730,6 +730,19 @@ class GaussianProcess():
 
         return Ymean,Ysd
 
+    def predictHomoscedastic(self,Xte):
+        Mte = np.array([self.approxmeancountval(x) for x in Xte])
+
+        ybar, vy = self.modely.predict(Xte)
+
+        Ymean = np.array([y[0] for y in ybar])
+        Ymean += Mte
+
+        Yvar = np.array([y[0] for y in vy])
+        Ysd = np.sqrt(Yvar)
+
+        return Ymean,Ysd
+
     def predictStaticHomoscedastic(self, Xte, Mte, modely):
         ybar, vy = modely.predict(Xte)
 

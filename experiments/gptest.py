@@ -16,7 +16,12 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
 
     # RESULTS
     print("################ RESULTS START HERE")
-    Ymean, Ysd = GP.predict(X)
+    with open(GP.bestparamfile, 'r') as f:
+        ds = json.load(f)
+    if 'buildtype' not in ds or ds['buildtype'] != "gp":
+        Ymean, Ysd = GP.predictHeteroscedastic(X)
+    else:
+        Ymean, Ysd = GP.predictHomoscedastic(X)
     chi2metric = np.mean(((Ymean - MC) / Ysd) ** 2)
     meanmsemetric = np.mean((Ymean - MC) ** 2)
     sdmsemetric = np.mean((Ysd - DeltaMC) ** 2)
