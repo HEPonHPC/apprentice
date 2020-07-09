@@ -332,15 +332,23 @@ class GaussianProcess():
         Ntr = int((1 - self.keepout) * self.nens)
 
         Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
-        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+        ################################################################
+        # Comment out for using only MC as Ytr - START
+        ################################################################
+        # Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+        Xtr = self.X[Xtrindex, :] # to revert back comment this line and uncomment line above
 
-        MCtr = np.repeat(self.MC[Xtrindex], Ns)
+        # MCtr = np.repeat(self.MC[Xtrindex], Ns)
 
-        DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
-        DeltaMCSqByNtr = (DeltaMCtr**2)/Ns
-        DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
+        # DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
+        # DeltaMCSqByNtr = (DeltaMCtr**2)/Ns
+        # DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
 
-        Ytr = np.random.normal(MCtr, DeltaMCtr)
+        # Ytr = np.random.normal(MCtr, DeltaMCtr)
+        Ytr = self.MC[Xtrindex] # to revert back comment this line and uncomment line above
+        ################################################################
+        # Comment out for using only MC as Ytr - END
+        ################################################################
         Mtr = np.array([self.approxmeancountval(x) for x in Xtr])
         # Y-M (Training labels)
         Ytrmm = Ytr - Mtr
