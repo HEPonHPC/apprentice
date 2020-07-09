@@ -168,6 +168,7 @@ class GaussianProcess():
         rank = comm.Get_rank()
 
         Ns = 25
+        np.random.seed(self.SEED)
 
 
 
@@ -324,6 +325,7 @@ class GaussianProcess():
         import json
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
+        np.random.seed(self.SEED)
 
         Ns = 25
         ############################
