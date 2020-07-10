@@ -680,17 +680,27 @@ class GaussianProcess():
             polyorder = ds['polyorder']
 
         Xtrindex = ds['Xtrindex']
-        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
-        Ytrmm = ds['Ytrmm']
-        Ytrmm2D = np.array([Ytrmm]).transpose()
 
         kernelObjy = self.getKernel(kernel, polyorder)
         if 'buildtype' not in ds or ds['buildtype'] != "gp":
+            Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
             modely = GPy.models.GPHeteroscedasticRegression(Xtr,
                                                             Ytrmm2D,
                                                             kernel=kernelObjy
                                                             )
         else:
+            ################################################################
+            # Comment out for using only MC as Ytr - START
+            ################################################################
+            # Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            Xtr = self.X[Xtrindex, :]  # to revert back comment this line and uncomment line above
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+            ################################################################
+            # Comment out for using only MC as Ytr - END
+            ################################################################
             liklihoodY = GPy.likelihoods.Gaussian()
             modely = GPy.core.GP(Xtr,
                             Ytrmm2D,
