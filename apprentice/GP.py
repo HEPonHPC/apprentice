@@ -23,7 +23,7 @@ class GaussianProcess():
         self.buildtype = kwargs['BUILDTYPE']
         self._debug = kwargs['DEBUG']
 
-        if self.buildtype in ["data","sk","gp"]:
+        if self.buildtype in ["mlhgp","sk","gp"]:
             self.MPITUNE = kwargs['MPITUNE']
             self.SEED  = kwargs['SEED']
             self.STOPCOND = kwargs['STOPCOND']
@@ -62,8 +62,8 @@ class GaussianProcess():
                       "Error mean function could not be created.\n"
                       "This code does not support multi output GP")
                 exit(1)
-        if self.buildtype == 'data':
-            self.modely,self.modelz = self.buildHGPmodelFromData()
+        if self.buildtype == 'mlhgp':
+            self.modely,self.modelz = self.buildMLHGPmodelFromData()
         elif self.buildtype == 'sk':
             self.modely,self.modelz = self.buildSKmodelFromData()
         elif self.buildtype == 'gp':
@@ -454,7 +454,7 @@ class GaussianProcess():
             sys.stdout.flush()
         return modelY
 
-    def buildHGPmodelFromData(self):
+    def buildMLHGPmodelFromData(self):
         import json
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -467,16 +467,10 @@ class GaussianProcess():
         Ntr = int((1-self.keepout) *self.nens)
 
         Xtrindex = np.random.choice(np.arange(self.nens), Ntr, replace=False)
-        Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+        Xtr = self.X[Xtrindex, :]
 
-        MCtr = np.repeat(self.MC[Xtrindex], Ns)
+        Ytr = self.MC[Xtrindex]
 
-        DeltaMCtr = np.repeat(self.DeltaMC[Xtrindex], Ns)
-        DeltaMCSqByNtr = (DeltaMCtr ** 2) / Ns
-        DeltaMCSqByNtr2D = np.array([DeltaMCSqByNtr]).transpose()
-
-        # Get Ns samples of each of the Ntr training distribution
-        Ytr = np.random.normal(MCtr, DeltaMCtr)
         Mtr = np.array([self.approxmeancountval(x) for x in Xtr])
         # Y-M (Training labels)
         Ytrmm = Ytr - Mtr
@@ -525,92 +519,161 @@ class GaussianProcess():
             if self.kernel in ['poly', 'or']:
                 database['polyorder'] = polyorder
 
-        kernelObjZero = self.getKernel(self.kernel, polyorder)
-        modelzero = GPy.models.GPHeteroscedasticRegression(Xtr,
-                                                       Ytrmm2D,
-                                                       kernel=kernelObjZero
-                                                    )
-        modelzero['.*het_Gauss.variance'] =  DeltaMCSqByNtr2D
-        modelzero.het_Gauss.variance.fix()
-        modelzero[:] = self.mpitune(modelzero,num_restarts=self.nrestart,
-                                 useMPI=self.MPITUNE,robust=True)
-        modelzero.update_model(True)
-        if self._debug and rank == 0:
-            print(modelzero.objective_function())
+        ############################
+        # Kernel for y0
+        ############################
+        kernelObjY0 = self.getKernel(self.kernel, polyorder)
 
-        currenthetobjective = modelzero.objective_function()
+        ############################
+        # Likelihood for y0
+        ############################
+        liklihoodY0 = GPy.likelihoods.Gaussian()
+
+        ############################
+        # GP Model y0
+        ############################
+        modelY0 = GPy.core.GP(Xtr,
+                             Ytrmm2D,
+                             kernel=kernelObjY0,
+                             likelihood=liklihoodY0
+                             )
+        ############################
+        # Tune GP Model y0
+        ############################
+        modelY0[:] = self.mpitune(modelY0, num_restarts=self.nrestart,
+                                 useMPI=self.MPITUNE, robust=True)
+        modelY0.update_model(True)
+        if self._debug and rank == 0:
+            print(modelY0.objective_function())
+
+        ############################
+        # Prepare to iterate
+        ############################
+        currenthetobjective = modelY0.objective_function()
         oldhetobjective = np.infty
-        modely = modelzero
+        modelY = modelY0
         iteration = 0
+        maxIterations=200
         bestobjectivey = np.infty
         bestmodely = None
         bestmodelz = None
+        modelZ = None
+
+        ############################
+        # Iterate
+        ############################
         while (currenthetobjective-oldhetobjective)**2 > self.STOPCOND:
-            Ybar = modely._raw_predict(Xtr)[0]
-            Ymean = np.array([y[0] for y in Ybar])
-            Ymean += Mtr
-            Vtr = (Ytr - Ymean)**2
-            Vtr = Vtr.reshape(Ntr, Ns).sum(axis=1) / Ns
+            ########################################################
+            # Estimate emperical variance for all training data
+            ########################################################
+            if iteration == 0:
+                Ymean, Ysd = self.predictStaticHomoscedastic(Xtr,Mtr,modelY)
+            else:
+                Ymean, Ysd = self.predictStaticHeteroscedastic(Xtr,Mtr,modelY,modelZ)
+
+            Vtr = []
+            for no,(mean,sd) in enumerate(zip(Ymean,Ysd)):
+                samples = np.random.normal(mean,sd,Ns)
+                sqr = [0.5*((Ytr[no]-s)**2) for s in samples]
+                val = sum(sqr)/Ns
+                Vtr.append(val)
+
+            ########################################################
+            # Construct training data for GP Z
+            ########################################################
             Ztr = [np.log(v) for v in Vtr]
             Ztr2D = np.array([Ztr]).transpose()
-            kernelObjz = self.getKernel(self.kernel, polyorder)
-            modelz = GPy.models.GPRegression(
+
+            ############################
+            # Kernel for z
+            ############################
+            kernelObjZ = self.getKernel(self.kernel, polyorder)
+
+            ############################
+            # GP Model z
+            ############################
+            modelZ = GPy.models.GPRegression(
                                 self.X[Xtrindex, :],
                                 Ztr2D,
-                                kernel=kernelObjz,
+                                kernel=kernelObjZ,
                                 normalizer = True
                                 )
-            modelz[:] = self.mpitune(modelz, num_restarts=self.nrestart,
+            ############################
+            # Tune GP Model z
+            ############################
+            modelZ[:] = self.mpitune(modelZ, num_restarts=self.nrestart,
                                   useMPI=self.MPITUNE, robust=True)
-            modelz.update_model(True)
+            modelZ.update_model(True)
             if self._debug and rank == 0:
-                 print(modelz.objective_function())
+                 print(modelZ.objective_function())
 
-            Zbar,Zv = modelz.predict(Xtr)
+            ########################################################
+            # Construct the heteroscedastic variance for y
+            ########################################################
+            Zbar,Zv = modelZ.predict(Xtr)
             Zmean = np.array([z[0] for z in Zbar])
             Zvar = np.array([z[0] for z in Zv])
             Vmean = np.exp(Zmean + (Zvar / 2))
-            Vmean = Vmean/Ns
             Vmean2D = np.array([Vmean]).transpose()
 
-            kernelObjy = self.getKernel(self.kernel, polyorder)
-            modely = GPy.models.GPHeteroscedasticRegression(Xtr,
+            ############################
+            # Kernel for y
+            ############################
+            kernelObjY = self.getKernel(self.kernel, polyorder)
+
+            ############################
+            # GP Model y
+            ############################
+            modelY = GPy.models.GPHeteroscedasticRegression(Xtr,
                                                             Ytrmm2D,
-                                                            kernel=kernelObjy
+                                                            kernel=kernelObjY
                                                             )
-            modely['.*het_Gauss.variance'] = Vmean2D
-            modely.het_Gauss.variance.fix()
-            modely[:] = self.mpitune(modely, num_restarts=self.nrestart,
+            ########################################################
+            # Set heteroscedastic variance for y
+            ########################################################
+            modelY['.*het_Gauss.variance'] = Vmean2D
+            modelY.het_Gauss.variance.fix()
+
+            ############################
+            # Tune GP Model y
+            ############################
+            modelY[:] = self.mpitune(modelY, num_restarts=self.nrestart,
                                   useMPI=self.MPITUNE, robust=True)
-            modely.update_model(True)
+            modelY.update_model(True)
             if self._debug and rank == 0:
-                 print(modely.objective_function())
+                 print(modelY.objective_function())
 
+            ############################
+            # Record progress of iteration
+            ############################
             oldhetobjective = currenthetobjective
-            currenthetobjective = modely.objective_function()
-            if bestobjectivey > modely.objective_function():
-                bestobjectivey = modely.objective_function()
-                bestmodely = modely
-                bestmodelz = modelz
+            currenthetobjective = modelY.objective_function()
+            if bestobjectivey > modelY.objective_function():
+                bestobjectivey = modelY.objective_function()
+                bestmodely = modelY
+                bestmodelz = modelZ
 
+            ############################
+            # Dump Results
+            ############################
             if rank == 0:
                 if iteration==0:
-                    database['modely']['param_names_flat'] = modely.parameter_names_flat().tolist()
-                    database['modelz']['param_names_flat'] = modelz.parameter_names_flat().tolist()
-                    database['modely']["param_names"] = modely.parameter_names()
-                    database['modelz']["param_names"] = modelz.parameter_names()
+                    database['modely']['param_names_flat'] = modelY.parameter_names_flat().tolist()
+                    database['modelz']['param_names_flat'] = modelZ.parameter_names_flat().tolist()
+                    database['modely']["param_names"] = modelY.parameter_names()
+                    database['modelz']["param_names"] = modelZ.parameter_names()
                     database['modely']['savedmodelparams'] = []
                     database['modelz']['savedmodelparams'] = []
                     database['modely']['objective'] = []
                     database['modely']['metrics'] = {'meanmsemetric': [], 'sdmsemetric':[],'chi2metric': []}
                     database['modelz']['objective'] = []
                     database['modelz']['Ztr'] = []
-                database['modely']['savedmodelparams'].append(modely.param_array.tolist())
-                database['modelz']['savedmodelparams'].append(modelz.param_array.tolist())
-                database['modely']['objective'].append(modely.objective_function())
-                database['modelz']['objective'].append(modelz.objective_function())
+                database['modely']['savedmodelparams'].append(modelY.param_array.tolist())
+                database['modelz']['savedmodelparams'].append(modelZ.param_array.tolist())
+                database['modely']['objective'].append(modelY.objective_function())
+                database['modelz']['objective'].append(modelZ.objective_function())
                 database['modelz']['Ztr'].append(Ztr)
-                (meanmsemetric, sdmsemetric, chi2metric) = self.getMetrics(Xte, MCte, DeltaMCte, Mte, modely, modelz)
+                (meanmsemetric, sdmsemetric, chi2metric) = self.getMetrics(Xte, MCte, DeltaMCte, Mte, modelY, modelZ)
                 database['modely']['metrics']['meanmsemetric'].append(meanmsemetric)
                 database['modely']['metrics']['sdmsemetric'].append(sdmsemetric)
                 database['modely']['metrics']['chi2metric'].append(chi2metric)
@@ -618,9 +681,16 @@ class GaussianProcess():
                 database['log']['timetaken'] = timer()-start
                 with open(self.outfile, 'w') as f:
                     json.dump(database, f, indent=4)
-                print('On iteration {}, OBJDIFF is {}\n'.format(iteration,(currenthetobjective-oldhetobjective)**2))
+                if self._debug:
+                    print('On iteration {}, OBJDIFF is {}\n'.format(iteration,(currenthetobjective-oldhetobjective)**2))
                 sys.stdout.flush()
             iteration += 1
+
+            ############################
+            # Check Max Iterations
+            ############################
+            if iteration == maxIterations:
+                break
 
         if rank == 0:
             print("##############################")
@@ -948,16 +1018,15 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    #TODO Change "data" type to "hgp"
-    ttttt = "[\"data\", \"sk\", \"gp\"]"
+    ttttt = "[\"mlhgp\", \"sk\", \"gp\"]"
     parser = argparse.ArgumentParser(description='Baysian Optimal Experimental Design for Model Fitting',
                                      formatter_class=SaneFormatter)
     requiredNamed = parser.add_argument_group('required arguments')
     requiredNamed.add_argument("-a", "--approx", dest="APPROX", type=str, default=None,required=True,
                         help="Polynomial/Rational approximation file over MC mean counts\n"
                              "REQUIRED argument")
-    requiredNamed.add_argument("-b", "--buildtype", dest="BUILDTYPE", type=str, default="data", required=True,
-                        choices=["data","savedparams","sk","gp"],
+    requiredNamed.add_argument("-b", "--buildtype", dest="BUILDTYPE", type=str, default="gp", required=True,
+                        choices=["mlhgp","savedparams","sk","gp"],
                         help="Build type\n"
                              "REQUIRED argument")
     requiredNamed.add_argument("-d", "--datafile", dest="DATAFILE", type=str, default=None, required=True,
@@ -1034,7 +1103,7 @@ if __name__ == "__main__":
         DEBUG = args.DEBUG
     )
 
-    if args.DORAFOLD and args.BUILDTYPE in ["data","sk","gp"] :
+    if args.DORAFOLD and args.BUILDTYPE in ["mlhgp","sk","gp"] :
         GP.buildRAmodelFromData(OUTDIR=args.OUTDIR)
     if args.BUILDTYPE == "savedparams":
         GP.printRAmetrics(
