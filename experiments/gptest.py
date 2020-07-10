@@ -38,7 +38,7 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     # print(Ysd)
     os.makedirs(OUTDIR,exist_ok=True)
     datatdump = np.column_stack((X,Ymean,Ysd))
-    np.savetxt(os.path.join(OUTDIR,"GPpred_{}.csv".format(ds["obsname"])), datatdump, delimiter=',')
+    np.savetxt(os.path.join(OUTDIR,"{}.csv".format(ds["obsname"])), datatdump, delimiter=',')
     ############################################
 
     if bestparamfileForRA is not None:
