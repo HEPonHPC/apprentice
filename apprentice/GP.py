@@ -228,6 +228,7 @@ class GaussianProcess():
                 "keepout": self.keepout * 100,
                 "obsname": self.obsname,
                 "Xtrindex": Xtrindex.tolist(),
+                'buildtype': self.buildtype,
                 "Ytrmm": Ytrmm.tolist(),
                 'modely': {},
                 'modelz': {},
@@ -511,6 +512,7 @@ class GaussianProcess():
                 "keepout": self.keepout * 100,
                 "obsname": self.obsname,
                 "Xtrindex": Xtrindex.tolist(),
+                'buildtype': self.buildtype,
                 "Ytrmm": Ytrmm.tolist(),
                 'modely':{},
                 'modelz':{},
@@ -752,7 +754,40 @@ class GaussianProcess():
         Xtrindex = ds['Xtrindex']
 
         kernelObjy = self.getKernel(kernel, polyorder)
-        if 'buildtype' not in ds or ds['buildtype'] != "gp":
+
+        if 'buildtype' in ds and ds['buildtype'] == "mlhgp":
+            ################################################################
+            # Comment out for using only MC as Ytr - START
+            ################################################################
+            # Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            Xtr = self.X[Xtrindex, :]  # to revert back comment this line and uncomment line above
+            ################################################################
+            # Comment out for using only MC as Ytr - END
+            ################################################################
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+            modely = GPy.models.GPHeteroscedasticRegression(Xtr,
+                                                            Ytrmm2D,
+                                                            kernel=kernelObjy
+                                                            )
+        elif 'buildtype' in ds and ds['buildtype'] == "gp":
+            ################################################################
+            # Comment out for using only MC as Ytr - START
+            ################################################################
+            # Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
+            Xtr = self.X[Xtrindex, :]  # to revert back comment this line and uncomment line above
+            ################################################################
+            # Comment out for using only MC as Ytr - END
+            ################################################################
+            Ytrmm = ds['Ytrmm']
+            Ytrmm2D = np.array([Ytrmm]).transpose()
+            liklihoodY = GPy.likelihoods.Gaussian()
+            modely = GPy.core.GP(Xtr,
+                            Ytrmm2D,
+                            kernel=kernelObjy,
+                            likelihood=liklihoodY
+                            )
+        else:
             Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
             Ytrmm = ds['Ytrmm']
             Ytrmm2D = np.array([Ytrmm]).transpose()
@@ -760,27 +795,11 @@ class GaussianProcess():
                                                             Ytrmm2D,
                                                             kernel=kernelObjy
                                                             )
-        else:
-            ################################################################
-            # Comment out for using only MC as Ytr - START
-            ################################################################
-            # Xtr = np.repeat(self.X[Xtrindex, :], [Ns] * len(Xtrindex), axis=0)
-            Xtr = self.X[Xtrindex, :]  # to revert back comment this line and uncomment line above
-            Ytrmm = ds['Ytrmm']
-            Ytrmm2D = np.array([Ytrmm]).transpose()
-            ################################################################
-            # Comment out for using only MC as Ytr - END
-            ################################################################
-            liklihoodY = GPy.likelihoods.Gaussian()
-            modely = GPy.core.GP(Xtr,
-                            Ytrmm2D,
-                            kernel=kernelObjy,
-                            likelihood=liklihoodY
-                            )
-            modely.update_model(False)
-            modely.initialize_parameter()
-            modely[:] = ds['modely']['savedmodelparams'][minindex]
-            modely.update_model(True)
+
+        modely.update_model(False)
+        modely.initialize_parameter()
+        modely[:] = ds['modely']['savedmodelparams'][minindex]
+        modely.update_model(True)
 
         modelz = None
         if 'buildtype' not in ds or ds['buildtype'] != "gp":
