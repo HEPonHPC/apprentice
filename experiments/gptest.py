@@ -22,6 +22,12 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
         Ymean, Ysd = GP.predictHeteroscedastic(X)
     else:
         Ymean, Ysd = GP.predictHomoscedastic(X)
+    buildtype = ""
+    if 'buildtype' in ds:
+        buildtype = ds['buildtype']
+    else:
+        print("Buildtype not in ds not implemented")
+        sys.exit(1)
     chi2metric = np.mean(((Ymean - MC) / Ysd) ** 2)
     meanmsemetric = np.mean((Ymean - MC) ** 2)
     sdmsemetric = np.mean((Ysd - DeltaMC) ** 2)
@@ -43,13 +49,13 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
 
     if bestparamfileForRA is not None:
         import apprentice
-        OUTDIR = os.path.dirname(bestparamfileForRA)
+        OUTDIRRA = os.path.dirname(bestparamfileForRA)
         with open(bestparamfileForRA, 'r') as f:
             ds = json.load(f)
         seed = ds['seed']
-        Moutfile = os.path.join(OUTDIR, 'RA', "{}_MCRA_S{}.json".format(GP.obsname.replace('/', '_'),
+        Moutfile = os.path.join(OUTDIRRA, 'RA', "{}_MCRA_S{}.json".format(GP.obsname.replace('/', '_'),
                                                                         seed))
-        DeltaMoutfile = os.path.join(OUTDIR, 'RA', "{}_DeltaMCRA_S{}.json".format(GP.obsname.replace('/', '_'),
+        DeltaMoutfile = os.path.join(OUTDIRRA, 'RA', "{}_DeltaMCRA_S{}.json".format(GP.obsname.replace('/', '_'),
                                                                         seed))
 
         meanappset = apprentice.appset.AppSet(Moutfile, binids=[GP.obsname])
@@ -71,10 +77,32 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     else:
         Mte = np.array([GP.approxmeancountval(x) for x in X])
         DeltaMte = np.array([GP.errapproxmeancountval(x) for x in X])
+    meanmsemetricRA = np.mean((Mte - MC) ** 2)
+    sdmsemetricRA = np.mean((DeltaMte - DeltaMC) ** 2)
+    chi2metricRA = np.mean(((Mte - MC) / DeltaMC) ** 2)
+    print("RAMEAN (meanmsemetric_RA) is %.2E" % (meanmsemetricRA))
+    print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmsemetricRA))
+    print("RAMEAN (chi2metric_RA) is %.2E" % (chi2metricRA))
 
-    print("RAMEAN (meanmsemetric_RA) is %.2E" % (np.mean((Mte - MC) ** 2)))
-    print("RAMEAN (sdmsemetric_RA) is %.2E" % (np.mean((DeltaMte - DeltaMC) ** 2)))
-    print("RAMEAN (chi2metric_RA) is %.2E" % (np.mean(((Mte - MC) / DeltaMC) ** 2)))
+    ############################################
+    # Print best metrics into a json file
+    ############################################
+    bestmetricdata = {
+        'RA':{
+            'meanmsemetric' : meanmsemetricRA,
+            'chi2metric': chi2metricRA,
+            'sdmsemetric': sdmsemetricRA
+        },
+        buildtype:{
+            'meanmsemetric': meanmsemetric,
+            'chi2metric': chi2metric,
+            'sdmsemetric': sdmsemetric
+        }
+    }
+    bestmetricfile = os.path.join(OUTDIR,"{}_bestmetrics.json".format(ds["obsname"]))
+    with open(bestmetricfile, 'w') as f:
+        json.dump(bestmetricdata, f, indent=4)
+    ############################################
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
