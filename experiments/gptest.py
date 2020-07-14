@@ -33,7 +33,8 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     sdmsemetric = np.mean((Ysd - DeltaMC) ** 2)
     with open(GP.bestparamfile, 'r') as f:
         ds = json.load(f)
-    print("Best Kernel is {}".format(ds['kernel']))
+    bestkernel = ds['kernel']
+    print("Best Kernel is {}".format(bestkernel))
     print("with meanmsemetric %.2E" % (meanmsemetric))
     print("with sdmsemetric %.2E" % (sdmsemetric))
     print("with chi2metric %.2E" % (chi2metric))
@@ -96,7 +97,8 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
         buildtype:{
             'meanmsemetric': meanmsemetric,
             'chi2metric': chi2metric,
-            'sdmsemetric': sdmsemetric
+            'sdmsemetric': sdmsemetric,
+            'bestkernel':bestkernel
         }
     }
     bestmetricfile = os.path.join(OUTDIR,"{}_bestmetrics.json".format(ds["obsname"]))
