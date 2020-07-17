@@ -28,6 +28,37 @@ def prepareMCdata(args):
     os.makedirs(dir,exist_ok=True)
     np.savetxt(args.OUTFILE, np.hstack((X, avgMC.T,avgDMC.T)), delimiter=",")
 
+def prepareFlatMCdata(args):
+    import pandas as pd
+    allX = np.array([])
+    allMC = np.array([])
+    allDeltaMC = np.array([])
+    for fno, file in enumerate(args.DATAFILES):
+        data = pd.read_csv(file, header=None)
+        D = data.values
+
+        MC = D[:, -3]
+        DeltaMC = D[:, -2]
+        X = np.array(D[:, :-3])
+
+        if fno ==0:
+            allX = X
+            allMC = MC
+            allDeltaMC = DeltaMC
+        else:
+            allX = np.append(allX,X,axis=0)
+            allMC = np.append(allMC,MC,axis=0)
+            allDeltaMC = np.append(allDeltaMC, DeltaMC, axis=0)
+
+    allMC = np.atleast_2d(allMC)
+    allDeltaMC = np.atleast_2d(allDeltaMC)
+    # print(X)
+    # print(avgMC)
+    # print(avgDMC)
+    dir = os.path.dirname(args.OUTFILE)
+    os.makedirs(dir, exist_ok=True)
+    np.savetxt(args.OUTFILE, np.hstack((allX, allMC.T, allDeltaMC.T)), delimiter=",")
+
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
     pass
@@ -40,9 +71,11 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--inputcsvfiles", dest="DATAFILES", type=str, default=[], nargs='+',
                         help="Input MC File(s).")
     parser.add_argument("-t", "--type", dest="TYPE", type=str, default="MCDMCTime_AvgMCDMC",
-                               choices=["MCDMCTime_AvgMCDMC"], help="Type")
+                               choices=["MCDMCTime_AvgMCDMC", "MCDMCTime_FlatMCDMC"], help="Type")
 
     args = parser.parse_args()
     if args.TYPE == "MCDMCTime_AvgMCDMC":
         prepareMCdata(args)
+    elif args.TYPE == "MCDMCTime_FlatMCDMC":
+        prepareFlatMCdata(args)
 
