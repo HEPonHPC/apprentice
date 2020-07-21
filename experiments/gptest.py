@@ -4,12 +4,20 @@ import numpy as np
 import json
 import os,sys
 
-def predict(GP,testfile,RAFOLD,OUTDIR):
-    data = pd.read_csv(testfile, header=None)
-    D = data.values
-    X = D[:, :-2]
-    MC = D[:, -2]
-    DeltaMC = D[:, -1]
+def predict(GP,multitestfiles,RAFOLD,OUTDIR):
+    Nsample = 1000
+    seed = 326323
+    allMC = []
+    allDeltaMC = []
+    X = None
+    for fno, file in enumerate(multitestfiles):
+        dataperfile = pd.read_csv(file, header=None)
+        Dperfile = dataperfile.values
+        if fno == 0: X = Dperfile[:, :-2]
+        allMC.append(Dperfile[:, -2].tolist())
+        allDeltaMC.append(Dperfile[:, -1].tolist())
+
+    distrCompare = {'ks': {}, 'kl': {}}
 
     bestparamfileForRA = GP.printRAmetrics(RAFOLD)
     print("\n\n\n\n")
@@ -18,19 +26,31 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     print("################ RESULTS START HERE")
     with open(GP.bestparamfile, 'r') as f:
         ds = json.load(f)
-    if 'buildtype' not in ds or ds['buildtype'] != "gp":
-        Ymean, Ysd = GP.predictHeteroscedastic(X)
-    else:
-        Ymean, Ysd = GP.predictHomoscedastic(X)
-    buildtype = ""
+
     if 'buildtype' in ds:
         buildtype = ds['buildtype']
     else:
         print("Buildtype not in ds not implemented")
         sys.exit(1)
-    chi2metric = np.mean(((Ymean - MC) / Ysd) ** 2)
-    meanmsemetric = np.mean((Ymean - MC) ** 2)
-    sdmsemetric = np.mean((Ysd - DeltaMC) ** 2)
+
+    if buildtype != "gp":
+        Ymean, Ysd = GP.predictHeteroscedastic(X)
+    else:
+        Ymean, Ysd = GP.predictHomoscedastic(X)
+
+    allchi2metric = []
+    allmeanmsemetric = []
+    allsdmsemetric = []
+    for j, (mu, sd) in enumerate(zip(Ymean, Ysd)):
+        MCatp = [allMC[i][j] for i in range(len(allMC))]
+        allchi2metric.append(((mu - np.mean(MCatp)) / sd) ** 2)
+        allmeanmsemetric.append((mu - np.mean(MCatp)) ** 2)
+        allsdmsemetric.append((sd - np.std(MCatp)) ** 2)
+
+    chi2metric = np.mean(allchi2metric)
+    meanmsemetric = np.mean(allmeanmsemetric)
+    sdmsemetric = np.mean(allsdmsemetric)
+
     with open(GP.bestparamfile, 'r') as f:
         ds = json.load(f)
     bestkernel = ds['kernel']
@@ -38,6 +58,19 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     print("with meanmsemetric %.2E" % (meanmsemetric))
     print("with sdmsemetric %.2E" % (sdmsemetric))
     print("with chi2metric %.2E" % (chi2metric))
+
+    np.random.seed(seed)
+
+    distrCompare['ks']['MCvs{}'.format(buildtype)] = []
+    distrCompare['kl']['MCvs{}'.format(buildtype)] = []
+    for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
+        MCatp = [allMC[i][j] for i in range(len(allMC))]
+        distrCompare['ks']['MCvs{}'.format(buildtype)].append(
+            computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
+        )
+        distrCompare['kl']['MCvs{}'.format(buildtype)].append(
+            computeKLdivergence(MCatp, np.random.normal(mu, sd, Nsample))
+        )
 
     ############################################
     # print(X)
@@ -78,12 +111,47 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
     else:
         Mte = np.array([GP.approxmeancountval(x) for x in X])
         DeltaMte = np.array([GP.errapproxmeancountval(x) for x in X])
-    meanmsemetricRA = np.mean((Mte - MC) ** 2)
-    sdmsemetricRA = np.mean((DeltaMte - DeltaMC) ** 2)
-    chi2metricRA = np.mean(((Mte - MC) / DeltaMC) ** 2)
+
+    allchi2metricRA = []
+    allmeanmsemetricRA = []
+    allsdmsemetricRA = []
+    for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
+        MCatp = [allMC[i][j] for i in range(len(allMC))]
+        allchi2metricRA.append(((mu - np.mean(MCatp)) / sd) ** 2)
+        allmeanmsemetricRA.append((mu - np.mean(MCatp)) ** 2)
+        allsdmsemetricRA.append((sd - np.std(MCatp)) ** 2)
+    chi2metricRA = np.mean(allchi2metricRA)
+    meanmsemetricRA = np.mean(allmeanmsemetricRA)
+    sdmsemetricRA = np.mean(allsdmsemetricRA)
+
     print("RAMEAN (meanmsemetric_RA) is %.2E" % (meanmsemetricRA))
     print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmsemetricRA))
     print("RAMEAN (chi2metric_RA) is %.2E" % (chi2metricRA))
+
+    np.random.seed(seed)
+    distrCompare['ks']['MCvsRA'] = []
+    distrCompare['kl']['MCvsRA'] = []
+    for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
+        MCatp = [allMC[i][j] for i in range(len(allMC))]
+        distrCompare['ks']['MCvsRA'].append(
+            computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
+        )
+        distrCompare['kl']['MCvsRA'].append(
+            computeKLdivergence(MCatp, np.random.normal(mu, sd, Nsample))
+        )
+
+    np.random.seed(seed)
+    distrCompare['ks']['RAvs{}'.format(buildtype)] = \
+        [computeKSstatistic(np.random.normal(mu1, sd1, Nsample),
+                            np.random.normal(mu2, sd2, Nsample))
+                            for (mu1, mu2, sd1, sd2) in
+                            zip(Mte, Ymean,DeltaMte,Ysd)]
+    np.random.seed(seed)
+    distrCompare['kl']['RAvs{}'.format(buildtype)] = \
+        [computeKLdivergence(np.random.normal(mu1, sd1, Nsample),
+                            np.random.normal(mu2, sd2, Nsample))
+                             for (mu1, mu2, sd1, sd2) in
+                             zip(Mte, Ymean, DeltaMte, Ysd)]
 
     ############################################
     # Print best metrics into a json file
@@ -99,12 +167,30 @@ def predict(GP,testfile,RAFOLD,OUTDIR):
             'chi2metric': chi2metric,
             'sdmsemetric': sdmsemetric,
             'bestkernel':bestkernel
-        }
+        },
+        'distrCompare': distrCompare
+
     }
     bestmetricfile = os.path.join(OUTDIR,"{}_bestmetrics.json".format(ds["obsname"]))
     with open(bestmetricfile, 'w') as f:
         json.dump(bestmetricdata, f, indent=4)
     ############################################
+
+def computeKSstatistic(D1,D2):
+    # n1, n2 = len(D1), len(D2)
+    # mu1, mu2 = np.mean(D1), np.mean(D2)
+    # sd1, sd2 = np.std(D1), np.std(D2)
+    # return (mu1 - mu2) / np.sqrt((sd1 ** 2 / n1) + (sd2 ** 2 / n2))
+    from scipy import stats
+    return stats.ks_2samp(D1, D2)
+
+def computeKLdivergence(D1,D2):
+    from scipy.stats import entropy
+    n1,n2 = len(D1),len(D2)
+    if n1>n2:
+        return entropy(D1[:len(D2)], D2)
+    else:
+        return entropy(D1, D2[:len(D1)])
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -123,8 +209,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-p", "--paramfile", dest="PARAMFILES", type=str, default=[], nargs='+',
                         help="Parameter and Xinfo JSON file (s).")
-    parser.add_argument("-t", "--testfile", dest="TESTFILE", type=str,
-                        help="Test parameters, MC, \Delta MC values in CSV")
+    parser.add_argument("-t", "--testfiles", dest="TESTFILES", type=str, nargs='+', default=None,
+                        help="Multiple test parameter files, MC, \Delta MC values in CSV")
     parser.add_argument("-m", "--metric", dest="METRIC", type=str, default="meanmsemetric",
                         choices=["meanmsemetric", "sdmsemetric", "chi2metric"],
                         help="Metric based on which to select the best GP parameters on.")
@@ -152,7 +238,7 @@ if __name__ == "__main__":
         DEBUG = args.DEBUG
     )
 
-    predict(GP, args.TESTFILE, args.DORAFOLD,args.OUTDIR)
+    predict(GP, args.TESTFILES, args.DORAFOLD,args.OUTDIR)
 
 
 
