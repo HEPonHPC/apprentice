@@ -5,7 +5,7 @@ import json
 import os,sys
 
 def predict(GP,multitestfiles,RAFOLD,OUTDIR):
-    Nsample = 1000
+    Nsample = -1
     seed = 326323
     allMC = []
     allDeltaMC = []
@@ -43,10 +43,9 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     allsdmsemetric = []
     for j, (mu, sd) in enumerate(zip(Ymean, Ysd)):
         MCatp = [allMC[i][j] for i in range(len(allMC))]
-        DeltaMCatp = [allDeltaMC[i][j] for i in range(len(allDeltaMC))]
         allchi2metric.append(((mu - np.mean(MCatp)) / sd) ** 2)
         allmeanmsemetric.append((mu - np.mean(MCatp)) ** 2)
-        allsdmsemetric.append((sd - np.mean(DeltaMCatp)) ** 2)
+        allsdmsemetric.append((sd - np.std(MCatp)) ** 2)
 
     chi2metric = np.mean(allchi2metric)
     meanmsemetric = np.mean(allmeanmsemetric)
@@ -66,6 +65,7 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     distrCompare['kl']['MCvs{}'.format(buildtype)] = []
     for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
         MCatp = [allMC[i][j] for i in range(len(allMC))]
+        Nsample = len(MCatp)
         distrCompare['ks']['MCvs{}'.format(buildtype)].append(
             computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
         )
@@ -118,10 +118,9 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     allsdmsemetricRA = []
     for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
         MCatp = [allMC[i][j] for i in range(len(allMC))]
-        DeltaMCatp = [allDeltaMC[i][j] for i in range(len(allDeltaMC))]
         allchi2metricRA.append(((mu - np.mean(MCatp)) / sd) ** 2)
         allmeanmsemetricRA.append((mu - np.mean(MCatp)) ** 2)
-        allsdmsemetricRA.append((sd - np.mean(DeltaMCatp)) ** 2)
+        allsdmsemetricRA.append((sd - np.std(MCatp)) ** 2)
     chi2metricRA = np.mean(allchi2metricRA)
     meanmsemetricRA = np.mean(allmeanmsemetricRA)
     sdmsemetricRA = np.mean(allsdmsemetricRA)
@@ -135,6 +134,7 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     distrCompare['kl']['MCvsRA'] = []
     for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
         MCatp = [allMC[i][j] for i in range(len(allMC))]
+        Nsample = len(MCatp)
         distrCompare['ks']['MCvsRA'].append(
             computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
         )
@@ -170,7 +170,8 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
             'sdmsemetric': sdmsemetric,
             'bestkernel':bestkernel
         },
-        'distrCompare': distrCompare
+        'distrCompare': distrCompare,
+        "Nsample":Nsample
 
     }
     bestmetricfile = os.path.join(OUTDIR,"{}_bestmetrics.json".format(ds["obsname"]))

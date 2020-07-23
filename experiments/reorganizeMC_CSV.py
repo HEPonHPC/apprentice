@@ -5,28 +5,30 @@ import csv
 
 def prepareMCdata(args):
     import pandas as pd
-    avgMC = np.array([])
-    avgDMC = np.array([])
+    allMC =[]
     X = np.array([])
     for fno,file in enumerate(args.DATAFILES):
         data = pd.read_csv(file, header=None)
         D = data.values
         MC = D[:, -3]
-        DeltaMC = D[:, -2]
         if fno == 0:
             X = np.array(D[:, :-3])
-            avgMC = np.zeros(len(MC))
-            avgDMC = np.zeros(len(MC))
-        avgMC+=MC
-        avgDMC+=DeltaMC
-    avgMC = np.atleast_2d(avgMC/len(args.DATAFILES))
-    avgDMC = np.atleast_2d(avgDMC / len(args.DATAFILES))
+        allMC.append(MC)
+
+    avgMC = []
+    sdMC = []
+    for j in range(len(X)):
+        MCperP = [allMC[i][j] for i in range(len(allMC))]
+        avgMC.append(np.mean(MCperP))
+        sdMC.append(np.std(MCperP))
+    avgMC = np.atleast_2d(avgMC)
+    sdMC = np.atleast_2d(sdMC)
     # print(X)
     # print(avgMC)
     # print(avgDMC)
     dir = os.path.dirname(args.OUTFILE)
     os.makedirs(dir,exist_ok=True)
-    np.savetxt(args.OUTFILE, np.hstack((X, avgMC.T,avgDMC.T)), delimiter=",")
+    np.savetxt(args.OUTFILE, np.hstack((X, avgMC.T,sdMC.T)), delimiter=",")
 
 def prepareFlatMCdata(args):
     import pandas as pd
