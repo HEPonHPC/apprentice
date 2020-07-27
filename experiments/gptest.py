@@ -10,14 +10,19 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     allMC = []
     allDeltaMC = []
     X = None
+
+    dc_keys = ['ks2','ks','ad2','ad','kl']
+    dc_fns = [computeKS2Sample,computeKS,computeAD2Sample,computeAD,computeKLdivergence]
+    distrCompare = {}
+    for key in dc_keys:
+        distrCompare[key] = {}
+
     for fno, file in enumerate(multitestfiles):
         dataperfile = pd.read_csv(file, header=None)
         Dperfile = dataperfile.values
         if fno == 0: X = Dperfile[:, :-2]
         allMC.append(Dperfile[:, -2].tolist())
         allDeltaMC.append(Dperfile[:, -1].tolist())
-
-    distrCompare = {'ks': {}, 'kl': {}}
 
     bestparamfileForRA = GP.printRAmetrics(RAFOLD)
     print("\n\n\n\n")
@@ -59,19 +64,14 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     print("with sdmsemetric %.2E" % (sdmsemetric))
     print("with chi2metric %.2E" % (chi2metric))
 
-    np.random.seed(seed)
-
-    distrCompare['ks']['MCvs{}'.format(buildtype)] = []
-    distrCompare['kl']['MCvs{}'.format(buildtype)] = []
-    for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
-        MCatp = [allMC[i][j] for i in range(len(allMC))]
-        Nsample = len(MCatp)
-        distrCompare['ks']['MCvs{}'.format(buildtype)].append(
-            computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
-        )
-        distrCompare['kl']['MCvs{}'.format(buildtype)].append(
-            computeKLdivergence(MCatp, np.random.normal(mu, sd, Nsample))
-        )
+    for kno,key in enumerate(dc_keys):
+        distrCompare[key]['MCvs{}'.format(buildtype)] = []
+        distrCompare[key]['MCvs{}'.format(buildtype)] = []
+        for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
+            MCatp = [allMC[i][j] for i in range(len(allMC))]
+            distrCompare[key]['MCvs{}'.format(buildtype)].append(
+                dc_fns[kno](MCatp,mu,sd,seed)
+            )
 
     ############################################
     # print(X)
@@ -129,31 +129,30 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmsemetricRA))
     print("RAMEAN (chi2metric_RA) is %.2E" % (chi2metricRA))
 
-    np.random.seed(seed)
-    distrCompare['ks']['MCvsRA'] = []
-    distrCompare['kl']['MCvsRA'] = []
-    for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
-        MCatp = [allMC[i][j] for i in range(len(allMC))]
-        Nsample = len(MCatp)
-        distrCompare['ks']['MCvsRA'].append(
-            computeKSstatistic(MCatp, np.random.normal(mu, sd, Nsample))
-        )
-        distrCompare['kl']['MCvsRA'].append(
-            computeKLdivergence(MCatp, np.random.normal(mu, sd, Nsample))
-        )
 
-    np.random.seed(seed)
-    distrCompare['ks']['RAvs{}'.format(buildtype)] = \
-        [computeKSstatistic(np.random.normal(mu1, sd1, Nsample),
-                            np.random.normal(mu2, sd2, Nsample))
-                            for (mu1, mu2, sd1, sd2) in
-                            zip(Mte, Ymean,DeltaMte,Ysd)]
-    np.random.seed(seed)
-    distrCompare['kl']['RAvs{}'.format(buildtype)] = \
-        [computeKLdivergence(np.random.normal(mu1, sd1, Nsample),
-                            np.random.normal(mu2, sd2, Nsample))
-                             for (mu1, mu2, sd1, sd2) in
-                             zip(Mte, Ymean, DeltaMte, Ysd)]
+    for kno,key in enumerate(dc_keys):
+        distrCompare[key]['MCvsRA'] = []
+        distrCompare[key]['MCvsRA'] = []
+        for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
+            MCatp = [allMC[i][j] for i in range(len(allMC))]
+            Nsample = len(MCatp)
+            distrCompare[key]['MCvsRA'].append(
+                dc_fns[kno](MCatp,mu,sd,seed)
+            )
+
+
+    # np.random.seed(seed)
+    # distrCompare['ks']['RAvs{}'.format(buildtype)] = \
+    #     [computeKSstatistic(np.random.normal(mu1, sd1, Nsample),
+    #                         np.random.normal(mu2, sd2, Nsample))
+    #                         for (mu1, mu2, sd1, sd2) in
+    #                         zip(Mte, Ymean,DeltaMte,Ysd)]
+    # np.random.seed(seed)
+    # distrCompare['kl']['RAvs{}'.format(buildtype)] = \
+    #     [computeKLdivergence(np.random.normal(mu1, sd1, Nsample),
+    #                         np.random.normal(mu2, sd2, Nsample))
+    #                          for (mu1, mu2, sd1, sd2) in
+    #                          zip(Mte, Ymean, DeltaMte, Ysd)]
 
     ############################################
     # Print best metrics into a json file
@@ -179,21 +178,43 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
         json.dump(bestmetricdata, f, indent=4)
     ############################################
 
-def computeKSstatistic(D1,D2):
-    # n1, n2 = len(D1), len(D2)
-    # mu1, mu2 = np.mean(D1), np.mean(D2)
-    # sd1, sd2 = np.std(D1), np.std(D2)
-    # return (mu1 - mu2) / np.sqrt((sd1 ** 2 / n1) + (sd2 ** 2 / n2))
-    from scipy import stats
-    return stats.ks_2samp(D1, D2)
+def computeKS(data,mu,sd,seed):
+    np.random.seed(seed)
+    from skgof import ks_test
+    from scipy.stats import norm
+    res = ks_test(data, norm(loc=mu,scale=sd))
+    return [res.statistic,res.pvalue]
 
-def computeKLdivergence(D1,D2):
+
+def computeAD(data,mu,sd,seed):
+    np.random.seed(seed)
+    from skgof import ad_test
+    from scipy.stats import norm, anderson
+    res = ad_test(data, norm(loc=mu,scale=sd))
+    res2 = anderson(data, 'norm')
+    return [res.statistic, res.pvalue,res2.critical_values.tolist()]
+
+def computeAD2Sample(data,mu,sd,seed):
+    Nsample = len(data)
+    np.random.seed(seed)
+    otherdata = np.random.normal(mu, sd, Nsample)
+    from scipy import stats
+    res = stats.anderson_ksamp((data, otherdata))
+    return [res.statistic, res.significance_level,res.critical_values.tolist()]
+
+def computeKS2Sample(data,mu,sd,seed):
+    Nsample = len(data)
+    np.random.seed(seed)
+    otherdata = np.random.normal(mu,sd,Nsample)
+    from scipy import stats
+    return stats.ks_2samp(data, otherdata)
+
+def computeKLdivergence(data,mu,sd,seed):
+    Nsample = len(data)
+    np.random.seed(seed)
+    otherdata = np.random.normal(mu, sd, Nsample)
     from scipy.stats import entropy
-    n1,n2 = len(D1),len(D2)
-    if n1>n2:
-        return entropy(D1[:len(D2)], D2)
-    else:
-        return entropy(D1, D2[:len(D1)])
+    return entropy(data, otherdata)
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
