@@ -64,6 +64,15 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     print("with sdmsemetric %.2E" % (sdmsemetric))
     print("with chi2metric %.2E" % (chi2metric))
 
+    ############################################
+    # print(X)
+    # print(Ymean)
+    # print(Ysd)
+    os.makedirs(OUTDIR, exist_ok=True)
+    datatdump = np.column_stack((X, Ymean, Ysd))
+    np.savetxt(os.path.join(OUTDIR, "{}.csv".format(ds["obsname"])), datatdump, delimiter=',')
+    ############################################
+
     for kno,key in enumerate(dc_keys):
         distrCompare[key]['MCvs{}'.format(buildtype)] = []
         distrCompare[key]['MCvs{}'.format(buildtype)] = []
@@ -72,15 +81,6 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
             distrCompare[key]['MCvs{}'.format(buildtype)].append(
                 dc_fns[kno](MCatp,mu,sd,seed)
             )
-
-    ############################################
-    # print(X)
-    # print(Ymean)
-    # print(Ysd)
-    os.makedirs(OUTDIR,exist_ok=True)
-    datatdump = np.column_stack((X,Ymean,Ysd))
-    np.savetxt(os.path.join(OUTDIR,"{}.csv".format(ds["obsname"])), datatdump, delimiter=',')
-    ############################################
 
     if bestparamfileForRA is not None:
         import apprentice
