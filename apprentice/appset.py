@@ -596,6 +596,100 @@ class TuningObjective2(object):
             print(t1-t0)
         return finalres
 
+    def minimizeAPOSMM(self):
+        def sim_f(H, persis_info, sim_specs, _):
+            import time
+            batch = len(H['x'])
+            H_o = np.zeros(batch, dtype=sim_specs['out'])
+
+            for i, x in enumerate(H['x']):
+                H_o['f'][i] = self.objective(x)
+
+                if 'grad' in H_o.dtype.names:
+                    H_o['grad'][i] = self.gradient(x)
+
+                if 'user' in sim_specs and 'pause_time' in sim_specs['user']:
+                    time.sleep(sim_specs['user']['pause_time'])
+
+            return H_o, persis_info
+
+        def run_aposmm(sim_max):
+            sim_specs = {'sim_f': sim_f,
+                         'in': ['x'],
+                         'out': [('f', float), ('grad', float, ndim)]}
+
+            gen_out = [('x', float, ndim), ('x_on_cube', float, ndim), ('sim_id', int),
+                       ('local_min', bool), ('local_pt', bool)]
+
+            gen_specs = {'gen_f': gen_f,
+                         'in': [],
+                         'out': gen_out,
+                         'user': {'initial_sample_size': 100,
+                                  'localopt_method': 'LD_MMA',
+                                  # 'opt_return_codes': [0],
+                                  # 'nu': 1e-6,
+                                  # 'mu': 1e-6,
+                                  'xtol_rel': 1e-6,
+                                  'ftol_rel': 1e-6,
+                                  # 'run_max_eval':10000,
+                                  # 'dist_to_bound_multiple': 0.5,
+                                  'max_active_runs': 6,
+                                  'lb': self._bounds[:, 0],
+                                  # This is only for sampling. TAO_NM doesn't honor constraints.
+                                  'ub': self._bounds[:, 1]}
+                         }
+            alloc_specs = {'alloc_f': alloc_f, 'out': [('given_back', bool)], 'user': {}}
+
+            persis_info = add_unique_random_streams({}, nworkers + 1)
+
+            exit_criteria = {'sim_max': sim_max}
+
+            # Perform the run
+            # H, persis_info, flag = libE(sim_specs, gen_specs, exit_criteria, persis_info,
+            #                             alloc_specs, libE_specs)
+            return libE(sim_specs, gen_specs, exit_criteria, persis_info,
+                                        alloc_specs, libE_specs)
+
+        from libensemble.libE import libE
+
+        import libensemble.gen_funcs
+        libensemble.gen_funcs.rc.aposmm_optimizers = 'nlopt'  # scipy'#petsc'nlopt'
+        from libensemble.gen_funcs.persistent_aposmm import aposmm as gen_f
+
+        from libensemble.alloc_funcs.persistent_aposmm_alloc import persistent_aposmm_alloc as alloc_f
+        from libensemble.tools import parse_args, add_unique_random_streams
+        from time import time
+        import sys, os
+
+        nworkers, is_master, libE_specs, _ = parse_args()
+        if is_master:
+            start_time = time()
+
+        if nworkers < 2:
+            sys.exit("Cannot run with a persistent worker if only one worker -- aborting...")
+
+        ndim = self.dim
+        simmax = 2000
+        H, persis_info, flag = run_aposmm(sim_max=simmax)
+        if is_master:
+            # print('[Manager]:', H[np.where(H['local_min'])]['x'])
+            # print('[Manager]: Time taken =', time() - start_time, flush=True)
+            # print('[Manager]:', H[np.where(H['local_min'])]['x'])
+            # optimal = [[j, self.objective(j)] for j in H[np.where(H['local_min'])]['x']]
+            # print('[Manager]:', optimal)
+            optimalObj = []
+            optimalParams = []
+            for j in H[np.where(H['local_min'])]['x']:
+                optimalParams.append(j)
+                optimalObj.append(self.objective(j))
+            minindex = int(np.argmin(optimalObj))
+            ret = {
+                    'x': optimalParams[minindex],
+                   'fun': optimalObj[minindex],
+                    'log': {'time': time() - start_time}
+            }
+            return ret
+
     def minimizeTrust(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
         res = optimize.minimize(
