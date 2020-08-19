@@ -5,7 +5,7 @@ import json
 import os,sys
 
 def predict(GP,multitestfiles,RAFOLD,OUTDIR):
-    Nsample = -1
+    Nsample = 30
     seed = 326323
     allMC = []
     allDeltaMC = []
@@ -16,6 +16,8 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     distrCompare = {}
     for key in dc_keys:
         distrCompare[key] = {}
+
+    if len(multitestfiles) >1 : raise Exception("Multiple test files not compatible")
 
     for fno, file in enumerate(multitestfiles):
         dataperfile = pd.read_csv(file, header=None)
@@ -28,7 +30,6 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     print("\n\n\n\n")
 
     # RESULTS
-    print("################ RESULTS START HERE")
     with open(GP.bestparamfile, 'r') as f:
         ds = json.load(f)
 
@@ -46,16 +47,39 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     allchi2metric = []
     allmeanmsemetric = []
     allsdmsemetric = []
+    # for j, (mu, sd) in enumerate(zip(Ymean, Ysd)):
+    #     MCatp = [allMC[i][j] for i in range(len(allMC))]
+    #     allchi2metric.append(((mu - np.mean(MCatp)) / sd) ** 2)
+    #     allmeanmsemetric.append((mu - np.mean(MCatp)) ** 2)
+    #     allsdmsemetric.append((sd - np.std(MCatp)) ** 2)
+
+
     for j, (mu, sd) in enumerate(zip(Ymean, Ysd)):
-        MCatp = [allMC[i][j] for i in range(len(allMC))]
-        allchi2metric.append(((mu - np.mean(MCatp)) / sd) ** 2)
-        allmeanmsemetric.append((mu - np.mean(MCatp)) ** 2)
-        allsdmsemetric.append((sd - np.std(MCatp)) ** 2)
+        MCatp = allMC[0][j]
+        DeltaMCatp = allDeltaMC[0][j]
+        allchi2metric.append(((mu - MCatp) / sd) ** 2)
+        allmeanmsemetric.append((mu - MCatp) ** 2)
+        allsdmsemetric.append((sd - DeltaMCatp) ** 2)
+
 
     chi2metric = np.mean(allchi2metric)
     meanmsemetric = np.mean(allmeanmsemetric)
     sdmsemetric = np.mean(allsdmsemetric)
 
+    print("#########################")
+    for kno,key in enumerate(dc_keys):
+        distrCompare[key]['MCvs{}'.format(buildtype)] = []
+        distrCompare[key]['MCvs{}'.format(buildtype)] = []
+        for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
+            MCatp = allMC[0][j]
+            DeltaMCatp = allDeltaMC[0][j]
+            data = np.random.normal(MCatp, DeltaMCatp, Nsample)
+            distrCompare[key]['MCvs{}'.format(buildtype)].append(
+                dc_fns[kno](data,mu,sd,seed)
+            )
+    print("#########################\n\n")
+
+    print("################ RESULTS START HERE")
     with open(GP.bestparamfile, 'r') as f:
         ds = json.load(f)
     bestkernel = ds['kernel']
@@ -72,15 +96,6 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     datatdump = np.column_stack((X, Ymean, Ysd))
     np.savetxt(os.path.join(OUTDIR, "{}.csv".format(ds["obsname"])), datatdump, delimiter=',')
     ############################################
-
-    for kno,key in enumerate(dc_keys):
-        distrCompare[key]['MCvs{}'.format(buildtype)] = []
-        distrCompare[key]['MCvs{}'.format(buildtype)] = []
-        for j,(mu,sd) in enumerate(zip(Ymean,Ysd)):
-            MCatp = [allMC[i][j] for i in range(len(allMC))]
-            distrCompare[key]['MCvs{}'.format(buildtype)].append(
-                dc_fns[kno](MCatp,mu,sd,seed)
-            )
 
     if bestparamfileForRA is not None:
         import apprentice
@@ -116,11 +131,18 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     allchi2metricRA = []
     allmeanmsemetricRA = []
     allsdmsemetricRA = []
+    # for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
+    #     MCatp = [allMC[i][j] for i in range(len(allMC))]
+    #     allchi2metricRA.append(((mu - np.mean(MCatp)) / sd) ** 2)
+    #     allmeanmsemetricRA.append((mu - np.mean(MCatp)) ** 2)
+    #     allsdmsemetricRA.append((sd - np.std(MCatp)) ** 2)
+
     for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
-        MCatp = [allMC[i][j] for i in range(len(allMC))]
-        allchi2metricRA.append(((mu - np.mean(MCatp)) / sd) ** 2)
-        allmeanmsemetricRA.append((mu - np.mean(MCatp)) ** 2)
-        allsdmsemetricRA.append((sd - np.std(MCatp)) ** 2)
+        MCatp = allMC[0][j]
+        DeltaMCatp = allDeltaMC[0][j]
+        allchi2metricRA.append(((mu - MCatp) / sd) ** 2)
+        allmeanmsemetricRA.append((mu - MCatp) ** 2)
+        allsdmsemetricRA.append((sd - DeltaMCatp) ** 2)
     chi2metricRA = np.mean(allchi2metricRA)
     meanmsemetricRA = np.mean(allmeanmsemetricRA)
     sdmsemetricRA = np.mean(allsdmsemetricRA)
@@ -129,17 +151,18 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
     print("RAMEAN (sdmsemetric_RA) is %.2E" % (sdmsemetricRA))
     print("RAMEAN (chi2metric_RA) is %.2E" % (chi2metricRA))
 
-
+    print("\n\n#########################")
     for kno,key in enumerate(dc_keys):
         distrCompare[key]['MCvsRA'] = []
         distrCompare[key]['MCvsRA'] = []
         for j, (mu, sd) in enumerate(zip(Mte, DeltaMte)):
-            MCatp = [allMC[i][j] for i in range(len(allMC))]
-            Nsample = len(MCatp)
+            MCatp = allMC[0][j]
+            DeltaMCatp = allDeltaMC[0][j]
+            data = np.random.normal(MCatp, DeltaMCatp, Nsample)
             distrCompare[key]['MCvsRA'].append(
-                dc_fns[kno](MCatp,mu,sd,seed)
+                dc_fns[kno](data,mu,sd,seed)
             )
-
+    print("#########################")
 
     # np.random.seed(seed)
     # distrCompare['ks']['RAvs{}'.format(buildtype)] = \
