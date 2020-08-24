@@ -19,7 +19,7 @@ def timeit(method):
 
 from sklearn.base import BaseEstimator, RegressorMixin
 class PolynomialApproximation(BaseEstimator, RegressorMixin):
-    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, set_structures=True):
+    def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, set_structures=True, computecov=False):
         """
         Multivariate polynomial approximation
 
@@ -49,7 +49,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self._trainingsize=len(X)
             if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
             else           : self.recurrence=apprentice.monomial.recurrence
-            self.fit(strategy=strategy)
+            self.fit(strategy=strategy, computecov=computecov)
         else:
             raise Exception("Constructor not called correctly, use either fname, initDict or X and Y")
 
@@ -112,6 +112,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         from apprentice import monomial
         VM = monomial.vandermonde(self._X, self.m)
         strategy=kwargs["strategy"] if kwargs.get("strategy") is not None else 1
+        if kwargs.get("computecov") is not False:
+            self._cov = np.linalg.inv(2*VM.T@VM)
         if   strategy==1: self.coeffSolve( VM)
         elif strategy==2: self.coeffSolve2(VM)
         # NOTE, strat 1 is faster for smaller problems (Npoints < 250)
