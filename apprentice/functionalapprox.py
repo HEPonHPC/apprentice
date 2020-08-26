@@ -36,24 +36,25 @@ class FunctionalApprox(object):
             xs = self.scaler_.scale(x)
         else:
             xs = x
-        self.currec_ = np.prod(np.power(xs, self.structure_[:, np.newaxis]), axis=2)
+        self.currec_ = np.prod(np.power(xs, self.structure_[:, np.newaxis]), axis=2).T
 
     def vals(self, x, sel=slice(None, None, None), set_recurrence=True):
 
         """
-        Evaluation of the numer poly at many points X.
+        Evaluation of the numerator and denominator polynomials at one or many points x.
         """
 
         if set_recurrence:
             self.setRecurrence(x)
 
-        TT = self.currec_.T * self.pcoeff_[sel][:, np.newaxis]
-        vals = np.sum(TT, axis=2)
+        PV = self.currec_ * self.pcoeff_[sel][:, np.newaxis]
+        vals = np.sum(PV, axis=2)
 
+        if self.qcoeff_ is not None:
+            QV = self.currec_ * self.qcoeff_[sel][:, np.newaxis]
+            qvals = np.sum(QV, axis=2)
+            vals/=qvals
 
-        # if self._hasRationals:
-            # den = np.sum(self._maxrec * self._QC[sel], axis=1)
-            # vals[self._mask[sel]] /= den[self._mask[sel]]
         return vals
 
     def val(X, sel=slice(None, None, None)):
