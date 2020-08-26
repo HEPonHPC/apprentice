@@ -92,25 +92,10 @@ class GradientRecurrenceTest(unittest.TestCase):
         NTEST=2000
         X = np.random.rand(NTEST,2)
 
-
-        import time
-        t0 = time.time()
         sgrd = np.zeros((NTEST, 2, 10))
         for num, x in enumerate(X):
             sgrd[num] = apprentice.functionalapprox.gradientRecurrence(x, ft.structure_, ft.scaler_.jacfac, ft.nonzerostruct_, ft.reducedstruct_)
-        t1 = time.time() - t0
         self.assertEqual(np.sum(sgrd -apprentice.functionalapprox.gradientRecurrenceMulti(X, ft.structure_, ft.scaler_.jacfac, ft.nonzerostruct_, ft.reducedstruct_) ), 0)
-
-        import time
-        t0 = time.time()
-        sgrd = np.zeros((NTEST, 2, 10))
-        for num, x in enumerate(X):
-            sgrd[num] = apprentice.functionalapprox.gradientRecurrence(x, ft.structure_, ft.scaler_.jacfac, ft.nonzerostruct_, ft.reducedstruct_)
-        t1 = time.time() - t0
-        t0 = time.time()
-        apprentice.functionalapprox.gradientRecurrenceMulti(X, ft.structure_, ft.scaler_.jacfac, ft.nonzerostruct_, ft.reducedstruct_)
-        t2 = time.time() - t0
-        print("{} vs {}".format(t1,t2))
 
 if __name__ == '__main__':
 
