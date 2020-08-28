@@ -41,6 +41,8 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
             self.mkFromJSON(fname, set_structures=set_structures)
+            if computecov:
+                self.readCov(fname)
         elif X is not None and Y is not None:
             self._m=order
             self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
@@ -328,7 +330,8 @@ def testPA():
     data = Y + Y * np.random.normal(loc=0, scale=0.01, size=5)
     p2 = PolynomialApproximation(X=X, Y=data, order=2, strategy=1, computecov=True)
     p2.save("polytest2.json")
-    fitted = [p2.predictWithError(xi) for xi in X]
+    p3 = PolynomialApproximation(fname="polytest2.json", computecov=True)
+    fitted = [p3.predictWithError(xi) for xi in X]
     yhat = np.array([item[0] for item in fitted])
     yerr = np.array([item[1] for item in fitted])
     print("X:   ", X.reshape(-1))
