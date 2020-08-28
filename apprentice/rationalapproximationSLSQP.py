@@ -4,9 +4,28 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
+# TODO code and use gradients of  constraintOrder1V and constraintAVW
+
+def constraintOrder1V(coeff, M, N, L, U):
+    """ Inequality constraints for the order 1 denominator case """
+    b = coeff[M]
+    v = coeff[M+N:M+N+N-1]
+    w = coeff[M+N+N-1:]
+
+    c = np.zeros(2*N-1)
+    c[0] = b + np.dot(v, L) - np.dot(w,U) - 1e-6
+    c[1:] = coeff[M+N:]
+    return c
+
+def constraintAVW(coeff, M, N):
+    """ Equality constraints for the order 1 denominator case """
+    a = coeff[M+1:M+N]
+    v = coeff[M+N:M+N+N-1]
+    w = coeff[M+N+N-1:]
+    return a - v + w
 
 def fast_robustSampleV(coeff, q_ipo, M, N):
-    return np.sum(coeff[M:M+N] * q_ipo, axis=1) - 1.0
+    return np.sum(coeff[M:M+N] * q_ipo, axis=1) - 1e-6
 
 def fast_robustSampleG(coeff, q_ipo, M, N):
     G=np.zeros((q_ipo.shape[0], M+N))
@@ -49,11 +68,12 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         self._vmin=None
         self._vmax=None
         self._debug = kwargs["debug"] if kwargs.get("debug") is not None else  False
-        self._ftol      = float(kwargs["ftol"])  if kwargs.get("ftol")    is not None else 1e-9
+        self._ftol      = float(kwargs["ftol"])  if kwargs.get("ftol")    is not None else 1e-6
         self._slsqp_iter= int(kwargs["itslsqp"]) if kwargs.get("itslsqp") is not None else 200
 
         self._m=kwargs["order"][0]
         self._n=kwargs["order"][1]
+
         import os
         if len(args) == 0:
             pass
@@ -71,10 +91,15 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             else           : self.recurrence=apprentice.monomial.recurrence
             self.setStructures()
             self.setIPO()
-            self.fit()
+
+            if self._n == 1:
+                self.fitOrder1()
+            else:
+                self.fit()
 
     @property
     def trainingsize(self): return self._trainingsize
+
     @property
     def box(self): return self._scaler.box_scaled
 
@@ -87,7 +112,7 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self._ipo[i][0] = self.recurrence(self._X[i,:],self._struct_p)
             self._ipo[i][1] = self.recurrence(self._X[i,:],self._struct_q)
 
-    def scipyfit(self, coeffs0, cons, ftol=1e-9, iprint=2):
+    def scipyfit(self, coeffs0, cons, iprint=2):
         start = timer()
         ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
@@ -98,12 +123,26 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
         return ret.get('x'), ret.get('fun'), optstatus
 
+
+    def fitOrder1(self):
+        """ The dual problem for order 1 denominator polynomials """
+        cons = np.empty(0, "object")
+        cons = np.append(cons, {'type': 'ineq', 'fun':constraintOrder1V, 'args':(self.M, self.N, self._scaler._a, self._scaler._b)})
+        cons = np.append(cons, {'type': 'eq', 'fun':constraintAVW, 'args':(self.M, self.N)})
+
+        coeffs0 = np.random.random(self.M+3*self.N-2)
+        coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
+
+        self._pcoeff = coeffs[:self.M]
+        self._qcoeff = coeffs[self.M:self.M+self.N]
+
     def fit(self, maxIterations=1000, maxRestarts=100, threshold=0.2):
 
 
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
         cons = np.empty(0, "object")
         cons = np.append(cons, {'type': 'ineq', 'fun':fast_robustSampleV, 'jac':fast_robustSampleG,  'args':(ipoq, self.M, self.N)})
+
 
         # TODO need to check if this is a feasible point!
         coeffs0 = np.ones((self.M+self.N))
@@ -112,7 +151,7 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         self._iterationinfo = []
         for iter in range(1, maxIterations+1):
             data = {}
-            coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons, ftol=self._ftol)
+            coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
             # This is a bit brutal trial and error,
             # if the starting point was not good, we just try again with a random
             # vector, otherwise coeffs is always the same and this loop does nothing
