@@ -1,4 +1,5 @@
-import numpy as np
+# import numpy as np
+import autograd.numpy as np
 from apprentice import tools
 from scipy.optimize import minimize
 from timeit import default_timer as timer
@@ -16,6 +17,17 @@ def constraintOrder1V(coeff, M, N, L, U):
     c[0] = b + np.dot(v, L) - np.dot(w,U) - 1e-6
     c[1:] = coeff[M+N:]
     return c
+
+def constraintOrder1G(coeff, M, N, L, U):
+    """ Gradient of inequality constraints for the order 1 denominator case """
+    G = np.zeros((2*N-1,M+3*N-2))
+    G[0][M] = 1
+    for i in range(N-1):
+        G[0][M+N+i] = L[i]
+        G[0][M+N+N-1+i] = -U[i]
+        G[1+i][M+N+i] = -L[i]
+        G[N+i][M+N+N-1+i] = U[i]
+    return G
 
 def constraintAVW(coeff, M, N):
     """ Equality constraints for the order 1 denominator case """
@@ -112,10 +124,18 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self._ipo[i][0] = self.recurrence(self._X[i,:],self._struct_p)
             self._ipo[i][1] = self.recurrence(self._X[i,:],self._struct_q)
 
-    def scipyfit(self, coeffs0, cons, iprint=2):
+    def scipyfit(self, coeffs0, cons, iprint=3):
         start = timer()
         ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
+
+        import autograd
+        from IPython import embed
+        embed()
+        import sys
+        sys.exit(1)
+
+
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
                 options={'maxiter': self._slsqp_iter, 'ftol': self._ftol, 'disp': self._debug, 'iprint': iprint})
@@ -126,11 +146,19 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
 
     def fitOrder1(self):
         """ The dual problem for order 1 denominator polynomials """
+        coeffs0 = np.random.random(self.M+3*self.N-2)
+
+        GG = constraintOrder1G(coeffs0, self.M, self.N, self._scaler._a, self._scaler._b)
+
+        # def localGG(*args):
+            # return GG
+
         cons = np.empty(0, "object")
         cons = np.append(cons, {'type': 'ineq', 'fun':constraintOrder1V, 'args':(self.M, self.N, self._scaler._a, self._scaler._b)})
+        # cons = np.append(cons, {'type': 'ineq', 'fun':constraintOrder1V, 'jac':localGG, 'args':(self.M, self.N, self._scaler._a, self._scaler._b)})
+        # cons = np.append(cons, {'type': 'ineq', 'fun':constraintOrder1V, 'jac':constraintOrder1G, 'args':(self.M, self.N, self._scaler._a, self._scaler._b)})
         cons = np.append(cons, {'type': 'eq', 'fun':constraintAVW, 'args':(self.M, self.N)})
 
-        coeffs0 = np.random.random(self.M+3*self.N-2)
         coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
 
         self._pcoeff = coeffs[:self.M]
