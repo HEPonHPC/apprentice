@@ -32,6 +32,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         self._vmin=None
         self._vmax=None
+        self._xmin = None
+        self._xmax = None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -66,6 +68,10 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     def vmin(self): return self._vmin
     @property
     def vmax(self): return self._vmax
+    @property
+    def xmin(self): return self._xmin
+    @property
+    def xmax(self):return self._xmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
