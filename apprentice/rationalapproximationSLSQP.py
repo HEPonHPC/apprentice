@@ -104,8 +104,14 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self.setStructures()
             self.setIPO()
 
+            # TODO for Holger: Add the following two as args to this class
+            useampl = bool(kwargs["useampl"])
+            solver = kwargs["amplsolver"]
             if self._n == 1:
-                self.fitOrder1()
+                if useampl:
+                    self.fitOrder1AMPL(solver)
+                else:
+                    self.fitOrder1()
             else:
                 self.fit()
 
@@ -142,6 +148,116 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         end = timer()
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
         return ret.get('x'), ret.get('fun'), optstatus
+
+
+    def fitOrder1AMPL(self,solver):
+        import os
+        # print("REACHED HERE")
+
+        def lsqObj(model):
+            sum = 0
+            for index in range(model.trainingsize):
+                p_ipo = model.pipo[index]
+                q_ipo = model.qipo[index]
+                P = 0
+                # coeffsump = 0
+                for i in model.prange:
+                    P += model.pcoeff[i] * p_ipo[i]
+                    # coeffsump += model.pcoeff[i] ** 2
+
+                Q = 0
+                # coeffsumq = 0
+                for i in model.qrange:
+                    Q += model.qcoeff[i] * q_ipo[i]
+                    # coeffsumq += model.qcoeff[i] ** 2
+
+                # sum += (model.Y[index] * Q - P)**2 # sigma = 0
+                sum += (model.Y[index] * Q - P) ** 2
+            return sum
+
+        def constraintOrder1V(model):
+            b = model.qcoeff[0]
+            v = model.vcoeff[:]
+            w = model.wcoeff[:]
+
+            ret = b
+            vL = 0.
+            for x, y in zip(v, model.L):
+                vL += x*y
+            wU = 0.
+            for x, y in zip(w, model.U):
+                wU += x*y
+
+            ret += vL - wU
+            return ret >= 1e-6
+
+        def constraintAVW(model,index):
+            a = model.qcoeff[1 + index]
+            v = model.vcoeff[index]
+            w = model.wcoeff[index]
+
+            return a == v-w
+
+
+        from pyomo import environ
+        model = environ.ConcreteModel()
+        model.dimrange = range(self._dim)
+
+        model.prange = range(self.M)
+        model.qrange = range(self.N)
+        model.vrange = range(self.N-1)
+        model.wrange = range(self.N-1)
+
+        model.M = self._M
+        model.N = self._N
+        model.trainingsize = self.trainingsize
+
+        model.pipo = self._ipo[:, 0].tolist()
+        model.qipo = self._ipo[:, 1].tolist()
+
+        model.Y = self._Y.tolist()
+
+        model.L = self._scaler._a
+        model.U = self._scaler._b
+
+        model.pcoeff = environ.Var(model.prange,initialize=1.)
+        model.qcoeff = environ.Var(model.qrange,initialize=1.)
+        model.vcoeff = environ.Var(model.vrange,bounds = (0,None),initialize=0.)
+        model.wcoeff = environ.Var(model.wrange,bounds = (0,None),initialize=0.)
+
+        model.obj = environ.Objective(rule=lsqObj, sense=1)
+        model.constraintOrder1V = environ.Constraint(rule=constraintOrder1V)
+        model.constraintAVW = environ.Constraint(model.vrange, rule=constraintAVW)
+
+        opt = environ.SolverFactory(solver)
+        plevel = 5
+        if not self._debug:
+            plevel = 1
+
+        from pyutilib.services import TempfileManager
+        # os.makedirs('../../log/tmp', exist_ok=True)
+        # TempfileManager.tempdir = '../../log/tmp'
+        # self.logfp = "/tmp/log.log"
+        if self._debug:
+            model.pprint()
+        ret = opt.solve(model,
+                        tee=False,
+                        # tee=True,
+                        # logfile=self.logfp,
+                        keepfiles=False,
+                        # keepfiles=True,
+                        # options={'file_print_level': 5, 'print_level': plevel}
+                        )
+
+        if self._debug:
+            ret.write()
+
+        if self._debug:
+            print(np.array([model.pcoeff[i].value for i in model.prange]))
+            print(np.array([model.qcoeff[i].value for i in model.qrange]))
+        self._pcoeff = np.array([model.pcoeff[i].value for i in model.prange])
+        self._qcoeff = np.array([model.qcoeff[i].value for i in model.qrange])
+
 
 
     def fitOrder1(self):
