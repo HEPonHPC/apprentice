@@ -69,6 +69,15 @@ if __name__ == "__main__":
     apps = []
     M, N = [int(x) for x in opts.ORDER.split(",")]
 
+    # Check if AMPL solver is available
+    if N>0:
+        from shutil import which
+        if which(opts.SOLVER) is None:
+            print("AMPL solver {} not found in PATH, exiting".format(opts.SOLVER))
+            sys.exit(1)
+
+
+
     import time
     t4   = time.time()
     import datetime
