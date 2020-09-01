@@ -147,26 +147,15 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
 
     def fitOrder1AMPL(self,solver):
         import os
-        # print("REACHED HERE")
 
         def lsqObj(model):
             thesum = 0
             for index in range(model.trainingsize):
                 p_ipo = model.pipo[index]
                 q_ipo = model.qipo[index]
-                P = 0
-                # coeffsump = 0
-                for i in model.prange:
-                    P += model.pcoeff[i] * p_ipo[i]
-                    # coeffsump += model.pcoeff[i] ** 2
+                P = sum([model.pcoeff[i] * p_ipo[i] for i in model.prange])
+                Q = sum([model.qcoeff[i] * q_ipo[i] for i in model.qrange])
 
-                Q = 0
-                # coeffsumq = 0
-                for i in model.qrange:
-                    Q += model.qcoeff[i] * q_ipo[i]
-                    # coeffsumq += model.qcoeff[i] ** 2
-
-                # sum += (model.Y[index] * Q - P)**2 # sigma = 0
                 thesum += (model.Y[index] * Q - P) ** 2
             return thesum
 
@@ -175,16 +164,10 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             v = model.vcoeff[:]
             w = model.wcoeff[:]
 
-            ret = b
-            vL = 0.
-            for x, y in zip(v, model.L):
-                vL += x*y
-            wU = 0.
-            for x, y in zip(w, model.U):
-                wU += x*y
+            vL = sum([x*y for x, y in zip(v, model.L)])
+            wU = sum([x*y for x, y in zip(w, model.U)])
 
-            ret += vL - wU
-            return ret >= 1e-6
+            return b + vL - wU >=1e-6
 
         def constraintAVW(model,index):
             a = model.qcoeff[1 + index]
@@ -207,10 +190,10 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         model.N = self._N
         model.trainingsize = self.trainingsize
 
-        model.pipo = self._ipo[:, 0].tolist()
-        model.qipo = self._ipo[:, 1].tolist()
+        model.pipo = self._ipo[:, 0]
+        model.qipo = self._ipo[:, 1]
 
-        model.Y = self._Y.tolist()
+        model.Y = self._Y
 
         model.L = self._scaler._a
         model.U = self._scaler._b
@@ -239,8 +222,7 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
                         tee=False,
                         # tee=True,
                         # logfile=self.logfp,
-                        keepfiles=self._debug,
-                        # keepfiles=True,
+                        keepfiles=False,
                         # options={'file_print_level': 5, 'print_level': plevel}
                         )
 
