@@ -22,6 +22,7 @@ if __name__ == "__main__":
     op.add_option("--msg", dest="MSGEVERY", default=5, type=int, help="Verbosity of progress (default: %default)")
     op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
     op.add_option("--convert", dest="CONVERTINPUT", default=None, help="Option to store input data as hdf, needs argument (default: %default)")
+    op.add_option("--solver", dest="SOLVER", default="ipopt", help="AMPL solver for rational approximations (default: %default)")
     opts, args = op.parse_args()
 
     rank=0
@@ -93,32 +94,32 @@ if __name__ == "__main__":
         # E =  np.log10(_E[USE]) if opts.ISLOG else _E[USE]
 
         if len(X) == 0:
-            print("No data to calculate approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            print("No data to calculate approximation for {} --- skipping\n".format(binids[rankIdx[num]]))
             import sys
             sys.stdout.flush()
             continue
         if len(X) < app.tools.numCoeffsRapp(len(X[0]),order=(M,N)):
-            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping".format(len(X), app.tools.numCoeffsRapp(len(X[0]), order=(M,N)), binids[rankIdx[num]]))
+            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping\n".format(len(X), app.tools.numCoeffsRapp(len(X[0]), order=(M,N)), binids[rankIdx[num]]))
             import sys
             sys.stdout.flush()
             continue
 
         if opts.ERRS:
-            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER)
             vmin = np.min(E)
             vmax = np.max(E)
         else:
-            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER)
             vmin = np.min(Y)
             vmax = np.max(Y)
         if temp is None:
-            print("Unable to calculate value approximation for {} --- skipping".format(thisBinId))
+            print("Unable to calculate value approximation for {} --- skipping\n".format(thisBinId))
             import sys
             sys.stdout.flush()
             continue
         else:
             if hasPole:
-                print("Warning: pole detected in {}".format(thisBinId))
+                print("Warning: pole detected in {}\n".format(thisBinId))
                 import sys
                 sys.stdout.flush()
         temp._vmin = vmin

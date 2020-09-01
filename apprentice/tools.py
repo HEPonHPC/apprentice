@@ -60,7 +60,7 @@ def denomChangesSignMS(rapp, multistart=10):
     else:   return False, xmin, xmax
 
 
-def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200):
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200, solver="ipopt"):
     M, N = order
     import apprentice as app
     if N==0:
@@ -71,7 +71,7 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testfor
         elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol, debug=debug)
         elif mode == "sip":
             try:
-                _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp)
+                _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp, solver=solver)
             except Exception as e:
                 print("Exception:", e)
                 return None, True

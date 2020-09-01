@@ -1,5 +1,5 @@
-# import numpy as np
-import autograd.numpy as np
+import numpy as np
+# import autograd.numpy as np
 from apprentice import tools
 from scipy.optimize import minimize
 from timeit import default_timer as timer
@@ -105,10 +105,10 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self.setIPO()
 
             # TODO for Holger: Add the following two as args to this class
-            useampl = bool(kwargs["useampl"])
-            solver = kwargs["amplsolver"]
+            # useampl = kwargs["useampl"] if kwargs.get("useampl") is not None else False#True#bool(kwargs["useampl"])
+            solver  = kwargs["solver"] if kwargs.get("solver") is not None else "scipy"
             if self._n == 1:
-                if useampl:
+                if solver!= "scipy":
                     self.fitOrder1AMPL(solver)
                 else:
                     self.fitOrder1()
@@ -135,11 +135,6 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
 
-        import autograd
-        from IPython import embed
-        embed()
-        import sys
-        sys.exit(1)
 
 
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
@@ -155,7 +150,7 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         # print("REACHED HERE")
 
         def lsqObj(model):
-            sum = 0
+            thesum = 0
             for index in range(model.trainingsize):
                 p_ipo = model.pipo[index]
                 q_ipo = model.qipo[index]
@@ -172,8 +167,8 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
                     # coeffsumq += model.qcoeff[i] ** 2
 
                 # sum += (model.Y[index] * Q - P)**2 # sigma = 0
-                sum += (model.Y[index] * Q - P) ** 2
-            return sum
+                thesum += (model.Y[index] * Q - P) ** 2
+            return thesum
 
         def constraintOrder1V(model):
             b = model.qcoeff[0]
@@ -244,7 +239,7 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
                         tee=False,
                         # tee=True,
                         # logfile=self.logfp,
-                        keepfiles=False,
+                        keepfiles=self._debug,
                         # keepfiles=True,
                         # options={'file_print_level': 5, 'print_level': plevel}
                         )
