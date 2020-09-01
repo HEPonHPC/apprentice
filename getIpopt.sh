@@ -5,7 +5,7 @@ PREFIX=$PWD/Ipopt-releases-${VERSION}
 
 wget -c https://github.com/coin-or/Ipopt/archive/releases/${VERSION}.tar.gz -O - | tar -xz
 cd Ipopt-releases-${VERSION}
-./configure --prefix=${PREFIX} --with-asl
+./configure --prefix=${PREFIX} --with-asl=1
 make install -j4
 
 echo "Done. Set environment: export PATH=${PREFIX}/bin:\$PATH"
