@@ -60,11 +60,11 @@ def denomChangesSignMS(rapp, multistart=10):
     else:   return False, xmin, xmax
 
 
-def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200):
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200, computecov=False):
     M, N = order
     import apprentice as app
     if N==0:
-        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames)
+        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames, computecov=computecov)
         hasPole=False
     else:
         if mode == "la":    _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
