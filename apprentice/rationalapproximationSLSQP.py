@@ -107,13 +107,26 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             # TODO for Holger: Add the following two as args to this class
             # useampl = kwargs["useampl"] if kwargs.get("useampl") is not None else False#True#bool(kwargs["useampl"])
             solver  = kwargs["solver"] if kwargs.get("solver") is not None else "scipy"
+            abstractampl = True
+            print(abstractampl)
+            st = timer()
             if self._n == 1:
                 if solver!= "scipy":
-                    self.fitOrder1AMPL(solver)
+                    if abstractampl:
+                        kwargs["abstractmodel"] = self.createOrder1model(abstract=True)
+                        model = kwargs["abstractmodel"]
+                        for i in range(100):
+                            self.fitOrder1AMPLAbstract(model=model,solver=solver)
+                    else:
+                        for i in range(100):
+                            model = self.createOrder1model(abstract=False)
+                            self.fitOrder1AMPL(model=model,solver=solver)
                 else:
                     self.fitOrder1()
             else:
                 self.fit()
+            print(timer() - st)
+            exit(1)
 
     @property
     def trainingsize(self): return self._trainingsize
@@ -135,8 +148,6 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
         ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
 
-
-
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
                 options={'maxiter': self._slsqp_iter, 'ftol': self._ftol, 'disp': self._debug, 'iprint': iprint})
@@ -144,9 +155,8 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
         return ret.get('x'), ret.get('fun'), optstatus
 
-
-    def fitOrder1AMPL(self,solver):
-        import os
+    def createOrder1model(self,abstract=False):
+        from pyomo import environ
 
         def lsqObj(model):
             thesum = 0
@@ -164,27 +174,28 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             v = model.vcoeff[:]
             w = model.wcoeff[:]
 
-            vL = sum([x*y for x, y in zip(v, model.L)])
-            wU = sum([x*y for x, y in zip(w, model.U)])
+            vL = sum([x * y for x, y in zip(v, model.L)])
+            wU = sum([x * y for x, y in zip(w, model.U)])
 
-            return b + vL - wU >=1e-6
+            return b + vL - wU >= 1e-6
 
-        def constraintAVW(model,index):
+        def constraintAVW(model, index):
             a = model.qcoeff[1 + index]
             v = model.vcoeff[index]
             w = model.wcoeff[index]
 
-            return a == v-w
+            return a == v - w
 
-
-        from pyomo import environ
-        model = environ.ConcreteModel()
+        if abstract:
+            model = environ.AbstractModel()
+        else:
+            model = environ.ConcreteModel()
         model.dimrange = range(self._dim)
 
         model.prange = range(self.M)
         model.qrange = range(self.N)
-        model.vrange = range(self.N-1)
-        model.wrange = range(self.N-1)
+        model.vrange = range(self.N - 1)
+        model.wrange = range(self.N - 1)
 
         model.M = self._M
         model.N = self._N
@@ -193,20 +204,69 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         model.pipo = self._ipo[:, 0]
         model.qipo = self._ipo[:, 1]
 
-        model.Y = self._Y
+        if abstract:
+            model.trainingsizeset = environ.Set()
+            model.Y = environ.Param(model.trainingsizeset)
+        else:
+            model.Y = self._Y
 
         model.L = self._scaler._a
         model.U = self._scaler._b
 
-        model.pcoeff = environ.Var(model.prange,initialize=1.)
-        model.qcoeff = environ.Var(model.qrange,initialize=1.)
-        model.vcoeff = environ.Var(model.vrange,bounds = (0,None),initialize=0.)
-        model.wcoeff = environ.Var(model.wrange,bounds = (0,None),initialize=0.)
+        model.pcoeff = environ.Var(model.prange, initialize=1.)
+        model.qcoeff = environ.Var(model.qrange, initialize=1.)
+        model.vcoeff = environ.Var(model.vrange, bounds=(0, None), initialize=0.)
+        model.wcoeff = environ.Var(model.wrange, bounds=(0, None), initialize=0.)
 
         model.obj = environ.Objective(rule=lsqObj, sense=1)
         model.constraintOrder1V = environ.Constraint(rule=constraintOrder1V)
         model.constraintAVW = environ.Constraint(model.vrange, rule=constraintAVW)
 
+        return model
+
+    def fitOrder1AMPLAbstract(self,model,solver):
+        from pyomo import environ
+
+        trainingset = [i for i in range(self.trainingsize)]
+        Ydict = dict(zip(trainingset, self._Y.T))
+        # print(trset,Ydict)
+        input_data = {
+            None: {
+                "trainingsizeset": {None: trainingset},
+                'Y': Ydict
+            }
+        }
+        instance = model.create_instance(input_data)
+        opt = environ.SolverFactory(solver)
+        plevel = 5
+        if not self._debug:
+            plevel = 1
+
+        from pyutilib.services import TempfileManager
+        # os.makedirs('../../log/tmp', exist_ok=True)
+        # TempfileManager.tempdir = '../../log/tmp'
+        # self.logfp = "/tmp/log.log"
+        if self._debug:
+            instance.pprint()
+        ret = opt.solve(instance,
+                        tee=False,
+                        # tee=True,
+                        # logfile=self.logfp,
+                        keepfiles=False,
+                        # options={'file_print_level': 5, 'print_level': plevel}
+                        )
+
+        if self._debug:
+            ret.write()
+
+        if self._debug:
+            print(np.array([instance.pcoeff[i].value for i in instance.prange]))
+            print(np.array([instance.qcoeff[i].value for i in instance.qrange]))
+        self._pcoeff = np.array([instance.pcoeff[i].value for i in instance.prange])
+        self._qcoeff = np.array([instance.qcoeff[i].value for i in instance.qrange])
+
+    def fitOrder1AMPL(self,model,solver):
+        from pyomo import environ
         opt = environ.SolverFactory(solver)
         plevel = 5
         if not self._debug:
@@ -234,7 +294,6 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             print(np.array([model.qcoeff[i].value for i in model.qrange]))
         self._pcoeff = np.array([model.pcoeff[i].value for i in model.prange])
         self._qcoeff = np.array([model.qcoeff[i].value for i in model.qrange])
-
 
 
     def fitOrder1(self):
