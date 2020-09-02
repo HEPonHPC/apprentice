@@ -41,8 +41,6 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
             self.mkFromJSON(fname, set_structures=set_structures)
-            if computecov:
-                self.readCov(fname)
         elif X is not None and Y is not None:
             self._m=order
             self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
@@ -199,21 +197,19 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         if self._vmax is not None: d["vmax"] = self._vmax
         if self._xmin is not None: d["xmin"] = self._xmin
         if self._xmax is not None: d["xmax"] = self._xmax
+        if self._cov is not None:
+            from scipy.sparse import tril
+            # because covariance matrix is symmetric, only save lower triangle part
+            cov_tril = tril(self._cov)
+            d['cov_row'] = cov_tril.row.tolist()
+            d['cov_col'] = cov_tril.col.tolist()
+            d['cov_data'] = cov_tril.data.tolist()
         return d
 
     def save(self, fname):
         import json
         with open(fname, "w") as f:
             json.dump(self.asDict, f)
-        if self._cov is not None:
-            fnpz = fname.replace(".json", "") + ".npz"
-            np.savez(fnpz, cov=self._cov)
-
-    def readCov(self, fname):
-        fnpz = fname.replace(".json", "") + ".npz"
-        npzfile = np.load(fnpz)
-        self._cov =  npzfile['cov']
-
 
     def mkFromJSON(self, fname, set_structures=True):
         import json
@@ -237,6 +233,18 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
             pass
         if set_structures:
             self.setStructures()
+        if "cov_row" in pdict:
+            from scipy.sparse import coo_matrix
+            _row = np.array(pdict['cov_row'])
+            _col = np.array(pdict['cov_col'])
+            _data = np.array(pdict['cov_data'])
+            data = np.hstack([_data, _data])
+            row = np.hstack([_row, _col])
+            col = np.hstack([_col, _row])
+            self._cov = coo_matrix((data, (row, col)))
+            self._cov.setdiag(self._cov.diagonal()*0.5)
+            self._cov = self._cov.toarray()
+            
 
     def fmin(self, nsamples=1, nrestart=1, use_grad=False):
         return apprentice.tools.extreme(self, nsamples, nrestart, use_grad, mode="min")
@@ -344,6 +352,7 @@ if __name__=="__main__":
 
     import sys
     testPA()
+    exit(0)
 
     def mkTestData(NX, dim=1):
         def anthonyFunc(x):
