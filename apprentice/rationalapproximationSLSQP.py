@@ -104,29 +104,24 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self.setStructures()
             self.setIPO()
 
-            # TODO for Holger: Add the following two as args to this class
+            # TODO for Holger: Pass abstractampl arg to this class from app-tune
+            # TODO for Holger: If abstractampl == True, have model available in kwargs["abstractmodel"]
             # useampl = kwargs["useampl"] if kwargs.get("useampl") is not None else False#True#bool(kwargs["useampl"])
             solver  = kwargs["solver"] if kwargs.get("solver") is not None else "scipy"
-            abstractampl = True
-            print(abstractampl)
-            st = timer()
+            abstractampl = False
             if self._n == 1:
                 if solver!= "scipy":
                     if abstractampl:
-                        kwargs["abstractmodel"] = self.createOrder1model(abstract=True)
+                        # kwargs["abstractmodel"] = self.createOrder1model(abstract=True)
                         model = kwargs["abstractmodel"]
-                        for i in range(100):
-                            self.fitOrder1AMPLAbstract(model=model,solver=solver)
+                        self.fitOrder1AMPLAbstract(model=model,solver=solver)
                     else:
-                        for i in range(100):
-                            model = self.createOrder1model(abstract=False)
-                            self.fitOrder1AMPL(model=model,solver=solver)
+                        model = self.createOrder1model(abstract=False)
+                        self.fitOrder1AMPL(model=model,solver=solver)
                 else:
                     self.fitOrder1()
             else:
                 self.fit()
-            print(timer() - st)
-            exit(1)
 
     @property
     def trainingsize(self): return self._trainingsize
