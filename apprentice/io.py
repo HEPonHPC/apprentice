@@ -127,20 +127,23 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
             for n in range(nbins):
                 BNAMES.append("%s#%i"%(hn, n))
 
+        INVALID_NUMBER = -999999.
         _data, xmin, xmax = [], [], []
         for hn in HNAMES:
             for nb in range(hbins[hn]):
-                vals = [_histos[hn][r][nb][2] if r in _histos[hn].keys() else np.nan for r in runs]
-                errs = [_histos[hn][r][nb][3] if r in _histos[hn].keys() else np.nan for r in runs]
+                vals = np.array([_histos[hn][r][nb][2] if r in _histos[hn].keys() else np.nan for r in runs])
+                errs = np.array([_histos[hn][r][nb][3] if r in _histos[hn].keys() else np.nan for r in runs])
                 # Pick a run that actually exists here
                 goodrun = runs[np.where(np.isfinite(vals))[0][0]]
                 xmin.append(_histos[hn][goodrun][nb][0])
                 xmax.append(_histos[hn][goodrun][nb][1])
-                USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
-                xg=X[USE,:]
+                USE = (~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs))
+                xg = X 
                 if len(xg.shape)==3:
                     xg=xg.reshape(xg.shape[1:])
-                _data.append([xg, np.array(vals)[USE], np.array(errs)[USE]])
+                vals[~USE] = INVALID_NUMBER
+                errs[~USE] = INVALID_NUMBER
+                _data.append([xg, np.array(vals), np.array(errs)])
 
         if storeAsH5 is not None:
             writeInputDataSetH5(storeAsH5, _data, runs, BNAMES, pnames, xmin, xmax)
