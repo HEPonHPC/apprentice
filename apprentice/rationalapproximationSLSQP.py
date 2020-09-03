@@ -104,17 +104,23 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             self.setStructures()
             self.setIPO()
 
+            self._abstractmodel = kwargs["abstractmodel"] if kwargs.get("abstractmodel") is not None else None
+            self._tmpdir = kwargs["tmpdir"] if kwargs.get("tmpdir") is not None else "/tmp"
+
             # TODO for Holger: Pass abstractampl arg to this class from app-tune
             # TODO for Holger: If abstractampl == True, have model available in kwargs["abstractmodel"]
             # useampl = kwargs["useampl"] if kwargs.get("useampl") is not None else False#True#bool(kwargs["useampl"])
             solver  = kwargs["solver"] if kwargs.get("solver") is not None else "scipy"
-            abstractampl = False
+            abstractampl = True
             if self._n == 1:
                 if solver!= "scipy":
-                    if abstractampl:
+                    if self._abstractmodel is not False:
+                    # if abstractampl:
                         # kwargs["abstractmodel"] = self.createOrder1model(abstract=True)
-                        model = kwargs["abstractmodel"]
-                        self.fitOrder1AMPLAbstract(model=model,solver=solver)
+                        # model = kwargs["abstractmodel"]
+                        if self.abstractmodel is None:
+                            self._abstractmodel = self.createOrder1model(abstract=True)
+                        self.fitOrder1AMPLAbstract(model=self._abstractmodel,solver=solver)
                     else:
                         model = self.createOrder1model(abstract=False)
                         self.fitOrder1AMPL(model=model,solver=solver)
@@ -122,6 +128,9 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
                     self.fitOrder1()
             else:
                 self.fit()
+
+    @property
+    def abstractmodel(self): return self._abstractmodel
 
     @property
     def trainingsize(self): return self._trainingsize
@@ -238,8 +247,10 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             plevel = 1
 
         from pyutilib.services import TempfileManager
-        # os.makedirs('../../log/tmp', exist_ok=True)
-        # TempfileManager.tempdir = '../../log/tmp'
+        import os
+        if not os.path.exists(self._tmpdir):
+            os.makedirs(self._tmpdir)
+        TempfileManager.tempdir = self._tmpdir
         # self.logfp = "/tmp/log.log"
         if self._debug:
             instance.pprint()
@@ -268,8 +279,10 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
             plevel = 1
 
         from pyutilib.services import TempfileManager
-        # os.makedirs('../../log/tmp', exist_ok=True)
-        # TempfileManager.tempdir = '../../log/tmp'
+        import os
+        if not os.path.exists(self._tmpdir):
+            os.makedirs(self._tmpdir)
+        TempfileManager.tempdir = self._tmpdir
         # self.logfp = "/tmp/log.log"
         if self._debug:
             model.pprint()

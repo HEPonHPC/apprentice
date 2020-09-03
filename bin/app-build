@@ -23,6 +23,8 @@ if __name__ == "__main__":
     op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
     op.add_option("--convert", dest="CONVERTINPUT", default=None, help="Option to store input data as hdf, needs argument (default: %default)")
     op.add_option("--solver", dest="SOLVER", default="ipopt", help="AMPL solver for rational approximations (default: %default)")
+    op.add_option("--abstract", dest="ABSTRACT", default=False, action="store_true", help="Use caching of abstract pyomo models (default: %default)")
+    op.add_option("--tmpdir", dest="TMPDIR", default="/tmp", help="Temp dir for AMPL files (default: %default)")
     opts, args = op.parse_args()
 
     rank=0
@@ -83,6 +85,14 @@ if __name__ == "__main__":
     import datetime
     binedges = {}
     dapps = {}
+    amCache = {}
+    for num, (X, Y, E) in  enumerate(DATA):
+        if opts.ABSTRACT:
+            amCache[len(Y)] = None
+        else:
+            amCache[len(Y)] = False
+
+
     for num, (X, Y, E) in  enumerate(DATA):
         thisBinId = binids[num]
 
@@ -113,14 +123,29 @@ if __name__ == "__main__":
             sys.stdout.flush()
             continue
 
+
+
         if opts.ERRS:
-            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER)
+            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames,
+                    opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES,
+                    ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER,
+                    abstractmodel=amCache[len(X)], tmpdir=opts.TMPDIR)
             vmin = np.min(E)
             vmax = np.max(E)
         else:
-            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER)
+            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames,
+                    opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES,
+                    ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER,
+                    abstractmodel=amCache[len(X)], tmpdir=opts.TMPDIR)
             vmin = np.min(Y)
             vmax = np.max(Y)
+
+        try:
+            if amCache[len(X)] is None:
+                amCache[len(X)] = temp._abstractmodel
+        except Exception as e:
+            print("AM no worky: {}".format(e))
+        # print(abstractmodel)
         if temp is None:
             print("Unable to calculate value approximation for {} --- skipping\n".format(thisBinId))
             import sys
