@@ -42,7 +42,7 @@ def prime(GREC, COEFF, dim, NNZ):
         ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
     return ret
 
-@jit(forceobj=True)#, parallel=True)
+# @jit(forceobj=True)#, parallel=True)
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
     ret = np.empty((dim, dim, NSEL), dtype=np.float64)
     for numx in range(dim):
@@ -159,7 +159,10 @@ class AppSet(object):
         lmax_q=np.max([r._qcoeff.shape[0] if hasattr(r, "n") else 0 for r in self._RA])
         lmax = max(lmax_p, lmax_q)
         self._PC = np.zeros((len(self._RA), lmax), dtype=np.float64)
-        for num, r in enumerate(self._RA): self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
+        for num, r in enumerate(self._RA):
+            if np.any(np.isinf(r._pcoeff)):
+                print(num,"is bad")
+            self._PC[num][:r._pcoeff.shape[0]] = r._pcoeff
 
         # Denominator
         if lmax_q > 0:
@@ -718,6 +721,8 @@ class TuningObjective2(object):
                 bounds=self._bounds[self._freeIdx],
                 jac=lambda x:self.gradient(x, sel=sel),
                 method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+        print(res.message)
+        print(res.x)
         return res
 
     def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
@@ -802,6 +807,7 @@ class TuningObjective2(object):
     # if   any(x==GOF._bounds[:,0]): print("WARNING: Minimisation ended up at lower boundary")
     # elif any(x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
         H=self.hessian(x)
+        print(H)
         # Test for negative eigenvalue
         return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
 

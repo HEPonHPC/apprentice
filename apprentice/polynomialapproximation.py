@@ -42,11 +42,16 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
         elif fname is not None:
             self.mkFromJSON(fname, set_structures=set_structures)
         elif X is not None and Y is not None:
+            X = np.array(X, dtype=np.float64)
+            Y = np.array(Y, dtype=np.float64)
+            bad_data = (Y == apprentice.io.INVALID_NUMBER)
+            X = X[~bad_data]
+            Y = Y[~bad_data]
             self._m=order
-            self._scaler = apprentice.Scaler(np.atleast_2d(np.array(X, dtype=np.float64)), a=scale_min, b=scale_max, pnames=pnames)
+            self._scaler = apprentice.Scaler(np.atleast_2d(X), a=scale_min, b=scale_max, pnames=pnames)
             self._X   = self._scaler.scaledPoints
             self._dim = self._X[0].shape[0]
-            self._Y   = np.array(Y, dtype=np.float64)
+            self._Y   = Y
             self._trainingsize=len(X)
             if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
             else           : self.recurrence=apprentice.monomial.recurrence

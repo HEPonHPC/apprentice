@@ -112,8 +112,8 @@ ndf = GOF.ndf
 
 meta  = "# Objective value at best fit point: %.2f (%.2f without weights)\n"%(res.fun, chi2)
 meta += "# Degrees of freedom: {}\n".format(ndf)
-meta += "# phi2/ndf: %.3f\n"%(chi2/ndf)
-meta += "# Minimisation took {} seconds\n".format(t1-t0)
+meta += "# chi2/ndf: %.3f\n"%(chi2/ndf)
+meta += "# Minimisation took {:.2f} seconds\n".format(t1-t0)
 meta += "# Command line: {}\n".format(" ".join(sys.argv))
 meta += "# Best fit point:"
 

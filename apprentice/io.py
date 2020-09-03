@@ -1,5 +1,6 @@
 import apprentice as app
 
+INVALID_NUMBER = -999999.
 def readInputDataH5(fname, wfile=None):
     import apprentice as app
     import numpy as np
@@ -127,7 +128,6 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
             for n in range(nbins):
                 BNAMES.append("%s#%i"%(hn, n))
 
-        INVALID_NUMBER = -999999.
         _data, xmin, xmax = [], [], []
         for hn in HNAMES:
             for nb in range(hbins[hn]):
