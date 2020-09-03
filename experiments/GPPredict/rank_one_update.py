@@ -50,8 +50,10 @@ def test_mean_gp_prediction(dimension=5, random_seed=23242, usecholdate = True):
     # We assume 0 mean for this function
     # \overline{y_i(p)} = K(p,P)[K + \sigma^2]\inv(y)
     # meangpy           = KpP [K + sigma^2]\inv(y)
-
+    from scipy.linalg import solve_triangular
     K = make_spd_matrix(n_dim=dimension, random_state=random_seed)
+    print("K\n{}".format(K))
+    # K = [[1.54303,-0.450259],[-0.450259,0.268176]]
     KpP = 1.0 * np.ones(dimension)
     y = 4.0 * np.ones(dimension)
     sigma2 = 2.0 * np.ones(dimension)
@@ -62,18 +64,32 @@ def test_mean_gp_prediction(dimension=5, random_seed=23242, usecholdate = True):
     """
     Prediction using conventional method
     """
-    st = timer()
+
     # Updated matrix: K + x xT
     Kpsigma2 = K + np.diag(sigma2)
+    st = timer()
+    Rpsigma2 = cholesky(Kpsigma2)
+    print("Took {} seconds".format(timer() - st))
+    # print("Rpsigma2\n{}".format(Rpsigma2))
+    # print("y\n{}".format(y))
+    z = solve_triangular(Rpsigma2, y, lower=True)
+    print("Took {} seconds".format(timer() - st))
+    # print("z\n{}".format(z))
+    x = solve_triangular(Rpsigma2, z, lower=True, trans='T')
+    print("Took {} seconds".format(timer() - st))
+    # print("x\n{}".format(x))
+    meangpy_conv0 = np.matmul(KpP, x)
+    print("GP mean from Conventional Mehod 0 = {}".format(meangpy_conv0))
+    print("Took {} seconds".format(timer() - st))
+    st = timer()
     meangpy_conv = np.matmul(np.matmul(KpP,np.linalg.inv(Kpsigma2)),y)
     print("GP mean from Conventional Mehod= {}".format(meangpy_conv))
     print("Took {} seconds".format(timer()-st))
-
+    exit(1)
     """
     Prediction using rank 1 update method
     """
     st = timer()
-    from scipy.linalg import solve_triangular
     # Cholesky Update (should be same as updated_R)
     Rtilde = chol_update.chol_diag_update(R, sigma2, in_place=False,usecholdate=usecholdate)
     Ktilde = np.dot(Rtilde, Rtilde.T)
@@ -161,6 +177,6 @@ if __name__ == "__main__":
     # test_full_matrix_update()
     # test_diagonal_update()
     test_mean_gp_prediction(dimension=dimension,usecholdate=True)
-    test_mean_gp_prediction(dimension=dimension, usecholdate=False)
+    # test_mean_gp_prediction(dimension=dimension, usecholdate=False)
     # test_chol_update(dimension=4)
 
