@@ -254,13 +254,21 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         # self.logfp = "/tmp/log.log"
         if self._debug:
             instance.pprint()
-        ret = opt.solve(instance,
-                        tee=False,
-                        # tee=True,
-                        # logfile=self.logfp,
-                        keepfiles=False,
-                        # options={'file_print_level': 5, 'print_level': plevel}
-                        )
+
+        isDone=False
+        while not isDone:
+            try:
+                ret = opt.solve(instance,
+                                tee=False,
+                                # tee=True,
+                                # logfile=self.logfp,
+                                keepfiles=False,
+                                # options={'file_print_level': 5, 'print_level': plevel}
+                                )
+                isDone=True
+            except Exception as e:
+                print("{} --- retrying ...".format(e))
+                pass
 
         if self._debug:
             ret.write()
@@ -286,13 +294,20 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         # self.logfp = "/tmp/log.log"
         if self._debug:
             model.pprint()
-        ret = opt.solve(model,
-                        tee=False,
-                        # tee=True,
-                        # logfile=self.logfp,
-                        keepfiles=False,
-                        # options={'file_print_level': 5, 'print_level': plevel}
-                        )
+        isDone=False
+        while not isDone:
+            try:
+                ret = opt.solve(model,
+                                tee=False,
+                                # tee=True,
+                                # logfile=self.logfp,
+                                keepfiles=False,
+                                # options={'file_print_level': 5, 'print_level': plevel}
+                                )
+                isDone=True
+            except Exception as e:
+                print("{} --- retrying ...".format(e))
+                pass
 
         if self._debug:
             ret.write()
