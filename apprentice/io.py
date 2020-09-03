@@ -14,7 +14,7 @@ def readInputDataH5(fname, wfile=None):
         pnames      = app.io.readPnamesH5(fname, xfield="params")
         observables = list(set(app.io.readObs(wfile))) if wfile is not None else app.io.readObsNamesH5(fname)
         im          = app.io.indexMapH5(fname, observables)
-        IDX         = np.sort(np.concatenate(list(im.values())))
+        IDX         = list(np.sort(np.concatenate(list(im.values()))))
         binids      = app.io.readIndexH5(fname)
 
         with h5py.File(fname, "r") as f:
