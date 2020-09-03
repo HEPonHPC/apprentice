@@ -351,9 +351,6 @@ def testPA():
     print("Y:   ", data)
     print("Yhat:", yhat)
     print("Yerr:", yerr)
-    ra = np.array([p3])
-    print(ra)
-    print(type(ra[0]))
 
 
 if __name__=="__main__":

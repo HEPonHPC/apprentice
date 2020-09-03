@@ -19,6 +19,7 @@ setup(
    'pyDOE2>=1.3.0',
    'GPy>=1.9.9',
    'autograd',
+   'jax',
  ],
   scripts=["bin/app-ls", "bin/app-tune2", "bin/app-build", "bin/app-predict", "bin/app-datadirtojson", "bin/app-yoda2h5", "bin/app-yodaenvelope", "bin/app-sample", "etc/extrema.py"],
   extras_require = {

@@ -721,8 +721,6 @@ class TuningObjective2(object):
                 bounds=self._bounds[self._freeIdx],
                 jac=lambda x:self.gradient(x, sel=sel),
                 method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
-        print(res.message)
-        print(res.x)
         return res
 
     def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
@@ -816,3 +814,56 @@ class TuningObjective2(object):
 
 
     def __len__(self): return len(self._AS)
+
+import jax.numpy as jnp
+import jax
+from jax import jacfwd, jacrev
+class TuningObjective3(TuningObjective2):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_cov = kwargs.get("computecov", False)
+        if self.use_cov:
+            print("Using covariance matrix associated with coefficients")
+
+        self.hessian_fnc = lambda f: jacfwd(jacrev(f))
+
+    def objective(self, _x, sel=slice(None, None, None), unbiased=False):
+        if not self.use_cov:
+            return super().objective(_x)
+        
+        x = self.mkPoint(_x)
+        x = jnp.asarray(x)
+        return np.array(self.objective_jax(x, sel))
+
+    def objective_jax(self, x, sel=slice(None, None, None)):
+        S = self._AS._structure
+        P = jnp.prod(jnp.power(x, S), axis=1)
+        fuc_err = jnp.array([jnp.matmul(P, jnp.matmul(vi._cov, P.transpose())) for vi in self._AS._RA])
+        data = self._Y[sel]
+        fuc_err = fuc_err[sel]
+        de = self._E2[sel]
+        ws = self._AS._PC[sel]
+        predict = jnp.sum(P * ws, axis=1)
+
+        # print(data[:5])
+        # print(predict[:5])
+        # print(fuc_err[:5])
+        # print(1./de[:5])
+
+        return jnp.sum((data - predict)**2 / (fuc_err + 1./de))
+
+    def gradient(self, _x, sel=slice(None, None, None)):
+        if not self.use_cov:
+            return super().gradient(_x, sel)
+
+        x = self.mkPoint(_x)
+        x = jnp.asarray(x)
+        return np.array(jax.grad(self.objective_jax)(x, sel))
+
+    def hessian(self, _x, sel=slice(None, None, None)):
+        if not self.use_cov:
+            return super().hessian(_x, sel)
+
+        x = self.mkPoint(_x)
+        x = jnp.array(x)
+        return np.array(self.hessian_fnc(self.objective_jax)(_x, sel))

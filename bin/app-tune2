@@ -78,6 +78,7 @@ op.add_option("-f", dest="FORCE", default=False, action = 'store_true', help="Al
 op.add_option("-p", "--plotvalley", dest="PLOTVALLEY", default=False, action = 'store_true', help="Allow overwriting output directory (default: %default)")
 op.add_option("--tol", dest="TOL", default=1e-6, type=float, help="Tolerance for scipy optimize minimize (default: %default)")
 op.add_option("--no-check", dest="NOCHECK", default=False, action="store_true", help="Don't check for sadlepoints (default: %default)")
+op.add_option("--computecov", help='use covariance in tuning', action='store_true')
 opts, args = op.parse_args()
 
 
@@ -93,7 +94,7 @@ APP   = args[2]
 
 np.random.seed(opts.SEED)
 
-GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
+GOF = app.appset.TuningObjective3(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG, computecov=opts.computecov)
 if opts.LIMITS is not None: GOF.setLimitsAndFixed(opts.LIMITS)
 
 if opts.MSP is not None:
