@@ -188,7 +188,11 @@ class AppSet(object):
         vals = np.sum(MM, axis=1)
         if self._hasRationals:
             den = np.sum(self._maxrec * self._QC[sel], axis=1)
-            vals[self._mask[sel]] /= den[self._mask[sel]]
+            vals/=den
+            # FIXME this logic with the mask is not working
+            # The code will divide by zero in case we hav mixed bits here
+            # Note that this will go away come federations
+            # vals[self._mask[sel]] /= den[self._mask[sel]]
         return vals
 
     def grads(self, x, sel=slice(None, None, None), set_cache=True):
