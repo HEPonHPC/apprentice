@@ -429,6 +429,11 @@ class TuningObjective2(object):
             err2 = self._EAS.vals(x, sel=sel)**2
         else:
             err2=np.zeros_like(vals)
+
+        # print(_x)
+        # print(self._Y[:5])
+        # print(vals[:5])
+        # print(1/self._E2[:5])
         if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))
         else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))# self._E2[sel])
 
@@ -500,7 +505,9 @@ class TuningObjective2(object):
 
         _CH = [self.objective(p, sel=sel) for p in _PP]
         t1=time.time()
-        if self._debug: print("StartPoint: {}, evaluation took {} seconds".format(_PP[_CH.index(min(_CH))], t1-t0))
+        if self._debug:
+            print("StartPoint: {}, evaluation took {} seconds".format(_PP[_CH.index(min(_CH))], t1-t0))
+            print(_CH[0])
         return _PP[_CH.index(min(_CH))]
 
     def startPointMPI(self, ntrials, sel=slice(None, None, None)):
@@ -581,7 +588,7 @@ class TuningObjective2(object):
                 elif method=="trust":  res = self.minimizeTrust( x0, sel, tol=tol)
                 elif method=="lbfgsb": res = self.minimizeLBFGSB(x0, sel, tol=tol)
                 else: raise Exception("Unknown minimiser {}".format(method))
-
+                print("Fitted Result: ", res.x)
 
                 isSaddle = False if not saddlePointCheck else self.isSaddle(res.x)
                 if isSaddle and maxtries>0:
@@ -826,29 +833,39 @@ class TuningObjective3(TuningObjective2):
             print("Using covariance matrix associated with coefficients")
 
         self.hessian_fnc = lambda f: jacfwd(jacrev(f))
+        self._scale_term = self._AS._SCLR._scaleTerm
+        self._scale_xmin = self._AS._SCLR._Xmin
+        self._scale_a = self._AS._SCLR._a
 
     def objective(self, _x, sel=slice(None, None, None), unbiased=False):
         if not self.use_cov:
             return super().objective(_x)
         
         x = self.mkPoint(_x)
+        # print(_x)
+        # x = self._AS._SCLR.scale(x)
         x = jnp.asarray(x)
         return np.array(self.objective_jax(x, sel))
 
     def objective_jax(self, x, sel=slice(None, None, None)):
+        x = self._scale_term*(x - self._scale_xmin) + self._scale_a
         S = self._AS._structure
         P = jnp.prod(jnp.power(x, S), axis=1)
         fuc_err = jnp.array([jnp.matmul(P, jnp.matmul(vi._cov, P.transpose())) for vi in self._AS._RA])
         data = self._Y[sel]
         fuc_err = fuc_err[sel]
+        # fuc_err = 0
         de = self._E2[sel]
         ws = self._AS._PC[sel]
         predict = jnp.sum(P * ws, axis=1)
 
+        # print('*'*50)
+        # print(x)
         # print(data[:5])
         # print(predict[:5])
         # print(fuc_err[:5])
         # print(1./de[:5])
+        # print('-'*50)
 
         return jnp.sum((data - predict)**2 / (fuc_err + 1./de))
 
@@ -857,6 +874,7 @@ class TuningObjective3(TuningObjective2):
             return super().gradient(_x, sel)
 
         x = self.mkPoint(_x)
+        # x = self._AS._SCLR.scale(x)
         x = jnp.asarray(x)
         return np.array(jax.grad(self.objective_jax)(x, sel))
 
@@ -865,5 +883,6 @@ class TuningObjective3(TuningObjective2):
             return super().hessian(_x, sel)
 
         x = self.mkPoint(_x)
-        x = jnp.array(x)
-        return np.array(self.hessian_fnc(self.objective_jax)(_x, sel))
+        # x = self._AS._SCLR.scale(x)
+        x = jnp.asarray(x)
+        return np.array(self.hessian_fnc(self.objective_jax)(x, sel))
