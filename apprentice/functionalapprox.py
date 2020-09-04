@@ -76,6 +76,9 @@ class FunctionalApprox(object):
         self.setCoefficients(pcoeff, qcoeff)
         self.setStructure()
 
+    @property
+    def dim(self): return self.dim_
+
     def setCoefficients(self, pcoeff, qcoeff=None):
         """
         Obvious
