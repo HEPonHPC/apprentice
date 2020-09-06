@@ -813,8 +813,9 @@ class TuningObjective2(object):
     # elif any(x==GOF._bounds[:,1]): print("WARNING: Minimisation ended up at upper boundary")
         H=self.hessian(x)
         print(H)
+        return np.any(np.sign(np.linalg.eigvals(H)) < 0)
         # Test for negative eigenvalue
-        return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
+        # return np.sum(np.sign(np.linalg.eigvals(H))) != len(H)
 
     @property
     def ndf(self): return len(self) - self.dim - len(self._fixIdx[0])
