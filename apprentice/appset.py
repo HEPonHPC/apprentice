@@ -844,7 +844,7 @@ class TuningObjective3(TuningObjective2):
         x = self.mkPoint(_x)
         # print(_x)
         # x = self._AS._SCLR.scale(x)
-        x = jnp.asarray(x)
+        x = jnp.asarray(x, dtype=np.float64)
         return np.array(self.objective_jax(x, sel))
 
     def objective_jax(self, x, sel=slice(None, None, None)):
@@ -875,8 +875,8 @@ class TuningObjective3(TuningObjective2):
 
         x = self.mkPoint(_x)
         # x = self._AS._SCLR.scale(x)
-        x = jnp.asarray(x)
-        return np.array(jax.grad(self.objective_jax)(x, sel))
+        x = jnp.asarray(x, dtype=np.float64)
+        return np.array(jax.grad(self.objective_jax)(x, sel), dtype=np.float64)
 
     def hessian(self, _x, sel=slice(None, None, None)):
         if not self.use_cov:
@@ -884,5 +884,5 @@ class TuningObjective3(TuningObjective2):
 
         x = self.mkPoint(_x)
         # x = self._AS._SCLR.scale(x)
-        x = jnp.asarray(x)
-        return np.array(self.hessian_fnc(self.objective_jax)(x, sel))
+        x = jnp.asarray(x, dtype=np.float64)
+        return np.array(self.hessian_fnc(self.objective_jax)(x, sel), dtype=np.float64)
