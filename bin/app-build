@@ -96,6 +96,13 @@ if __name__ == "__main__":
     for num, (X, Y, E) in  enumerate(DATA):
         thisBinId = binids[num]
 
+        # Additional protection for robustness
+        # NOTE this is stricty speaking a duplication of code already present in h5 reader
+        # but needed here for dealing with YODA
+        USE = np.where((~np.isinf(Y)) & (~np.isnan(Y)) & (~np.isinf(E)) & (~np.isnan(E)))
+        X=X[USE]
+        Y=Y[USE]
+        E=E[USE]
         if rank==0 or rank==size-1:
             if ((num+1)%opts.MSGEVERY ==0):
                 now = time.time()
@@ -105,12 +112,6 @@ if __name__ == "__main__":
                 eta = datetime.datetime.fromtimestamp(now + ttg)
                 sys.stdout.write("{}[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(80*" " if rank>0 else "", rank, num+1, len(DATA), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')) ,)
                 sys.stdout.flush()
-        # USE = np.where( (_Y>0) ) if opts.ISLOG else np.where( (_E>=0) )
-        # from IPython import embed
-        # embed()
-        # X = _X[USE, :]
-        # Y =  np.log10(_Y[USE]) if opts.ISLOG else _Y[USE]
-        # E =  np.log10(_E[USE]) if opts.ISLOG else _E[USE]
 
         if len(X) == 0:
             print("No data to calculate approximation for {} --- skipping\n".format(binids[rankIdx[num]]))
@@ -156,8 +157,8 @@ if __name__ == "__main__":
                 print("Warning: pole detected in {}\n".format(thisBinId))
                 import sys
                 sys.stdout.flush()
-        temp._vmin = vmin
-        temp._vmax = vmax
+        temp._vmin = float(vmin)
+        temp._vmax = float(vmax)
         temp._xmin = xmin[num]
         temp._xmax = xmax[num]
         apps.append((temp, xmin[num], xmax[num]))
@@ -192,7 +193,6 @@ if __name__ == "__main__":
         # TODO delete __xmin __xmax
         JD["__xmin"]=xmin
         JD["__xmax"]=xmax
-
         import json
         with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
 
