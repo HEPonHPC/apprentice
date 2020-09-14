@@ -9,6 +9,7 @@ from apprentice.scaler import Scaler
 from apprentice.monomial import monomialStructure
 from apprentice.appset import AppSet
 from apprentice.functionalapprox import FunctionalApprox
+from apprentice.federation import Federation
 try:
     from apprentice.GP import GaussianProcess
 except ImportError as e:
