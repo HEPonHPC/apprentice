@@ -22,8 +22,8 @@ def loadPlugin(model, *args, **kwargs):
     IM = dict(inspect.getmembers(foo, inspect.isclass))
     if not m_name in IM:
         raise Exception("Specified class '{}'  not found in module {}".format(m_name, m_file))
-    # if not issubclass(IM[m_name], ulysses.ULSBase):
-    #     raise Exception("Specified class '{}'  does not derive from leptoms.ULSBase".format(m_name))
+    if not issubclass(IM[m_name], app.appset.TuningObjective2):
+        raise Exception("Specified class '{}'  does not derive from leptoms.ULSBase".format(m_name))
 
     return IM[m_name](*args, **kwargs)
 
@@ -120,7 +120,7 @@ APP   = args[2]
 np.random.seed(opts.SEED)
 
 if opts.objective is None:
-    GOF = app.appset.TuningObjective3(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG, computecov=opts.computecov)
+    GOF = app.appset.TuningObjective2(WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG, computecov=opts.computecov)
 else:
     GOF = loadPlugin(opts.objective, WFILE, DATA, APP, f_errors=opts.ERRAPP, debug=opts.DEBUG)
 
