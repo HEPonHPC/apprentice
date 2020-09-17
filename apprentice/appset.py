@@ -843,8 +843,6 @@ class TuningObjective3(TuningObjective2):
             return super().objective(_x)
         
         x = self.mkPoint(_x)
-        # print(_x)
-        # x = self._AS._SCLR.scale(x)
         x = jnp.asarray(x, dtype=np.float64)
         return np.array(self.objective_jax(x, sel))
 
@@ -860,22 +858,21 @@ class TuningObjective3(TuningObjective2):
         ws = self._AS._PC[sel]
         predict = jnp.sum(P * ws, axis=1)
 
+        return jnp.sum((data - predict)**2 / (fuc_err + 1./de))
+
         # print('*'*50)
         # print(x)
         # print(data[:5])
         # print(predict[:5])
         # print(fuc_err[:5])
         # print(1./de[:5])
-        # print('-'*50)
-
-        return jnp.sum((data - predict)**2 / (fuc_err + 1./de))
+        # print('-'*50)        
 
     def gradient(self, _x, sel=slice(None, None, None)):
         if not self.use_cov:
             return super().gradient(_x, sel)
 
         x = self.mkPoint(_x)
-        # x = self._AS._SCLR.scale(x)
         x = jnp.asarray(x, dtype=np.float64)
         return np.array(jax.grad(self.objective_jax)(x, sel), dtype=np.float64)
 
@@ -884,6 +881,31 @@ class TuningObjective3(TuningObjective2):
             return super().hessian(_x, sel)
 
         x = self.mkPoint(_x)
-        # x = self._AS._SCLR.scale(x)
+        x = jnp.asarray(x, dtype=np.float64)
+        return np.array(self.hessian_fnc(self.objective_jax)(x, sel), dtype=np.float64)
+
+class TuningObjectiveJax(TuningObjective2):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.hessian_fnc = lambda f: jacfwd(jacrev(f))
+        self._scale_term = self._AS._SCLR._scaleTerm
+        self._scale_xmin = self._AS._SCLR._Xmin
+        self._scale_a = self._AS._SCLR._a
+
+    def objective(self, _x, sel=slice(None, None, None), unbiased=False):        
+        x = self.mkPoint(_x)
+        x = jnp.asarray(x, dtype=np.float64)
+        return np.array(self.objective_jax(x, sel))
+
+    def objective_jax(self, x, sel=slice(None, None, None)):
+        raise NotImplementedError("provide implement the function: objective_jax(self, x, sel) ")
+
+    def gradient(self, _x, sel=slice(None, None, None)):
+        x = self.mkPoint(_x)
+        x = jnp.asarray(x, dtype=np.float64)
+        return np.array(jax.grad(self.objective_jax)(x, sel), dtype=np.float64)
+
+    def hessian(self, _x, sel=slice(None, None, None)):
+        x = self.mkPoint(_x)
         x = jnp.asarray(x, dtype=np.float64)
         return np.array(self.hessian_fnc(self.objective_jax)(x, sel), dtype=np.float64)
