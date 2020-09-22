@@ -201,6 +201,40 @@ def predict(GP,multitestfiles,RAFOLD,OUTDIR):
         json.dump(bestmetricdata, f, indent=4)
     ############################################
 
+    import scipy.stats as stats
+    import statsmodels.api as sm
+    import matplotlib.pyplot as plt
+    plotoutdir = os.path.join(OUTDIR,'plots','QQplot')
+    os.makedirs(plotoutdir,exist_ok=True)
+    for j, (gpmu, gpsd, ramu, rasd) in enumerate(zip(Ymean, Ysd, Mte, DeltaMte)):
+        MCatp = allMC[0][j]
+        DeltaMCatp = allDeltaMC[0][j]
+        MCdata = np.random.normal(MCatp, DeltaMCatp, 1000)
+        RAdata = np.random.normal(ramu, rasd, 1000)
+        GPdata = np.random.normal(gpmu, gpsd, 1000)
+        fig = plt.figure()
+        plt.style.use('seaborn')
+        ax = fig.add_subplot(1, 1, 1)
+        sm.qqplot_2samples(MCdata, RAdata, line='45',ax=ax)
+        ax.get_lines()[0].set_markerfacecolor('blue')
+        ax.get_lines()[0].set_label('RA')
+        sm.qqplot_2samples(MCdata, GPdata, line='45',ax=ax)
+        ax.get_lines()[2].set_markerfacecolor('green')
+        ax.get_lines()[2].set_label('GP')
+
+        ax.set_xlabel('MC')
+        ax.set_ylabel('')
+
+        plt.legend(loc='best')
+        fig.tight_layout()
+        plotfilename = os.path.join(plotoutdir, "qqplot_{}.pdf".format(j))
+        plt.savefig(plotfilename)
+        # plt.show()
+        plt.close('all')
+
+
+
+
 def computeKS(data,mu,sd,seed):
     np.random.seed(seed)
     from skgof import ks_test
