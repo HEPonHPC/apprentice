@@ -380,7 +380,7 @@ class TuningObjective2(object):
         self._E = E[good]
         self._Y = Y[good]
         self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
-        self._hnames = np.array([b.split("#")[0]  for b in AS._binids[nonzero]])
+        self._hnames = np.array([b.split("#")[0]  for b in self._binids])
         # Add in error approximations
         if f_errors is not None:
             EAS = AppSet(f_errors)
