@@ -291,7 +291,7 @@ class TuningObjective2(object):
         NOTE that hnames is in fact an array of strings repeating the histo name for each corresp bin
         """
         weights = []
-        for hn in self._hnames[self._good]: weights.append(wdict[hn])
+        for hn in self._hnames: weights.append(wdict[hn])
         self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
     def setLimitsAndFixed(self, fname):
