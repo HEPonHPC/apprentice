@@ -281,7 +281,8 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
 
     def fitOrder1AMPL(self,model,solver):
         from pyomo import environ
-        opt = environ.SolverFactory(solver)
+        isDone = False
+        ntries = 0
         plevel = 5
         if not self._debug:
             plevel = 1
@@ -294,8 +295,9 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
         # self.logfp = "/tmp/log.log"
         if self._debug:
             model.pprint()
-        isDone=False
         while not isDone:
+            opt = environ.SolverFactory(solver)
+
             try:
                 ret = opt.solve(model,
                                 tee=False,
@@ -306,6 +308,9 @@ class RationalApproximationSLSQP(apprentice.RationalApproximation):
                                 )
                 isDone=True
             except Exception as e:
+                ntries+=1
+                if ntries > 5:
+                    solver = 'filter'
                 print("{} --- retrying ...".format(e))
                 pass
 
