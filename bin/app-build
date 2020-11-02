@@ -3,7 +3,9 @@
 import apprentice as app
 import numpy as np
 
-
+"""
+seed=873662; MN=3,1; data=A14; ./app-build ../../log/SimulationData/$data-h5/*.h5  --order $MN --msg 1  -o ../../log/ApproximationsCrossValidation/$data/$MN/val_$seed.json --doCV --reqbindir ../../pyoo/data/$data -s $seed
+"""
 if __name__ == "__main__":
 
     import optparse, os, sys, h5py
@@ -25,6 +27,12 @@ if __name__ == "__main__":
     op.add_option("--solver", dest="SOLVER", default="ipopt", help="AMPL solver for rational approximations (default: %default)")
     op.add_option("--abstract", dest="ABSTRACT", default=False, action="store_true", help="Use caching of abstract pyomo models (default: %default)")
     op.add_option("--tmpdir", dest="TMPDIR", default="/tmp", help="Temp dir for AMPL files (default: %default)")
+    op.add_option("--doCV", dest="CROSSVAL", default=False, action="store_true", help="Run in crossvalidation model. \"--reqbindir\" and \"-s\" (seed) should be set. (default: %default)")
+    op.add_option("--reqbindir", dest="REQBINDIR", default=None,
+                  help="Dir where approximations (as approximation.json), data "
+                             "(as experimental_data.json) and weight file (as weights) are stored "
+                             "This will be used to find the bins for which crossvalidation needs to be conducted. "
+                            "(default: %default)")
     opts, args = op.parse_args()
 
     rank=0
@@ -92,10 +100,30 @@ if __name__ == "__main__":
         else:
             amCache[len(Y)] = False
 
+    TO2 = None
+    if opts.CROSSVAL:
+        approxfile = os.path.join(opts.REQBINDIR, "approximation.json")
+        expdatafile = os.path.join(opts.REQBINDIR, "experimental_data.json")
+        weightfile = os.path.join(opts.REQBINDIR, "weights")
+        errapproxfile = None
+        if os.path.exists(os.path.join(opts.REQBINDIR, "errapproximation.json")):
+            errapproxfile = os.path.join(opts.REQBINDIR, "errapproximation.json")
+        from apprentice.appset import TuningObjective2
+
+        TO2 = TuningObjective2(weightfile, expdatafile, approxfile, errapproxfile,
+                              filter_hypothesis=False, filter_envelope=False)
+
+        outdir = os.path.dirname(opts.OUTPUT)
+        testdatafn = os.path.join(outdir, "testdata_{}.json".format(opts.SEED))
+        if os.path.exists(testdatafn):
+            os.remove(testdatafn)
+
 
     for num, (X, Y, E) in  enumerate(DATA):
         thisBinId = binids[num]
-
+        if opts.CROSSVAL and thisBinId not in TO2._binids:
+            # Dont run cross validation on bins not in Tunining Objective
+            continue
         # Additional protection for robustness
         # NOTE this is stricty speaking a duplication of code already present in h5 reader
         # but needed here for dealing with YODA
@@ -103,6 +131,35 @@ if __name__ == "__main__":
         X=X[USE]
         Y=Y[USE]
         E=E[USE]
+        if opts.CROSSVAL:
+            keepout = 0.1
+            np.random.seed(opts.SEED)
+            Ntr = int((1 - keepout) * len(Y))
+            trindex = np.random.choice(np.arange(len(Y)), Ntr, replace=False)
+            Xtr = X[trindex, :]
+            Ytr = Y[trindex]
+            Etr = E[trindex]
+            outdir = os.path.dirname(opts.OUTPUT)
+            os.makedirs(outdir,exist_ok=True)
+            testdatafn = os.path.join(outdir, "testdata_{}.json".format(opts.SEED))
+            if not os.path.exists(testdatafn):
+                teindex = np.in1d(np.arange(len(Y)), trindex)
+                teindex = ~teindex
+                Xte = X[teindex, :]
+                Yte = Y[teindex]
+                Ete = E[teindex]
+
+                ds = {"teindex":teindex.tolist(),"Xte" : X.tolist(),"Yte" : Yte.tolist(),"Ete":Ete.tolist(),"seed":opts.SEED}
+                import json
+                with open(testdatafn,'w') as f:
+                    json.dump(ds,f,indent=4)
+            X = Xtr
+            Y = Ytr
+            E = Etr
+            if opts.ABSTRACT:
+                amCache[len(Y)] = None
+            else:
+                amCache[len(Y)] = False
         if rank==0 or rank==size-1:
             if ((num+1)%opts.MSGEVERY ==0):
                 now = time.time()
