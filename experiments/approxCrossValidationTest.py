@@ -211,7 +211,7 @@ def plotBinwiseDenomSignificance(args):
         ax.bar(Xaxis, Yaxis, width, color='blue')
 
         ax.set_xlabel('Bins', fontsize=24)
-        # ax.set_ylabel('In $q=a^Tp+b\\quad e=\\frac{||a||}{|b|]$', fontsize=24)
+        ax.set_ylabel('In $q=a^Tp+b, \\quad y=\\frac{{||a||}}{{|b|}}$', fontsize=24)
         ax.set_title(names_lab[ano])
         xlab = []
         for i in range(len(Xaxis)):
@@ -259,6 +259,8 @@ if __name__ == "__main__":
     else:
         """
         data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data-RA -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json 
-        data=A14; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json  
+        data=A14; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json
+        
+        data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance   
         """
         plotBinwiseDenomSignificance(args)
