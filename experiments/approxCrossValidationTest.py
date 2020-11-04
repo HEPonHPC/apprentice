@@ -2,7 +2,7 @@ import numpy as np
 import os,json
 import apprentice as app
 from apprentice.appset import AppSet
-def plotresults(args):
+def docdfplots(args):
     assert (os.path.isfile(args.DATA))
     datajsonfile = os.path.join(args.INDIR,"Xaxis_data.json")
     XaxisDict = {}
@@ -36,10 +36,18 @@ def plotresults(args):
                         thisBinId = binids[num]
                         if thisBinId not in AS._binids:
                             continue
+                        if len(teindex) != len(XD):
+                            oldteindex = teindex
+                            teindex = teindex[:len(XD)]
+                            XtefromData = XD[teindex]
+                            YtefromData = YD[teindex]
+                            EtefromData = ED[teindex]
+                            teindex = oldteindex
+                        else:
+                            XtefromData = XD[teindex]
+                            YtefromData = YD[teindex]
+                            EtefromData = ED[teindex]
 
-                        XtefromData = XD[teindex]
-                        YtefromData = YD[teindex]
-                        EtefromData = ED[teindex]
                         Xte = []
                         Yte = []
                         Ete = []
@@ -108,6 +116,118 @@ def plotresults(args):
     plt.savefig(file)
     plt.close("all")
 
+def readcategoryfile(categoryfile,hnames):
+    if categoryfile is None:
+        rng, names_lab, names_fn = [np.arange(len(hnames))], ["all"], ["all"]
+    else:
+        rng, names_lab, names_fn = ([],[],[])
+        import json
+        import re
+        with open(categoryfile,'r') as f:
+            catds = json.load(f)
+        for key in catds:
+            names_lab.append(key)
+            names_fn.append(re.sub(r"\s+", "", key))
+            currrng = []
+            for obs in catds[key]:
+                currrng.append(hnames.index(obs))
+            rng.append(currrng)
+    return rng, names_lab, names_fn
+
+def plotBinwiseDenomSignificance(args):
+    allDenoms = []
+    hnames = None
+    binids = []
+    type1 = None
+
+    assert (os.path.isdir(args.INDIR))
+    folder = args.INDIR
+    nseeds = 0
+    for file in os.listdir(folder):
+        if "testdata" in file:
+            nseeds += 1
+            with open(os.path.join(folder, file), 'r') as f:
+                tdata = json.load(f)
+            seed = tdata['seed']
+            appfile = os.path.join(folder, "val_{}.json".format(seed))
+            AS = AppSet(appfile)
+            if len(allDenoms) == 0:
+                type1 = args.INDIR.split('/')[-2]
+                for bin in AS._binids:
+                    allDenoms.append([])
+                    binids.append(bin)
+                hnames = sorted(list(set(AS._hnames)))
+            for bno, bin in enumerate(AS._binids):
+                allDenoms[bno].append(AS._QC[bno])
+    if nseeds == 0:
+        type1 = os.path.basename(args.INDIR)
+        approxfile = args.INDIR + "/approximation.json"
+        errapproxfile = args.INDIR + "/errapproximation.json"
+        expdatafile = args.INDIR + "/experimental_data.json"
+        weightfile = args.INDIR + "/weights"
+        from apprentice.appset import TuningObjective2
+        IO = TuningObjective2(weightfile, expdatafile, approxfile, errapproxfile,
+                              filter_hypothesis=False, filter_envelope=False)
+        AS = IO._AS
+        for bin in IO._binids:
+            allDenoms.append([])
+            binids.append(bin)
+        hnames = sorted(list(set(IO._hnames)))
+        for bno, bin in enumerate(IO._binids):
+            allDenoms[bno].append(AS._QC[bno])
+
+    significanceArr = []
+    for binno, bindenom in enumerate(allDenoms):
+        assert(len(bindenom) != 0)
+        significance = 0
+        for dno,denom in enumerate(bindenom):
+            significance += sum(abs(denom[1:]))/abs(denom[0])
+        significance /= len(bindenom)
+        significanceArr.append(significance)
+
+    import matplotlib.pyplot as plt
+    # import matplotlib as mpl
+    # mpl.rc('text', usetex=False)
+    # mpl.rc('font', family='serif', size=12)
+    # mpl.style.use("ggplot")
+
+    def obsBins(hname):
+        return [i for i, item in enumerate(binids) if item.startswith(hname)]
+
+    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, hnames)
+
+    width = 0.55
+    odir = os.path.join(args.OUTDIR,"{}Cat{}".format(type1,len(names_lab)),"n{}".format(len(allDenoms[0])))
+    os.makedirs(odir,exist_ok=True)
+    for ano, arr in enumerate(catrng):
+        Yaxis = []
+        for i in arr:
+            hname = hnames[i]
+            sel = obsBins(hname)
+            for i in sel:
+                Yaxis.append(significanceArr[i])
+        Xaxis = np.arange(len(Yaxis))
+        fig, ax = plt.subplots(figsize=(30, 8))
+        ax.bar(Xaxis, Yaxis, width, color='blue')
+
+        ax.set_xlabel('Bins', fontsize=24)
+        # ax.set_ylabel('In $q=a^Tp+b\\quad e=\\frac{||a||}{|b|]$', fontsize=24)
+        ax.set_title(names_lab[ano])
+        xlab = []
+        for i in range(len(Xaxis)):
+            j = i + 1
+            if j == 1:
+                xlab.append("1")
+                continue
+            if j % 100 == 0:
+                xlab.append(str(j))
+            else:
+                xlab.append("")
+        # plt.xticks(Xaxis, xlab, fontsize=24)
+        plt.yscale('log')
+        plt.ylim(10 ** -4, 10 ** 0)
+        plt.savefig(os.path.join(odir,"_{}_{}_{}.pdf".format(args.OFILEPREFIX,type1,names_fn[ano])))
+
 if __name__ == "__main__":
     import argparse
 
@@ -124,7 +244,21 @@ if __name__ == "__main__":
                         help="H5 Simulation data")
     parser.add_argument("-w", dest="WEIGHTS", default=None,
                         help="Obervable file (default: %default)")
-
+    parser.add_argument("-c", "--category", dest="CATEGORY", type=str, default=None,
+                        help="Filename of the Category file. "
+                             "If None, categories ignored.")
+    parser.add_argument("--denomsignificance", dest="DSIGN", default=False, action="store_true",
+                        help="Plot denominator significance")
 
     args = parser.parse_args()
-    plotresults(args)
+    if not args.DSIGN:
+        """
+         data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data -o ../../log/ApproximationsCrossValidation/$data/plots -d ../../log/SimulationData/$data-h5/*.h5
+        """
+        docdfplots(args)
+    else:
+        """
+        data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data-RA -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json 
+        data=A14; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json  
+        """
+        plotBinwiseDenomSignificance(args)
