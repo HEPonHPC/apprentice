@@ -139,7 +139,7 @@ def plotBinwiseDenomSignificance(args):
     hnames = None
     binids = []
     type1 = None
-
+    size = 20
     assert (os.path.isdir(args.INDIR))
     folder = args.INDIR
     nseeds = 0
@@ -211,8 +211,10 @@ def plotBinwiseDenomSignificance(args):
         ax.bar(Xaxis, Yaxis, width, color='blue')
 
         ax.set_xlabel('Bins', fontsize=24)
-        ax.set_ylabel('In $q=a^Tp+b, \\quad y=\\frac{{||a||}}{{|b|}}$', fontsize=24)
-        ax.set_title(names_lab[ano])
+        ax.set_ylabel('$r(p)=\\frac{{n(p)}}{{d(p)}}, \\quad d(p)=a^Tp+b, \\quad y=\\frac{{||a||}}{{|b|}}$', fontsize=24)
+        ax.set_title(names_lab[ano],fontsize=size)
+        plt.xticks(fontsize=size - 6)
+        plt.yticks(fontsize=size - 6)
         xlab = []
         for i in range(len(Xaxis)):
             j = i + 1
