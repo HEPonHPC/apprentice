@@ -230,6 +230,118 @@ def plotBinwiseDenomSignificance(args):
         plt.ylim(10 ** -4, 10 ** 0)
         plt.savefig(os.path.join(odir,"_{}_{}_{}.pdf".format(args.OFILEPREFIX,type1,names_fn[ano])))
 
+def plotBinwiseDenomRange(args):
+    allDenoms = []
+    bounds = None
+    hnames = None
+    binids = []
+    type1 = None
+    size = 20
+    assert (os.path.isdir(args.INDIR))
+    folder = args.INDIR
+    nseeds = 0
+    for file in os.listdir(folder):
+        if "testdata" in file:
+            nseeds += 1
+            with open(os.path.join(folder, file), 'r') as f:
+                tdata = json.load(f)
+            seed = tdata['seed']
+            appfile = os.path.join(folder, "val_{}.json".format(seed))
+            AS = AppSet(appfile)
+            if len(allDenoms) == 0:
+                type1 = args.INDIR.split('/')[-2]
+                for bin in AS._binids:
+                    allDenoms.append([])
+                    binids.append(bin)
+                bounds = AS._bounds
+                hnames = sorted(list(set(AS._hnames)))
+            for bno, bin in enumerate(AS._binids):
+                allDenoms[bno].append(AS._QC[bno])
+    if nseeds == 0:
+        type1 = os.path.basename(args.INDIR)
+        approxfile = args.INDIR + "/approximation.json"
+        errapproxfile = args.INDIR + "/errapproximation.json"
+        expdatafile = args.INDIR + "/experimental_data.json"
+        weightfile = args.INDIR + "/weights"
+        from apprentice.appset import TuningObjective2
+        IO = TuningObjective2(weightfile, expdatafile, approxfile, errapproxfile,
+                              filter_hypothesis=False, filter_envelope=False)
+        AS = IO._AS
+        for bin in IO._binids:
+            allDenoms.append([])
+            binids.append(bin)
+        bounds = AS._bounds
+        hnames = sorted(list(set(IO._hnames)))
+        for bno, bin in enumerate(IO._binids):
+            allDenoms[bno].append(AS._QC[bno])
+
+    rangeArr = []
+    # print(bounds)
+    for binno, bindenom in enumerate(allDenoms):
+        assert(len(bindenom) != 0)
+        range = 0.
+        for dno,denom in enumerate(bindenom):
+            a = denom[1:1+len(bounds)]
+            a = a[::-1]
+            minp = np.zeros(len(a),dtype=np.float)
+            maxp = np.zeros(len(a),dtype=np.float)
+            for ano,ai in enumerate(a):
+                currb = bounds[ano]
+                if ai<0:
+                    minp[ano] = currb[1]
+                    maxp[ano] = currb[0]
+                else:
+                    minp[ano] = currb[0]
+                    maxp[ano] = currb[1]
+            range += np.sum(a*maxp) - np.sum(a*minp)
+        range /= len(bindenom)
+        rangeArr.append(range)
+
+    import matplotlib.pyplot as plt
+    # import matplotlib as mpl
+    # mpl.rc('text', usetex=False)
+    # mpl.rc('font', family='serif', size=12)
+    # mpl.style.use("ggplot")
+
+    def obsBins(hname):
+        return [i for i, item in enumerate(binids) if item.startswith(hname)]
+
+    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, hnames)
+
+    width = 0.55
+    odir = os.path.join(args.OUTDIR,"{}Cat{}".format(type1,len(names_lab)),"n{}".format(len(allDenoms[0])))
+    os.makedirs(odir,exist_ok=True)
+    for ano, arr in enumerate(catrng):
+        Yaxis = []
+        for i in arr:
+            hname = hnames[i]
+            sel = obsBins(hname)
+            for i in sel:
+                Yaxis.append(rangeArr[i])
+        Xaxis = np.arange(len(Yaxis))
+        fig, ax = plt.subplots(figsize=(30, 8))
+        # print(np.shape(Xaxis),np.shape(Yaxis))
+        ax.bar(Xaxis, Yaxis, width, color='blue')
+
+        ax.set_xlabel('Bins', fontsize=24)
+        ax.set_ylabel('$r(p)=\\frac{{n(p)}}{{d(p)}}, \\quad y = $range$(d(p))$', fontsize=24)
+        ax.set_title(names_lab[ano],fontsize=size)
+        plt.xticks(fontsize=size - 6)
+        plt.yticks(fontsize=size - 6)
+        xlab = []
+        # for i in range(len(Xaxis)):
+        #     j = i + 1
+        #     if j == 1:
+        #         xlab.append("1")
+        #         continue
+        #     if j % 100 == 0:
+        #         xlab.append(str(j))
+        #     else:
+        #         xlab.append("")
+        # plt.xticks(Xaxis, xlab, fontsize=24)
+        plt.yscale('log')
+        plt.ylim(10 ** -6, 10 ** 0)
+        plt.savefig(os.path.join(odir,"_{}_{}_{}.pdf".format(args.OFILEPREFIX,type1,names_fn[ano])))
 if __name__ == "__main__":
     import argparse
 
@@ -265,4 +377,12 @@ if __name__ == "__main__":
         
         data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots --denomsignificance   
         """
-        plotBinwiseDenomSignificance(args)
+        # plotBinwiseDenomSignificance(args)
+
+        """
+        data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data-RA -o ../../log/ApproximationsCrossValidation/$data/plots/range --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json 
+        data=A14; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots/range --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json
+
+        data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots/range --denomsignificance   
+                """
+        plotBinwiseDenomRange(args)
