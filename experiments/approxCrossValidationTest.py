@@ -11,6 +11,7 @@ def docdfplots(args):
         with open(datajsonfile,'r') as f:
             XaxisDict = json.load(f)
     else:
+        ASmaster = None
         DATA, binids, pnames, rankIdx, xmin, xmax = app.io.readInputDataH5(args.DATA, args.WEIGHTS)
         for MN in ["3,0","3,1"]:
             XaxisDict[MN] = None
@@ -26,8 +27,10 @@ def docdfplots(args):
 
                     appfile = os.path.join(folder, "val_{}.json".format(seed))
                     AS = AppSet(appfile)
-                    minbound = [a + 0.01 * a for a in AS._bounds[:, 0]]
-                    maxbound = [a - 0.01 * a for a in AS._bounds[:, 1]]
+                    if ASmaster is None:
+                        ASmaster = AS
+                    minbound = [a + 0.0 * a for a in AS._bounds[:, 0]]
+                    maxbound = [a - 0.0 * a for a in AS._bounds[:, 1]]
                     if XaxisDict[MN] is None:
                         XaxisDict[MN] = np.zeros(len(AS._binids),dtype=np.float)
 
@@ -70,6 +73,8 @@ def docdfplots(args):
                         XaxisDict[MN][binno[0][0]] += MSE
             XaxisDict[MN] /= nseeds
             XaxisDict[MN] = XaxisDict[MN].tolist()
+            XaxisDict['hnames'] = sorted(list(set(ASmaster._hnames)))
+            XaxisDict['binids'] = ASmaster._binids.tolist()
 
         with open (datajsonfile,'w') as f:
             json.dump(XaxisDict,f,indent=4)
@@ -115,6 +120,41 @@ def docdfplots(args):
     file = os.path.join(args.OUTDIR, '{}_approximation_mse_perf.pdf'.format(args.OFILEPREFIX))
     plt.savefig(file)
     plt.close("all")
+
+    hnames = XaxisDict['hnames']
+    binids = XaxisDict['binids']
+    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, hnames)
+    width = 0.55
+    size = 20
+    type1 = os.path.basename(args.INDIR)
+
+    def obsBins(hname):
+        return [i for i, item in enumerate(binids) if item.startswith(hname)]
+
+    for mno, MN in enumerate(["3,0", "3,1"]):
+        import matplotlib.pyplot as plt
+        odir = os.path.join(args.OUTDIR, "MSE_{}Cat{}".format(type1, len(names_lab)), MN)
+        os.makedirs(odir, exist_ok=True)
+        for ano, arr in enumerate(catrng):
+            Yaxis = []
+            for i in arr:
+                hname = hnames[i]
+                sel = obsBins(hname)
+                for i in sel:
+                    Yaxis.append(XaxisDict[MN][i])
+            Xaxis = np.arange(len(Yaxis))
+            fig, ax = plt.subplots(figsize=(30, 8))
+            ax.bar(Xaxis, Yaxis, width, color='blue')
+            ax.set_xlabel('Bins', fontsize=24)
+            ax.set_ylabel('Mean Squared Error', fontsize=24)
+            ax.set_title("{} ({})".format(names_lab[ano],MN), fontsize=size)
+            plt.xticks(fontsize=size - 6)
+            plt.yticks(fontsize=size - 6)
+            plt.yscale('log')
+            plt.ylim(10 ** -9, 10 ** 3)
+            plt.savefig(os.path.join(odir, "_{}_{}_{}_.pdf".format(args.OFILEPREFIX, type1, names_fn[ano])))
+            plt.close('all')
+
 
 def readcategoryfile(categoryfile,hnames):
     if categoryfile is None:
@@ -342,6 +382,91 @@ def plotBinwiseDenomRange(args):
         plt.yscale('log')
         plt.ylim(10 ** -6, 10 ** 0)
         plt.savefig(os.path.join(odir,"_{}_{}_{}.pdf".format(args.OFILEPREFIX,type1,names_fn[ano])))
+
+def plotBinwisePolyRationalComparison(args):
+    def numer(RAAS, x, sel=slice(None, None, None), set_cache=True, maxorder=None):
+        import apprentice
+        if set_cache: RAAS.setRecurrence(x)
+        if maxorder is None:
+            MM=RAAS._maxrec * RAAS._PC[sel]
+        else:
+            nc = apprentice.tools.numCoeffsPoly(RAAS.dim, 2)
+            MM=RAAS._maxrec[:nc] * RAAS._PC[sel][:,:nc]
+        vals = np.sum(MM, axis=1)
+        return vals
+
+    def denom(RAAS, x, sel=slice(None, None, None), set_cache=True, maxorder=None):
+        if set_cache: RAAS.setRecurrence(x)
+        if RAAS._hasRationals:
+            den = np.sum(RAAS._maxrec * RAAS._QC[sel], axis=1)
+            return den
+        return None
+    assert (os.path.isdir(args.INDIR))
+    Xte = None
+    hnames = None
+    binids = []
+    metrics = ["p-r_sqr", "n-p_sqr", "n-r_sqr", "n-p_byd_sqr"]
+    metricData = {}
+    metricData['p-r_sqr'] = None
+    np.random.seed(873268)
+    polyappfile = os.path.join(args.INDIR,"approximation.json")
+    raappfile = os.path.join(args.INDIR+"-RA", "approximation.json")
+    PolyAS = AppSet(polyappfile)
+    RAAS = AppSet(raappfile)
+    if Xte is None:
+        Xperdim = ()
+        npoints = 1000
+        for d in range(PolyAS.dim):
+            Xperdim = Xperdim + (
+            np.random.rand(npoints, ) * (PolyAS._bounds[d, 1] - PolyAS._bounds[d, 0]) + PolyAS._bounds[d, 0],)
+        Xte = np.column_stack(Xperdim)
+        hnames = sorted(list(set(PolyAS._hnames)))
+        binids = PolyAS._binids
+    for mno, m in enumerate(metrics):
+        if m == "p-r_sqr":
+            if metricData['p-r_sqr'] is None:
+                metricData['p-r_sqr'] = np.zeros(len(binids), dtype=np.float)
+            for x in Xte:
+                PY = PolyAS.vals(x)
+                RY = RAAS.vals(x)
+                metricData['p-r_sqr'] += (RY - PY) ** 2
+            metricData['p-r_sqr'] /= len(Xte)
+        else:
+            continue
+
+    def obsBins(hname):
+        return [i for i, item in enumerate(binids) if item.startswith(hname)]
+
+    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, hnames)
+
+    width = 0.55
+    size = 20
+    import matplotlib.pyplot as plt
+    type1 = os.path.basename(args.INDIR)
+    odir = os.path.join(args.OUTDIR, "{}Cat{}".format(type1, len(names_lab)), "p-r_sqr")
+    os.makedirs(odir, exist_ok=True)
+    for ano, arr in enumerate(catrng):
+        Yaxis = []
+        for i in arr:
+            hname = hnames[i]
+            sel = obsBins(hname)
+            for i in sel:
+                Yaxis.append(metricData['p-r_sqr'][i])
+        Xaxis = np.arange(len(Yaxis))
+        fig, ax = plt.subplots(figsize=(30, 8))
+        ax.bar(Xaxis, Yaxis, width, color='blue')
+
+        ax.set_xlabel('Bins', fontsize=24)
+        ax.set_ylabel('$\\frac{{||P(p)-R(p)||^2_2}}{{N_{ens}}}$', fontsize=24)
+        ax.set_title(names_lab[ano], fontsize=size)
+        plt.xticks(fontsize=size - 6)
+        plt.yticks(fontsize=size - 6)
+        plt.yscale('log')
+        plt.ylim(10 ** -12, 10 ** 0)
+        # plt.show()
+        plt.savefig(os.path.join(odir, "_{}_{}_{}_.pdf".format(args.OFILEPREFIX, type1, names_fn[ano])))
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -368,6 +493,7 @@ if __name__ == "__main__":
     if not args.DSIGN:
         """
          data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data -o ../../log/ApproximationsCrossValidation/$data/plots -d ../../log/SimulationData/$data-h5/*.h5
+         data=A14; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data -o ../../log/ApproximationsCrossValidation/$data/plots -d ../../log/SimulationData/$data-h5/*.h5 -c ../../pyoo/data/A14Categories/A14Cat_10.json
         """
         docdfplots(args)
     else:
@@ -385,4 +511,10 @@ if __name__ == "__main__":
 
         data=Sherpa; python approxCrossValidationTest.py -i ../../log/ApproximationsCrossValidation/$data/3,1 -o ../../log/ApproximationsCrossValidation/$data/plots/range --denomsignificance   
                 """
-        plotBinwiseDenomRange(args)
+        # plotBinwiseDenomRange(args)
+
+        """
+        data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json
+        data=Sherpa; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance
+        """
+        plotBinwisePolyRationalComparison(args)
