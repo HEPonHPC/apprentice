@@ -1,7 +1,7 @@
 import numpy as np
 import os,json
 import apprentice as app
-from apprentice.appset import AppSet
+from apprentice.appset import AppSet,TuningObjective2
 def docdfplots(args):
     assert (os.path.isfile(args.DATA))
     datajsonfile = os.path.join(args.INDIR,"Yaxis_data.json")
@@ -401,70 +401,156 @@ def plotBinwisePolyRationalComparison(args):
             den = np.sum(RAAS._maxrec * RAAS._QC[sel], axis=1)
             return den
         return None
+
     assert (os.path.isdir(args.INDIR))
-    Xte = None
-    hnames = None
-    binids = []
-    metrics = ["p-r_sqr", "n-p_sqr", "n-r_sqr", "n-p_byd_sqr"]
-    metricData = {}
-    metricData['p-r_sqr'] = None
-    np.random.seed(873268)
-    polyappfile = os.path.join(args.INDIR,"approximation.json")
-    raappfile = os.path.join(args.INDIR+"-RA", "approximation.json")
-    PolyAS = AppSet(polyappfile)
-    RAAS = AppSet(raappfile)
-    if Xte is None:
+    assert (os.path.isfile(args.DATA))
+    metrics = ["p-r_sqr by fiterr",
+               "p-r_sqr by chi2",
+               "p-r_sqr by fiterr+chi2",
+               ]
+    pmrsqrlab = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}} \\left(P_b(p_i)-R_b(p_i)\\right)^2"
+    pfiterrlab = "\\frac{{1}}{{|P_{ens}|}} \\sum_{p \in P_{ens}} (P_b(p)-MC_b(p))^2"
+    rfiterrlab = "\\frac{{1}}{{|P_{ens}|}} \\sum_{p \in P_{ens}} (R_b(p)-MC_b(p))^2"
+    pchi2 = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}}\\frac{{(P_b(p_i)-D_b)^2}}{{\Delta P_b(p_i)^2 + \Delta D_b^2}}"
+    rchi2 = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}}\\frac{{(R_b(p_i)-D_b)^2}}{{\Delta R_b(p_i)^2 + \Delta D_b^2}}"
+    metricylab = [
+        '$\\frac{{%s}}{{%s + %s}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab),
+        '$\\frac{{%s}}{{%s + %s}}$' % (pmrsqrlab,pchi2,rchi2),
+        '$\\frac{{%s}}{{%s + %s + %s + %s}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab,pchi2,rchi2)
+    ]
+    ylimlow = [10**-4,10**-18,10**-19]
+    ylimhigh = [10**2,10**-5,10**-5]
+
+    binwisePolyRationalComparison_fn = os.path.join(args.OUTDIR, "binwisePolyRationalComparison_data.json")
+    metricData = None
+    if not os.path.exists(binwisePolyRationalComparison_fn):
+        DATA, dbinids, dpnames, drankIdx, dxmin, dxmax = app.io.readInputDataH5(args.DATA, args.WEIGHTS)
+        polydir = args.INDIR
+        radir = args.INDIR + "-RA"
+
+        TuningObjectives = []
+        for dir in [polydir, radir]:
+            apprfile = os.path.join(dir, "approximation.json")
+            errapprfile = os.path.join(dir, "errapproximation.json")
+            datafile = os.path.join(dir, "experimental_data.json")
+            wtfile = os.path.join(dir, "weights")
+            TuningObjectives.append(TuningObjective2(wtfile, datafile, apprfile,
+                                                     errapprfile,
+                                                     filter_envelope=False,
+                                                     filter_hypothesis=False
+                                                      ))
+        allhnames = sorted(list(set(TuningObjectives[0]._AS._hnames)))
+        allbinids = TuningObjectives[0]._AS._binids
+        metricData = {}
+        for m in metrics:
+            metricData[m] = None
+
+        np.random.seed(873268)
         Xperdim = ()
         npoints = 1000
-        for d in range(PolyAS.dim):
+        for d in range(TuningObjectives[0].dim):
             Xperdim = Xperdim + (
-            np.random.rand(npoints, ) * (PolyAS._bounds[d, 1] - PolyAS._bounds[d, 0]) + PolyAS._bounds[d, 0],)
+                np.random.rand(npoints, ) * (
+                        TuningObjectives[0]._AS._bounds[d, 1] - TuningObjectives[0]._AS._bounds[d, 0]) +
+                TuningObjectives[0]._AS._bounds[d, 0],)
         Xte = np.column_stack(Xperdim)
-        hnames = sorted(list(set(PolyAS._hnames)))
-        binids = PolyAS._binids
-    for mno, m in enumerate(metrics):
-        if m == "p-r_sqr":
-            if metricData['p-r_sqr'] is None:
-                metricData['p-r_sqr'] = np.zeros(len(binids), dtype=np.float)
-            for x in Xte:
-                PY = PolyAS.vals(x)
-                RY = RAAS.vals(x)
-                metricData['p-r_sqr'] += (RY - PY) ** 2
-            metricData['p-r_sqr'] /= len(Xte)
-        else:
-            continue
+
+        ###########
+        # Fiterror
+        pfiterror = np.zeros(len(allbinids), dtype=np.float)
+        rfiterror = np.zeros(len(allbinids), dtype=np.float)
+
+        for num, (XD, YD, ED) in enumerate(DATA):
+            thisBinId = dbinids[num]
+            if thisBinId not in allbinids:
+                continue
+            binno = allbinids.index(thisBinId)
+
+            pY = np.array([TuningObjectives[0]._AS.vals(x, sel=[binno])[0] for x in XD])
+            rY = np.array([TuningObjectives[1]._AS.vals(x, sel=[binno])[0] for x in XD])
+
+            pMSE = np.mean((pY - YD) ** 2)
+            rMSE = np.mean((rY - YD) ** 2)
+
+            pfiterror[binno] += pMSE
+            rfiterror[binno] += rMSE
+
+        ###########
+        # p - r sqr
+        pmr_sqr = np.zeros(len(allbinids), dtype=np.float)
+        for x in Xte:
+            PY = TuningObjectives[0]._AS.vals(x)
+            RY = TuningObjectives[1]._AS.vals(x)
+            pmr_sqr += (RY - PY) ** 2
+        pmr_sqr /= len(Xte)
+
+        ###########
+        # Chi2
+        pchi2 = np.zeros(len(allbinids), dtype=np.float)
+        rchi2 = np.zeros(len(allbinids), dtype=np.float)
+        for x in Xte:
+            pc = TuningObjectives[0].objective(x,unbiased=True)
+            rc = TuningObjectives[1].objective(x,unbiased=True)
+            pchi2 += pc
+            rchi2 += rc
+        pchi2 /= len(Xte)
+        rchi2 /= len(Xte)
+
+        for mno, m in enumerate(metrics):
+            if metricData[m] is None:
+                metricData[m] = np.zeros(len(allbinids), dtype=np.float)
+            if m == "p-r_sqr by fiterr":
+                metricData[m] = pmr_sqr/(pfiterror + rfiterror)
+            elif m == "p-r_sqr by chi2":
+                metricData[m] = pmr_sqr / (pchi2 + rchi2)
+            elif m == "p-r_sqr by fiterr+chi2":
+                metricData[m] = pmr_sqr / (pfiterror + rfiterror + pchi2 + rchi2)
+        for key in metricData:
+            metricData[key] = metricData[key].tolist()
+        metricData['hnames'] = allhnames
+        metricData['binids'] = allbinids
+        with open(binwisePolyRationalComparison_fn,'w') as f:
+            json.dump(metricData,f,indent=4)
+    else:
+        with open(binwisePolyRationalComparison_fn,'r') as f:
+            metricData = json.load(f)
+
+    allhnames = metricData['hnames']
+    allbinids = metricData['binids']
 
     def obsBins(hname):
-        return [i for i, item in enumerate(binids) if item.startswith(hname)]
+        return [i for i, item in enumerate(allbinids) if item.startswith(hname)]
 
-    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, hnames)
+    catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, allhnames)
 
     width = 0.55
     size = 20
     import matplotlib.pyplot as plt
     type1 = os.path.basename(args.INDIR)
-    odir = os.path.join(args.OUTDIR, "{}Cat{}".format(type1, len(names_lab)), "p-r_sqr")
-    os.makedirs(odir, exist_ok=True)
-    for ano, arr in enumerate(catrng):
-        Yaxis = []
-        for i in arr:
-            hname = hnames[i]
-            sel = obsBins(hname)
-            for i in sel:
-                Yaxis.append(metricData['p-r_sqr'][i])
-        Xaxis = np.arange(len(Yaxis))
-        fig, ax = plt.subplots(figsize=(30, 8))
-        ax.bar(Xaxis, Yaxis, width, color='blue')
+    for m,mlab,yl,yh in zip(metrics,metricylab,ylimlow,ylimhigh):
+        odir = os.path.join(args.OUTDIR, "{}Cat{}".format(type1, len(names_lab)), m)
+        os.makedirs(odir, exist_ok=True)
+        for ano, arr in enumerate(catrng):
+            Yaxis = []
+            for i in arr:
+                hname = allhnames[i]
+                sel = obsBins(hname)
+                for i in sel:
+                    Yaxis.append(metricData[m][i])
+            Xaxis = np.arange(len(Yaxis))
+            fig, ax = plt.subplots(figsize=(30, 15))
+            ax.bar(Xaxis, Yaxis, width, color='blue')
 
-        ax.set_xlabel('Bins', fontsize=24)
-        ax.set_ylabel('$\\frac{{||P(p)-R(p)||^2_2}}{{N_{ens}}}$', fontsize=24)
-        ax.set_title(names_lab[ano], fontsize=size)
-        plt.xticks(fontsize=size - 6)
-        plt.yticks(fontsize=size - 6)
-        plt.yscale('log')
-        plt.ylim(10 ** -12, 10 ** 0)
-        # plt.show()
-        plt.savefig(os.path.join(odir, "_{}_{}_{}_.pdf".format(args.OFILEPREFIX, type1, names_fn[ano])))
+            ax.set_xlabel('Bins b', fontsize=24)
+            ax.set_ylabel(mlab, fontsize=24)
+            ax.set_title(names_lab[ano], fontsize=size)
+            plt.xticks(fontsize=size - 6)
+            plt.yticks(fontsize=size - 6)
+            plt.yscale('log')
+            plt.ylim(yl, yh)
+            # plt.show()
+            plt.savefig(os.path.join(odir, "_{}_{}_{}_.pdf".format(args.OFILEPREFIX, type1, names_fn[ano])))
+            plt.close("all")
 
 
 if __name__ == "__main__":
@@ -514,7 +600,7 @@ if __name__ == "__main__":
         # plotBinwiseDenomRange(args)
 
         """
-        data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance -c ../../pyoo/data/A14Categories/A14Cat_10.json
-        data=Sherpa; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance
+        data=A14; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance -d ../../log/SimulationData/$data-h5/*.h5 -c ../../pyoo/data/A14Categories/A14Cat_10.json
+        data=Sherpa; python approxCrossValidationTest.py -i ../../pyoo/data/$data -o ../../log/ApproximationsCrossValidation/$data/plots/polyrationalcomparison --denomsignificance -d ../../log/SimulationData/$data-h5/*.h5
         """
         plotBinwisePolyRationalComparison(args)
