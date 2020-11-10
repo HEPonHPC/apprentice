@@ -4,7 +4,7 @@ import apprentice as app
 from apprentice.appset import AppSet
 def docdfplots(args):
     assert (os.path.isfile(args.DATA))
-    datajsonfile = os.path.join(args.INDIR,"Xaxis_data.json")
+    datajsonfile = os.path.join(args.INDIR,"Yaxis_data.json")
     XaxisDict = {}
     type1 = os.path.basename(args.INDIR)
     if os.path.exists(datajsonfile):
