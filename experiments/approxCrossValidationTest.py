@@ -383,6 +383,37 @@ def plotBinwiseDenomRange(args):
         plt.ylim(10 ** -6, 10 ** 0)
         plt.savefig(os.path.join(odir,"_{}_{}_{}.pdf".format(args.OFILEPREFIX,type1,names_fn[ano])))
 
+def readReport(fname):
+    """
+    Read a pyoo report and extract data for plotting
+    """
+
+    import json
+    with open(fname) as f:
+        D=json.load(f)
+
+    import numpy as np
+    # First, find the chain with the best objective
+    c_win =""
+    y_win = np.inf
+    for chain, rep in D.items():
+        _y = np.min(rep["Y_outer"])
+        if _y is None:
+            c_win = chain
+            y_win = _y
+        elif _y < y_win:
+            c_win=chain
+            y_win = _y
+
+    i_win = np.argmin(D[c_win]["Y_outer"])
+    wmin = D[c_win]["X_outer"]
+    binids = D[c_win]["binids"]
+    pmin = D[c_win]["X_inner"][i_win]
+    pnames = D[c_win]["pnames_inner"]
+    hnames = D[c_win]["pnames_outer"]
+
+    return {"x":pmin, "binids":binids, "pnames":pnames, "hnames":hnames,'wmin':wmin}
+
 def plotBinwisePolyRationalComparison(args):
     def numer(RAAS, x, sel=slice(None, None, None), set_cache=True, maxorder=None):
         import apprentice
@@ -404,24 +435,30 @@ def plotBinwisePolyRationalComparison(args):
 
     assert (os.path.isdir(args.INDIR))
     assert (os.path.isfile(args.DATA))
-    metrics = ["p-r_sqr by fiterr",
+    metrics = ["p-r_sqr",
+                "p-r_sqr by fiterr",
                "p-r_sqr by chi2",
                "p-r_sqr by fiterr+chi2",
+               "db"
                ]
-    pmrsqrlab = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}} \\left(P_b(p_i)-R_b(p_i)\\right)^2"
+    db = "D_b"
+    pmrsqrlab = "\\frac{{1}}{{|P_{te}|}} \\sum_{p \in P_{te}} \\left(P_b(p)-R_b(p)\\right)^2"
     pfiterrlab = "\\frac{{1}}{{|P_{ens}|}} \\sum_{p \in P_{ens}} (P_b(p)-MC_b(p))^2"
     rfiterrlab = "\\frac{{1}}{{|P_{ens}|}} \\sum_{p \in P_{ens}} (R_b(p)-MC_b(p))^2"
-    pchi2 = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}}\\frac{{(P_b(p_i)-D_b)^2}}{{\Delta P_b(p_i)^2 + \Delta D_b^2}}"
-    rchi2 = "\\frac{{1}}{{N_{te}}} \\sum_{i=1}^{N_{te}}\\frac{{(R_b(p_i)-D_b)^2}}{{\Delta R_b(p_i)^2 + \Delta D_b^2}}"
+    pchi2 = "\\frac{{1}}{{N_{p^*_{pa}}}} \\sum_{i=1}^{N_{p^*_{pa}}}\\frac{{(P_b(p_i)-D_b)^2}}{{\Delta P_b(p_i)^2 + \Delta D_b^2}}"
+    rchi2 = "\\frac{{1}}{{N_{p^*_{ra}}}} \\sum_{i=1}^{N_{p^*_{ra}}}\\frac{{(R_b(p_i)-D_b)^2}}{{\Delta R_b(p_i)^2 + \Delta D_b^2}}"
     metricylab = [
-        '$\\frac{{%s}}{{%s + %s}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab),
-        '$\\frac{{%s}}{{%s + %s}}$' % (pmrsqrlab,pchi2,rchi2),
-        '$\\frac{{%s}}{{%s + %s + %s + %s}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab,pchi2,rchi2)
+        '$%s$' % (pmrsqrlab),
+        '$\\frac{{%s}}{{\\max\\left(1,\\left(%s + %s\\right)\\right)}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab),
+        '$\\frac{{%s}}{{\\max\\left(1,\\left(%s + %s\\right)\\right)}}$' % (pmrsqrlab,pchi2,rchi2),
+        '$\\frac{{%s}}{{\\max\\left(1,\\left(%s + %s + %s + %s\\right)\\right)}}$' % (pmrsqrlab,pfiterrlab,rfiterrlab,pchi2,rchi2),
+        "$%s$"%(db)
     ]
-    ylimlow = [10**-4,10**-18,10**-19]
-    ylimhigh = [10**2,10**-5,10**-5]
+    ylimlow = [10**-12,10**-13,10**-18,10**-19,10**-4]
+    ylimhigh = [10**0,10**-1,10**-5,10**-5,10**3]
 
     binwisePolyRationalComparison_fn = os.path.join(args.OUTDIR, "binwisePolyRationalComparison_data.json")
+    optimalParams_fn = os.path.join(args.OUTDIR, "optimalParameters.json")
     metricData = None
     if not os.path.exists(binwisePolyRationalComparison_fn):
         DATA, dbinids, dpnames, drankIdx, dxmin, dxmax = app.io.readInputDataH5(args.DATA, args.WEIGHTS)
@@ -442,8 +479,6 @@ def plotBinwisePolyRationalComparison(args):
         allhnames = sorted(list(set(TuningObjectives[0]._AS._hnames)))
         allbinids = TuningObjectives[0]._AS._binids
         metricData = {}
-        for m in metrics:
-            metricData[m] = None
 
         np.random.seed(873268)
         Xperdim = ()
@@ -486,25 +521,44 @@ def plotBinwisePolyRationalComparison(args):
 
         ###########
         # Chi2
+        with open(optimalParams_fn,'r') as f:
+            optParamds = json.load(f)
+        poptparam = []
+        roptparam = []
+        for MN,paramarr in zip(["3,0","3,1"],[poptparam,roptparam]):
+            for btype in optParamds[MN]:
+                for fn in optParamds[MN][btype]:
+                    data = readReport(fn)
+                    paramarr.append(data['x'])
+
         pchi2 = np.zeros(len(allbinids), dtype=np.float)
         rchi2 = np.zeros(len(allbinids), dtype=np.float)
-        for x in Xte:
+        for x in poptparam:
             pc = TuningObjectives[0].objective(x,unbiased=True)
-            rc = TuningObjectives[1].objective(x,unbiased=True)
             pchi2 += pc
+        for x in roptparam:
+            rc = TuningObjectives[1].objective(x,unbiased=True)
             rchi2 += rc
-        pchi2 /= len(Xte)
-        rchi2 /= len(Xte)
+        pchi2 /= len(poptparam)
+        rchi2 /= len(roptparam)
 
         for mno, m in enumerate(metrics):
-            if metricData[m] is None:
-                metricData[m] = np.zeros(len(allbinids), dtype=np.float)
-            if m == "p-r_sqr by fiterr":
-                metricData[m] = pmr_sqr/(pfiterror + rfiterror)
+            if m == "p-r_sqr":
+                metricData[m] = pmr_sqr
+            elif m == "p-r_sqr by fiterr":
+                den = pfiterror + rfiterror
+                updatedden = np.array([max(1, d) for d in den])
+                metricData[m] = pmr_sqr / updatedden
             elif m == "p-r_sqr by chi2":
-                metricData[m] = pmr_sqr / (pchi2 + rchi2)
+                den = pchi2 + rchi2
+                updatedden = np.array([max(1, d) for d in den])
+                metricData[m] = pmr_sqr / updatedden
             elif m == "p-r_sqr by fiterr+chi2":
-                metricData[m] = pmr_sqr / (pfiterror + rfiterror + pchi2 + rchi2)
+                den = pfiterror + rfiterror + pchi2 + rchi2
+                updatedden = np.array([max(1, d) for d in den])
+                metricData[m] = pmr_sqr / updatedden
+            elif m == "db":
+                metricData[m] = TuningObjectives[0]._Y
         for key in metricData:
             metricData[key] = metricData[key].tolist()
         metricData['hnames'] = allhnames
