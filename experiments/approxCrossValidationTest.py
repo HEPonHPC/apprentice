@@ -576,12 +576,17 @@ def plotBinwisePolyRationalComparison(args):
         return [i for i, item in enumerate(allbinids) if item.startswith(hname)]
 
     catrng, names_lab, names_fn = readcategoryfile(args.CATEGORY, allhnames)
-
+    A14trackjetpropertiesChunks = np.array([1094,1114,1128,1310])
+    A14trackjetpropertiesSplits = [sum(A14trackjetpropertiesChunks[range(0,i+1)]) for i in range(len(A14trackjetpropertiesChunks))]
+    A14trackjetpropertiesSplits.insert(0,0)
+    maxvaldata = {}
+    color = ['white', 'gray', 'white', 'gray']
     width = 0.55
     size = 20
     import matplotlib.pyplot as plt
     type1 = os.path.basename(args.INDIR)
     for m,mlab,yl,yh in zip(metrics,metricylab,ylimlow,ylimhigh):
+        maxvaldata[m] = {}
         odir = os.path.join(args.OUTDIR, "{}Cat{}".format(type1, len(names_lab)), m)
         os.makedirs(odir, exist_ok=True)
         for ano, arr in enumerate(catrng):
@@ -591,6 +596,7 @@ def plotBinwisePolyRationalComparison(args):
                 sel = obsBins(hname)
                 for i in sel:
                     Yaxis.append(metricData[m][i])
+                maxvaldata[m][names_fn[ano]] = max(Yaxis)
             Xaxis = np.arange(len(Yaxis))
             fig, ax = plt.subplots(figsize=(30, 15))
             ax.bar(Xaxis, Yaxis, width, color='blue')
@@ -598,6 +604,11 @@ def plotBinwisePolyRationalComparison(args):
             ax.set_xlabel('Bins b', fontsize=24)
             ax.set_ylabel(mlab, fontsize=24)
             ax.set_title(names_lab[ano], fontsize=size)
+            if names_fn[ano] == "TrackJetproperties":
+                for aaaaano, aaaa in enumerate(A14trackjetpropertiesSplits):
+                    if aaaaano == len(A14trackjetpropertiesSplits)-1:
+                        continue
+                    ax.axvspan(aaaa, A14trackjetpropertiesSplits[aaaaano+1] + 1, alpha=0.2, color=color[aaaaano])
             plt.xticks(fontsize=size - 6)
             plt.yticks(fontsize=size - 6)
             plt.yscale('log')
@@ -605,6 +616,15 @@ def plotBinwisePolyRationalComparison(args):
             # plt.show()
             plt.savefig(os.path.join(odir, "_{}_{}_{}_.pdf".format(args.OFILEPREFIX, type1, names_fn[ano])))
             plt.close("all")
+
+    s = ""
+    for ano, arr in enumerate(catrng):
+        s += "%s & %.2E & %.2E & %.2E \\\\\\hline\n"%(names_lab[ano],
+                                maxvaldata['p-r_sqr'][names_fn[ano]],
+                                maxvaldata['p-r_sqr by fiterr'][names_fn[ano]],
+                                 maxvaldata['p-r_sqr by chi2'][names_fn[ano]])
+    print(s)
+
 
 
 if __name__ == "__main__":
