@@ -188,7 +188,7 @@ class AppSet(object):
         vals = np.sum(MM, axis=1)
         if self._hasRationals:
             den = np.sum(self._maxrec * self._QC[sel], axis=1)
-            vals[self._mask[sel]] /= den[self._mask[sel]]
+            vals /= den
         return vals
 
     def grads(self, x, sel=slice(None, None, None), set_cache=True):
