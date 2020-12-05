@@ -317,8 +317,7 @@ def gradientRecursion(X, struct, jacfac):
         REC[coord][nonzero] = np.prod(RR, axis=1)
     return REC
 
-@jit(forceobj=True, parallel=True)
-def gradientRecursionFast(X, struct, jacfac, NNZ, sred):
+def gradientRecurrenceFast(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point
     struct ... polynomial structure
@@ -821,7 +820,7 @@ class TuningObjective(object):
         if set_cache: self.setCache(x)
         xs = self._SCLR.scale(x)
         JF = self._SCLR.jacfac
-        GREC = gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+        GREC = gradientRecurrenceFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
         Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
 
@@ -858,14 +857,8 @@ class TuningObjective(object):
 
     def gradient(self, x, sel=slice(None, None, None), unbiased=False):
         self.setCache(x)
-        # vals = np.sum(self._maxrec * self._PC[sel], axis=1)
         vals  = self.getVals( x, sel, set_cache=False)
         grads = self.getGrads(x, sel, set_cache=False)
-        # X = self._SCLR.scale(x)
-        # JF = self._SCLR.jacfac
-        # struct = self._structure
-        # GR = gradientRecursion(X, struct, JF)
-        # temp = np.sum(self._PC.reshape((self._PC.shape[0], 1, self._PC.shape[1])) * GR, axis=2)
 
         return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], grads)
 
