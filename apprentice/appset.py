@@ -30,38 +30,58 @@ def calcHistoCov(h, COV_P, result):
 from numba import jit, njit
 @jit(parallel=True, forceobj=True)
 def startPoints(self, _PP):
-    _CH = np.empty(len(_PP))
+    _CH = np.zeros(len(_PP))
     for p in range(len(_PP)):
        _CH[p] = self.objective(_PP[p])
     return _PP[np.argmin(_CH)]
 
-@jit(forceobj=True)#, parallel=True)
+# @jit
+# def prime(GREC, COEFF, dim, NNZ):
+    # ret = np.zeros((len(COEFF), dim))
+    # for i in range(dim):
+        # ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=1)
+    # return ret
+
+# This is the explicit triple loop version if anyone want to take a crack at speeding that up
+@njit
 def prime(GREC, COEFF, dim, NNZ):
-    ret = np.empty((len(COEFF), dim))
+    ret = np.zeros((len(COEFF), dim))
     for i in range(dim):
-        ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
+        for j in range(len(COEFF)):
+            for k in NNZ[i]:
+                ret[j][i] += COEFF[j][k] * GREC[i][k]
+
     return ret
 
-@jit(forceobj=True)#, parallel=True)
+
+@jit
+def hreduction(xs, ee):
+    dim =len(xs)
+    nel = len(ee)
+    ret = np.ones(nel)
+    for n in range(nel):
+        for d in range(dim):
+            if ee[n][d] == 0: continue
+            if ee[n][d] == 1:
+                ret[n] *= xs[d]
+            else:
+                ret[n] *= pow(xs[d], ee[n][d])
+    return ret
+
+
+@jit
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
-    ret = np.empty((dim, dim, NSEL), dtype=np.float64)
+    ret = np.zeros((dim, dim, NSEL), dtype=np.float64)
     for numx in range(dim):
         for numy in range(dim):
-            rec = HH[numx][numy][HNONZ[numx][numy]] * np.prod(np.power(xs, EE[numx][numy][HNONZ[numx][numy]]), axis=1)
+            rec = HH[numx][numy][HNONZ[numx][numy]] * hreduction(xs, EE[numx][numy][HNONZ[numx][numy]])
             if numy>=numx:
-                ret[numx][numy] = np.sum((rec*COEFF[:,HNONZ[numx][numy][0]]), axis=1)
+                ret[numx][numy] = np.sum((rec*COEFF[:,HNONZ[numx][numy]]), axis=1)
             else:
                 ret[numx][numy] = ret[numy][numx]
 
     return ret
 
-@jit
-def jitprime(GREC, COEFF, dim):
-    ret = np.empty((len(COEFF), dim))
-    for i in range(dim):
-        for j in range(len(COEFF)):
-            ret[j,i] = np.sum(COEFF[j] * GREC[i])
-    return ret
 
 
 
@@ -119,6 +139,7 @@ class AppSet(object):
         self.setStructures()
         self.setCoefficients()
 
+
     def setStructures(self):
         omax_p=np.max([r.m                            for r in self._RA])
         omax_q=np.max([r.n if hasattr(r, "n") else 0  for r in self._RA])
@@ -127,7 +148,15 @@ class AppSet(object):
         self._structure = np.array(apprentice.monomialStructure(self.dim, omax), dtype=np.int32)
         S=self._structure
         # Gradient helpers
-        self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
+        # Observe that there is always the same number of non-zero terms per dim
+        nnn = len(np.where(self._structure[:, 0])[0])
+        self._NNZ  = np.empty((self.dim, nnn), dtype=int)
+        for d in range(self.dim):
+            self._NNZ[d] = np.where(self._structure[:, d])[0]
+
+
+        # [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
+        # self._NNZ  = [np.where(self._structure[:, coord] != 0) for coord in range(self.dim)]
         self._sred = np.array([self._structure[nz][:,num] for num, nz in enumerate(self._NNZ)], dtype=np.int32)
         # Hessian helpers
         self._HH = np.ones((self.dim, self.dim, len(S))             , dtype=np.float64) # Prefactors
@@ -142,10 +171,14 @@ class AppSet(object):
                 self._EE[numx][numy][:,numx]-=1
                 self._EE[numx][numy][:,numy]-=1
 
-        self._HNONZ = np.empty((self.dim, self.dim), dtype=tuple)
+        # Observe that there is always the same number of no-zeros per dim
+        nnn = len(np.where(self._HH[0][0]>0)[0])
+        self._HNONZ  = np.empty((self.dim, self.dim, nnn), dtype=int)
         for numx in range(self.dim):
             for numy in range(self.dim):
-                self._HNONZ[numx][numy]=np.where(self._HH[numx][numy]>0)
+                self._HNONZ[numx][numy] = np.where(self._HH[numx][numy]>0)[0]
+
+        # self._HNONZ = np.empty((self.dim, self.dim), dtype=tuple)
 
         # Jacobians for Hessian
         JF = self._SCLR.jacfac
@@ -195,10 +228,8 @@ class AppSet(object):
         if set_cache: self.setRecurrence(x)
         xs = self._SCLR.scale(x)
         JF = self._SCLR.jacfac
-        GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+        GREC = apprentice.tools.gradientRecurrenceFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
-        # NOTE this is expensive -- pybind11??
-        # Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
         Pprime = prime(GREC, self._PC[sel], self.dim, self._NNZ)
 
         if self._hasRationals:
@@ -225,7 +256,7 @@ class AppSet(object):
         #TODO check against autograd?
         if self._hasRationals:
             JF = self._SCLR.jacfac
-            GREC = apprentice.tools.gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+            GREC = apprentice.tools.gradientRecurrenceFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
             P = np.atleast_2d(np.sum(self._maxrec * self._PC[sel], axis=1))
             Q = np.atleast_2d(np.sum(self._maxrec * self._QC[sel], axis=1))
             Pprime = np.atleast_2d(prime(GREC, self._PC[sel], self.dim, self._NNZ))
