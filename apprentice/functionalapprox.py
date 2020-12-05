@@ -1,8 +1,8 @@
 import apprentice
 import numpy as np
+from numba import jit
 
-# from numba import jit
-# @jit(forceobj=True, parallel=True)
+
 def gradientRecurrence(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point
@@ -27,8 +27,6 @@ def gradientRecurrence(X, struct, jacfac, NNZ, sred):
 
     return REC
 
-# from numba import jit
-# @jit(forceobj=True, parallel=True)
 def gradientRecurrenceMulti(X, struct, jacfac, NNZ, sred):
     """
     X ... np array  of scaled points
@@ -50,15 +48,54 @@ def gradientRecurrenceMulti(X, struct, jacfac, NNZ, sred):
         a = jacfac[coord] * sred[coord] * m_RR[:,:nelem,coord]
         RR = WW[:,coord]
         RR[:,:,coord] = a
-        RREC[:,coord][:,nz] = np.prod(RR,axis=2).reshape((X.shape[0], 1, nelem))
+        RREC[:,coord][:,nz] = np.prod(RR,axis=2)#.reshape((X.shape[0], 1, nelem))
 
     return RREC
 
-# @jit(forceobj=True)#, parallel=True)
+# @jit
+# def prime(GREC, COEFF, dim, NNZ):
+    # ret = np.zeros((len(COEFF), dim))
+    # for i in range(dim):
+        # ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=1)
+    # return ret
+
+# This is the explicit triple loop version if anyone want to take a crack at speeding that up
+
+@jit
 def prime(GREC, COEFF, dim, NNZ):
-    ret = np.empty((len(COEFF), dim))
+    ret = np.zeros((len(COEFF), dim))
     for i in range(dim):
-        ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
+        for j in range(len(COEFF)):
+            for k in NNZ[i]:
+                ret[j][i] += COEFF[j][k] * GREC[i][k]
+    return ret
+
+
+@jit
+def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
+    ret = np.zeros((dim, dim, NSEL), dtype=np.float64)
+    for numx in range(dim):
+        for numy in range(dim):
+            rec = HH[numx][numy][HNONZ[numx][numy]] * hreduction(xs, EE[numx][numy][HNONZ[numx][numy]])
+            if numy>=numx:
+                ret[numx][numy] = np.sum((rec*COEFF[:,HNONZ[numx][numy]]), axis=1)
+            else:
+                ret[numx][numy] = ret[numy][numx]
+
+    return ret
+
+@jit
+def hreduction(xs, ee):
+    dim =len(xs)
+    nel = len(ee)
+    ret = np.ones(nel)
+    for n in range(nel):
+        for d in range(dim):
+            if ee[n][d] == 0: continue
+            if ee[n][d] == 1:
+                ret[n] *= xs[d]
+            else:
+                ret[n] *= pow(xs[d], ee[n][d])
     return ret
 
 
@@ -91,7 +128,13 @@ class FunctionalApprox(object):
         Monomial structures for evaluation of values and gradients
         """
         self.structure_      = np.array(apprentice.monomialStructure(self.dim_, max(self.orderp_, self.orderq_)), dtype=np.int32)
-        self.nonzerostruct_  = [np.where(self.structure_[:, coord] != 0) for coord in range(self.dim_)]
+        # self.nonzerostruct_  = [np.where(self.structure_[:, coord] != 0) for coord in range(self.dim_)]
+
+        nnn = len(np.where(self.structure_[:, 0])[0])
+        self.nonzerostruct_  = np.empty((self.dim, nnn), dtype=int)
+        for d in range(self.dim):
+            self.nonzerostruct_[d] = np.where(self.structure_[:, d])[0]
+
         self.reducedstruct_  = np.array([self.structure_[nz][:,num] for num, nz in enumerate(self.nonzerostruct_)], dtype=np.int32)
 
     def setScaler(self, sdict):
@@ -131,8 +174,6 @@ class FunctionalApprox(object):
         xs = self.scaler_.scale(x)
         GREC = gradientRecurrence(xs, self.structure_, self.scaler_.jacfac, self.nonzerostruct_, self.reducedstruct_)
 
-        # NOTE this is expensive -- pybind11??
-        # Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
         Pprime = prime(GREC, self.pcoeff_[sel], self.dim_, self.nonzerostruct_)
 
         # if self._hasRationals:
@@ -141,7 +182,7 @@ class FunctionalApprox(object):
             # Qprime = prime(GREC, self._QC[sel], self.dim, self._NNZ)
             # return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
 
-        return np.array(Pprime, dtype=np.float64)
+        return Pprime
         # struct = np.array(self._struct_p, dtype=np.float)
         # X = self._scaler.scale(np.array(X))
 
