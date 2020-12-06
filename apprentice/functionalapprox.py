@@ -2,7 +2,7 @@ import apprentice
 import numpy as np
 from numba import jit
 
-
+@jit
 def gradientRecurrence(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point
@@ -14,16 +14,18 @@ def gradientRecurrence(X, struct, jacfac, NNZ, sred):
     """
     dim = len(X)
     REC = np.zeros((dim, len(struct)))
-    _RR = np.power(X, struct)
+    _RR = intpower(X, struct)
     nelem = len(sred[0])
 
-    W=[_RR[nz] for nz in NNZ]
-
-
-    for coord, (RR, nz) in enumerate(zip(W,NNZ)):
+    for coord, nz in enumerate(NNZ):
+        RR = _RR[nz]
         RR[:, coord] = jacfac[coord] * sred[coord] *_RR[:nelem, coord]
-        REC[coord][nz] = np.prod(RR, axis=1)
-
+        # reduction
+        temp = np.ones(nelem)
+        for k in range(nelem):
+            for l in range(dim):
+                temp[k] *= RR[k][l]
+        REC[coord][nz] = temp
 
     return REC
 
@@ -52,15 +54,9 @@ def gradientRecurrenceMulti(X, struct, jacfac, NNZ, sred):
 
     return RREC
 
-# @jit
-# def prime(GREC, COEFF, dim, NNZ):
-    # ret = np.zeros((len(COEFF), dim))
-    # for i in range(dim):
-        # ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=1)
-    # return ret
 
-# This is the explicit triple loop version if anyone want to take a crack at speeding that up
 
+# This is the explicit triple loop version
 @jit
 def prime(GREC, COEFF, dim, NNZ):
     ret = np.zeros((len(COEFF), dim))
@@ -69,7 +65,6 @@ def prime(GREC, COEFF, dim, NNZ):
             for k in NNZ[i]:
                 ret[j][i] += COEFF[j][k] * GREC[i][k]
     return ret
-
 
 @jit
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
@@ -98,6 +93,31 @@ def hreduction(xs, ee):
                 ret[n] *= pow(xs[d], ee[n][d])
     return ret
 
+@jit
+def intpower(xs, ee):
+    dim =len(xs)
+    nel = len(ee)
+    ret = np.ones((nel,dim))
+    for n in range(nel):
+        for d in range(dim):
+            if ee[n][d] == 0: continue
+            if ee[n][d] == 1:
+                ret[n][d] = xs[d]
+            else:
+                ret[n][d] = pow(xs[d], ee[n][d])
+    return ret
+
+
+from numba import jit
+@jit
+def jval(rec, pc):
+    nitems = len(pc)
+    nterms = len(rec)
+    ret = np.zeros(nitems)
+    for i in range(nitems):
+        for j in range(nterms):
+            ret[i] += rec[j] * pc[i][j]
+    return ret
 
 class FunctionalApprox(object):
     def __init__(self, ndim, pcoeff=None, qcoeff=None, m=0, n=0):
@@ -128,7 +148,6 @@ class FunctionalApprox(object):
         Monomial structures for evaluation of values and gradients
         """
         self.structure_      = np.array(apprentice.monomialStructure(self.dim_, max(self.orderp_, self.orderq_)), dtype=np.int32)
-        # self.nonzerostruct_  = [np.where(self.structure_[:, coord] != 0) for coord in range(self.dim_)]
 
         nnn = len(np.where(self.structure_[:, 0])[0])
         self.nonzerostruct_  = np.empty((self.dim, nnn), dtype=int)
@@ -137,23 +156,80 @@ class FunctionalApprox(object):
 
         self.reducedstruct_  = np.array([self.structure_[nz][:,num] for num, nz in enumerate(self.nonzerostruct_)], dtype=np.int32)
 
+
+    def setStructureForHessians(self):
+        """
+        Monomial structures for evaluation of hessians
+        """
+
+        # Hessian helpers
+        self.HH_ = np.ones((self.dim, self.dim, len(self.structure_))                           , dtype=np.float64) # Prefactors
+        self.EE_ = np.full((self.dim, self.dim, len(self.structure_), self.dim), self.structure_, dtype=np.int32) # Initial structures
+
+        # This is the differentiation by coordinate
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                if numx==numy:
+                    self.HH_[numx][numy] = self.structure_[:,numx] * (self.structure_[:,numx]-1)
+                else:
+                    self.HH_[numx][numy] = self.structure_[:,numx] *  self.structure_[:,numy]
+                self.EE_[numx][numy][:,numx]-=1
+                self.EE_[numx][numy][:,numy]-=1
+
+        # Observe that there is always the same number of no-zeros per dim
+        nnn = len(np.where(self.HH_[0][0]>0)[0])
+        self.HNONZ_  = np.empty((self.dim, self.dim, nnn), dtype=int)
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                self.HNONZ_[numx][numy] = np.where(self.HH_[numx][numy]>0)[0]
+
+        # Jacobians for Hessian
+        JF = self.scaler_.jacfac
+        for numx in range(self.dim):
+            for numy in range(self.dim):
+                self.HH_[numx][numy][self.HNONZ_[numx][numy]] *= (JF[numx] * JF[numy])
+
+
     def setScaler(self, sdict):
         self.scaler_ = apprentice.Scaler(sdict)
 
     def setRecurrence(self, x):
         if self.scaler_ is not None:
-            xs = self.scaler_.scale(x)
+            xs = np.array(self.scaler_.scale(x))
         else:
-            xs = x
+            xs = np.array(x)
+        self.currec_ = hreduction(xs, self.structure_)
+
+    def setRecurrences(self, x):
+        if self.scaler_ is not None:
+            xs = np.array(self.scaler_.scale(x))
+        else:
+            xs = np.array(x)
         self.currec_ = np.prod(np.power(xs, self.structure_[:, np.newaxis]), axis=2).T
 
     def val(self, x, sel=slice(None, None, None), set_recurrence=True):
         """
-        Evaluation of the numerator and denominator polynomials at one or many points x.
+        Evaluation of the numerator and denominator polynomials at one  points x.
         """
 
         if set_recurrence:
             self.setRecurrence(x)
+
+        vals = jval(self.currec_, self.pcoeff_[sel])
+
+        if self.qcoeff_ is not None:
+            qvals = jval(self.currec_, self.qcoeff_[sel])
+            vals/=qvals
+
+        return vals
+
+    def vals(self, x, sel=slice(None, None, None), set_recurrence=True):
+        """
+        Evaluation of the numerator and denominator polynomials at many points x.
+        """
+
+        if set_recurrence:
+            self.setRecurrences(x)
 
         PV = self.currec_ * self.pcoeff_[sel][:, np.newaxis]
         vals = np.sum(PV, axis=2)
@@ -170,6 +246,7 @@ class FunctionalApprox(object):
         If x is single point -> array of gradients for all bins
         If x is collection of points -> all sorts of gradients etc
         """
+        x=np.array(x)
         if set_recurrence: self.setRecurrence(x)
         xs = self.scaler_.scale(x)
         GREC = gradientRecurrence(xs, self.structure_, self.scaler_.jacfac, self.nonzerostruct_, self.reducedstruct_)
@@ -183,22 +260,21 @@ class FunctionalApprox(object):
             # return np.array(Pprime/Q.transpose() - (P/Q/Q).transpose()*Qprime, dtype=np.float64)
 
         return Pprime
-        # struct = np.array(self._struct_p, dtype=np.float)
-        # X = self._scaler.scale(np.array(X))
 
-        # if self.dim==1:
-            # struct[1:]=self._scaler.jacfac[0]*struct[1:]*np.power(X, struct[1:]-1)
-            # return np.dot(np.atleast_2d(struct),self._pcoeff)
-
-        # from apprentice.tools import gradientRecursion
-        # GREC = gradientRecursion(X, struct, self._scaler.jacfac)
-
-        # return np.sum(GREC * self._pcoeff, axis=1)
-        # pass
-
-    def hess(X, sel=slice(None, None, None)):
+    def hess(self, x,sel=slice(None, None, None)):
         """
         If x is single point -> array of hessians for all bins
         If x is collection of points -> all sorts of hessians etc
         """
-        pass
+        """
+        To get the hessian matrix of bin number N, do
+        H=hessians(pp)
+        H[:,:,N]
+        """
+        xs = self.scaler_.scale(x)
+
+        NSEL = len(self.pcoeff_[sel])
+
+        Phess = doubleprime(self.dim, xs, NSEL, self.HH_, self.HNONZ_, self.EE_, self.pcoeff_[sel])
+
+        return Phess
