@@ -79,7 +79,7 @@ def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
 
     return ret
 
-@jit
+@jit(nopython=True)
 def hreduction(xs, ee):
     dim =len(xs)
     nel = len(ee)
@@ -278,3 +278,31 @@ class FunctionalApprox(object):
         Phess = doubleprime(self.dim, xs, NSEL, self.HH_, self.HNONZ_, self.EE_, self.pcoeff_[sel])
 
         return Phess
+
+
+
+def readFunctionalApprox(fname):
+    binids, RA = apprentice.io.readApprox(fname, set_structures=False)
+    dim = RA[0].dim
+    m = RA[0].m
+    n=0 if not hasattr(RA[0], "n") else RA[0].n
+
+    sdict = RA[0]._scaler.asDict
+    p_nc = apprentice.tools.numCoeffsPoly(dim, m)
+    q_nc = 0 if n==0 else apprentice.tools.numCoeffsPoly(dim, n)
+
+    pcoeff = np.zeros((len(RA), max(p_nc, q_nc)), dtype=np.float64)
+    for num, r in enumerate(RA): pcoeff[num][:p_nc] = r._pcoeff
+    # Denominator
+    if n > 0:
+        qcoeff = np.zeros((len(RA), max(p_nc, q_nc)), dtype=np.float64)
+        for num, r in enumerate(RA):
+            self._QC[num][:q_nc] = r._qcoeff
+    else:
+        qcoeff = None
+
+    ft = apprentice.FunctionalApprox(dim, m=m, n=n)
+    ft.setCoefficients(pcoeff, qcoeff)
+    ft.setScaler(sdict)
+    ft.ids_ = binids
+    return ft
