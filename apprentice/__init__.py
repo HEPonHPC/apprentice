@@ -1,4 +1,9 @@
 from apprentice import *
+from apprentice.loader import loadPlugin
+
+from apprentice.objective_base import ObjectiveBase
+from apprentice.objectives import *
+
 from apprentice.rationalapproximation   import RationalApproximation
 from apprentice.polynomialapproximation import PolynomialApproximation
 from apprentice.rationalapproximationSLSQP import RationalApproximationSLSQP
