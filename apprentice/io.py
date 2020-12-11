@@ -30,7 +30,7 @@ def readInputDataH5(fname, wfile=None):
     DATA    = app.io.readH5(fname, rankIdx)
     return DATA, np.array(binids)[rankIdx], pnames, rankIdx, xmin[rankIdx], xmax[rankIdx]
 
-def readH5(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
+def readH5(fname, idx=None, xfield="params", yfield1="values", yfield2="errors"):
     """
     Read X,Y, errors values etc from HDF5 file.
     By default, only the first object is read.
@@ -42,25 +42,32 @@ def readH5(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
     import numpy as np
     import h5py
 
-    ret = []
-    f = h5py.File(fname, "r")
+    with h5py.File(fname, "r") as f:
+        indexsize = f.get("index").size
 
-    # Read parameters
-    _X = np.array(f.get(xfield))
-    Y = f.get(yfield1)[:][idx]
+        if idx is not None and len(idx) > 0:
+            assert (max(idx) <= indexsize)
+        else:
+            idx = [i for i in range(indexsize)]
+        ret = []
+        # f = h5py.File(fname, "r")
 
-    if yfield2 in f:
-        E = f.get(yfield2)[:][idx]
-        # Read y-values
-        for i in range(len(idx)):
-            _Y = Y[i]
-            _E = E[i]
-            USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
-            ret.append([_X[USE], _Y[USE], _E[USE]])
-    else:
-        for i in range(len(idx)):
-            _Y = Y[i]
-            ret.append([_X, _Y, np.zeros(len(_Y))])
+        # Read parameters
+        _X = np.array(f.get(xfield))
+        Y = f.get(yfield1)[:][idx]
+
+        if yfield2 in f:
+            E = f.get(yfield2)[:][idx]
+            # Read y-values
+            for i in range(len(idx)):
+                _Y = Y[i]
+                _E = E[i]
+                USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
+                ret.append([_X[USE], _Y[USE], _E[USE]])
+        else:
+            for i in range(len(idx)):
+                _Y = Y[i]
+                ret.append([_X, _Y, np.zeros(len(_Y))])
 
     f.close()
     return ret
