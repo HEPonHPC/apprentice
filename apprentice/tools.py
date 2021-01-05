@@ -747,6 +747,9 @@ class TuningObjective(object):
                 if bcount == 0: continue
                 for ikeep in range(bstart, bend + 1):
                     keepids.append(self._binids[sel[ikeep]])
+                # nnn = len(range(bstart, bend + 1))
+                # if nnn < len(sel):
+                #     print("%s & %d & %.2f & %.2f & %.2f\\\\\\hline"%(hn.replace('_','\\_'),len(sel)-nnn,chi2_critical,chi2_test,np.sum(chi2_test_arr[bstart:bend + 1])))
             else:
                 for ikeep in range(len(sel)): keepids.append(self._binids[sel[ikeep]])
         return [self._binids.index(x) for x in keepids]
@@ -849,7 +852,7 @@ class TuningObjective(object):
             vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
                 den = np.sum(self._maxrec * self._QC[sel], axis=1)
-                vals[self._mask[sel]] /= den[self._mask[sel]]
+                vals /= den
 
         if unbiased:
             return fast_chi(np.ones(len(vals)), self._Y[sel] - vals, self._E2[sel])
@@ -884,7 +887,7 @@ class TuningObjective(object):
             vals = np.sum(self._maxrec * self._PC[sel], axis=1)
             if self._hasRationals:
                 den = np.sum(self._maxrec * self._QC[sel], axis=1)
-                vals[self._mask[sel]] /= den[self._mask[sel]]
+                vals /= den
         return vals
 
     def obsBins(self, hname):
