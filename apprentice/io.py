@@ -1,11 +1,11 @@
 import apprentice as app
+from mpi4py import MPI
 
-def readInputDataH5(fname, wfile=None):
+def readInputDataH5(fname, wfile=None, comm=MPI.COMM_WORLD):
     import apprentice as app
     import numpy as np
     import h5py
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
+    # comm = MPI.COMM_WORLD
     size = comm.Get_size()
     rank = comm.Get_rank()
 
@@ -72,12 +72,10 @@ def readH5(fname, idx=None, xfield="params", yfield1="values", yfield2="errors")
     f.close()
     return ret
 
-def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None):
+def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI.COMM_WORLD):
     import apprentice as app
     import numpy as np
     import yoda, glob, os
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
     size = comm.Get_size()
     rank = comm.Get_rank()
 
