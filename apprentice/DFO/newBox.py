@@ -54,10 +54,10 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
                 continue
         # print("chi2_ra_k=\t{}\nchi2_ra_kp1=\t{}\nchi2_mc_k=\t{}\nchi2_mc_kp1=\t{}\n".format(chi2_ra_k,chi2_ra_kp1,chi2_mc_k,chi2_mc_kp1))
 
-        print("chi2/ra k\t= %.3f" % (chi2_ra_k))
-        print("chi2/ra k+1\t= %.3f" % (chi2_ra_kp1))
-        print("chi2/mc k\t= %.3f" % (chi2_mc_k))
-        print("chi2/mc k+1\t= %.3f" % (chi2_mc_kp1))
+        print("chi2/ra k\t= %.2E" % (chi2_ra_k))
+        print("chi2/ra k+1\t= %.2E" % (chi2_ra_kp1))
+        print("chi2/mc k\t= %.2E" % (chi2_mc_k))
+        print("chi2/mc k+1\t= %.2E" % (chi2_mc_kp1))
 
         rho = (chi2_mc_k - chi2_mc_kp1) / (chi2_ra_k - chi2_ra_kp1)
         # print("rho={}".format(rho))
@@ -97,7 +97,7 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
     # put  tr_radius and curr_p in radius and center and write to algoparams
     algoparamds['tr']['radius'] = tr_radius
     algoparamds['tr']['center'] = curr_p
-    print("\Delta k+1 \t= %.2f (%s)"%(tr_radius,trradmsg))
+    print("\Delta k+1 \t= %.2E (%s)"%(tr_radius,trradmsg))
 
     print("P k+1 \t\t= {} ({})".format(["%.3f"%(c) for c in curr_p],trcentermsg))
 
