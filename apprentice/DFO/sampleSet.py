@@ -2,8 +2,8 @@ import argparse
 import json
 import numpy as np
 
-def buildInterpolationPoints(algoparams,paramfileName,iterationNo,outfile):
-
+# DO NOT REMOVE COMMENTED CODE FROM THE FUNCTION BELOW
+def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfile,prevparamoutfile):
     ############################################################
     # Step 0: Get relevent algorithm parameters and past parameter
     # vectors
@@ -18,34 +18,43 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,outfile):
     point_min_dist = ds['point_min_dist']
     parambounds = ds['param_bounds'] if "param_bounds" in ds and ds['param_bounds'] is not None else None
 
-    # prevparams = None
+    # prevparamsarr = []
+    # fnamearr = []
+    # pnoarr = []
+    # np_remain = N_p
     # for iter in range(iterationNo):
     #     fname = paramfileName + "_k{}.json".format(iter)
     #     with open(fname,'r') as f:
     #         ds = json.load(f)
-    #     prevparams = np.vstack([pv for pv in ds['parameters']])
-
-    ############################################################
-    # Step 1: find out which currently existing points are within
-    # the radius
-    ############################################################
-    # if prevparams is not None:
-    #     prevParamAccept = [False]*len(prevparams)
-    #     for pno, p in enumerate(prevparams):
+    #     pparr = ds['parameters']
+    #     for pno, p in enumerate(pparr):
     #         distarr = [np.abs(p[vno] - tr_center[vno]) for vno in range(dim)]
     #         infn = max(distarr)
-    #         prevParamAccept[pno] = infn <= tr_radius
-    #     # print(prevParamAccept)
-    #     # print(len(prevparams[prevParamAccept]))
-    #     np_from_prev_points = len(prevparams[prevParamAccept])
-    #     # print(np_from_prev_points)
+    #         if infn <= tr_radius:
+    #             prevparamsarr.append(p)
+    #             fnamearr.append(fname)
+    #             pnoarr.append(pno)
     #
-    #     np_remain = N_p - np_from_prev_points
-    #     # np.random.seed(seed)
-    # else:
-    #     np_remain = N_p
-    np_remain = N_p
+    # prevparamobj = {}
+    # prevparamsarraccpet = []
+    # for pno,p in enumerate(prevparamsarr):
+    #     add = True
+    #     for pa in prevparamsarraccpet:
+    #         distarr = [np.abs(p[vno] - pa[vno]) for vno in range(dim)]
+    #         infn = max(distarr)
+    #         add = infn >= point_min_dist
+    #         if not add:
+    #             break
+    #     if add:
+    #         np_remain -= 1
+    #         if fnamearr[pno] not in prevparamobj:
+    #             prevparamobj[fnamearr[pno]] = {}
+    #         prevparamobj[fnamearr[pno]][str(pnoarr[pno])] = p
+    #     if np_remain==0:
+    #         break
+    # print(prevparamobj)
     # print(np_remain)
+    np_remain = N_p
     newparams = None
     if parambounds is not None:
         minarr = [max(tr_center[d] - tr_radius,parambounds[d][0]) for d in range(dim)]
@@ -75,7 +84,7 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,outfile):
         for xn in Xnew:
             newparamsAccept = [True]
             newparamsAccept2 = [True]
-            # if prevparams is not None:
+            # if len(prevparams) > 0:
             #     newparamsAccept = [False] * len(prevparams[prevParamAccept])
             #     for xno,xo in enumerate(prevparams[prevParamAccept]):
             #         distarr = [np.abs(xn[vno] - xo[vno]) for vno in range(dim)]
@@ -108,7 +117,7 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,outfile):
     # if prevparams is not None:
     #     ds["prevparameters"] = prevparams[prevParamAccept].tolist()
     # print(ds)
-    with open(outfile,'w') as f:
+    with open(newparamoutfile,'w') as f:
         json.dump(ds, f, indent=4)
 
 
