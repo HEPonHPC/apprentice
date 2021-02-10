@@ -75,13 +75,15 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
             curr_p = kpstar
             trradmsg = "TR radius halved"
             trcentermsg = "TR center remains the same"
+            copyfile(kpstarfile,kp1pstarfile)
+            copyfile(kMCout,kp1MCout)
         else:
             # print("rho >= eta. New point accepted")
             tr_radius = min(tr_radius*2,tr_maxradius)
             curr_p = kp1pstar
             # copyfile(src, dst)
-            copyfile(kp1pstarfile,kpstarfile)
-            copyfile(kp1MCout,kMCout)
+            # copyfile(kp1pstarfile,kpstarfile)
+            # copyfile(kp1MCout,kMCout)
             trradmsg = "TR radius doubled"
             trcentermsg = "TR center moved to the SP amin"
     else:
@@ -90,6 +92,8 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
         curr_p = kpstar
         trradmsg = "TR radius halved"
         trcentermsg = "TR center remains the same"
+        copyfile(kpstarfile,kp1pstarfile)
+        copyfile(kMCout,kp1MCout)
     # put  tr_radius and curr_p in radius and center and write to algoparams
     algoparamds['tr']['radius'] = tr_radius
     algoparamds['tr']['center'] = curr_p
@@ -107,6 +111,8 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
     simulationbudgetused = algoparamds['simulationbudgetused']
 
     # get gradient of model at current point
+    IO._AS.setRecurrence(curr_p)
+    IO._EAS.setRecurrence(curr_p)
     grad = IO.gradient(curr_p)
 
     status = "CONTINUE"

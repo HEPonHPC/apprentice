@@ -31,7 +31,7 @@ def sumOfDiffPowersObjective(x):
     sum = 0
     for ii in range(len(x)):
         xi = x[ii]
-        new = (abs(xi)) ** (ii + 1);
+        new = (abs(xi)) ** (ii + 2)
         sum = sum + new
     return sum
 
@@ -39,7 +39,7 @@ def x2Objective(x):
     sum = 0
     for ii in range(len(x)):
         xi = x[ii]
-        new = xi ** 2;
+        new = (ii + 1) * (xi ** 2)
         sum = sum + new
     return sum
 
