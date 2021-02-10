@@ -27,11 +27,19 @@ def shekelObjective(x):
     return -1 * outer
 
 # https://www.sfu.ca/~ssurjano/sumpow.html
-def x2Objective(x):
+def sumOfDiffPowersObjective(x):
     sum = 0
     for ii in range(len(x)):
         xi = x[ii]
         new = (abs(xi)) ** (ii + 1);
+        sum = sum + new
+    return sum
+
+def x2Objective(x):
+    sum = 0
+    for ii in range(len(x)):
+        xi = x[ii]
+        new = xi ** 2;
         sum = sum + new
     return sum
 
@@ -43,22 +51,24 @@ def runSimulation(p,fidelity,problemname,factor=1):
     :return:
     """
     if problemname == "Shekel":
-        Y = np.random.normal(factor*(shekelObjective(p)),1/np.sqrt(fidelity),1)
+        Y = np.random.normal(factor * (shekelObjective(p)), 1 / np.sqrt(fidelity), 1)
+    elif problemname == "SumOfDiffPowers":
+        Y = np.random.normal(factor * (sumOfDiffPowersObjective(p)), 1 / np.sqrt(fidelity), 1)
     elif problemname == "X2":
-        Y = np.random.normal(factor*(x2Objective(p)), 1 / np.sqrt(fidelity), 1)
+        Y = np.random.normal(factor * (x2Objective(p)), 1 / np.sqrt(fidelity), 1)
     elif problemname == "Hybrid":
-        Y = np.random.normal(factor*(x2Objective(p)+shekelObjective(p)),
-                              1 / np.sqrt(fidelity), 1)
+        Y = np.random.normal(factor * (x2Objective(p) + shekelObjective(p) + sumOfDiffPowersObjective(p)),
+                             1 / np.sqrt(fidelity), 1)
     else: raise Exception("Problem name {} unknown".format(problemname))
     E = [1.]
     return Y,E
 
 def problem_main_program(algoparams,paramfile,binids,outfile):
     with open(algoparams,'r') as f:
-        ds = json.load(f)
-    param_names = ds["param_names"]
-    fidelity = ds["fidelity"]
-    dim = ds['dim']
+        algoparamds = json.load(f)
+    param_names = algoparamds["param_names"]
+    fidelity = algoparamds["fidelity"]
+    dim = algoparamds['dim']
 
     with open(paramfile,'r') as f:
         ds = json.load(f)
@@ -87,6 +97,9 @@ def problem_main_program(algoparams,paramfile,binids,outfile):
             for p in P
         ])
 
+    if 'simulationbudgetused' not in algoparamds:
+        algoparamds['simulationbudgetused'] = 0
+    algoparamds['simulationbudgetused'] += fidelity * len(P)
 
     # print("##########")
     # print(vals)
@@ -108,6 +121,8 @@ def problem_main_program(algoparams,paramfile,binids,outfile):
     f.close()
 
     # print("Done. Output written to %s" % outfile)
+    with open(algoparams,'w') as f:
+        json.dump(algoparamds,f,indent=4)
     sys.stdout.flush()
 
 

@@ -59,7 +59,8 @@ if __name__ == "__main__":
     assert(algoparamsfile!=args.ALGOPARAMS)
     copyfile(args.ALGOPARAMS,algoparamsfile)
 
-    for k in range(5):
+    k=0
+    while True:
         if k==0:
             import json
             with open(algoparamsfile, 'r') as f:
@@ -110,9 +111,13 @@ if __name__ == "__main__":
                               resultoutfile_k,newparams_1_kp1)
             problem_main_program(algoparamsfile, newparams_1_kp1, args.BINIDS, MCout_1_kp1)
 
-        tr_update(algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
+        tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
                   newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1)
-
+        k+=1
+        with open(algoparamsfile, 'r') as f:
+            algoparamds = json.load(f)
+        if algoparamds['status'] == "STOP":
+            break
         # exit(1)
 
 

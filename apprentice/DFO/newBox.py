@@ -5,7 +5,7 @@ import json
 import numpy as np
 from shutil import copyfile
 
-def tr_update(algoparams,valfile,errfile,expdatafile,wtfile,
+def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
               kpstarfile,kMCout,kp1pstarfile,kp1MCout):
     with open(algoparams, 'r') as f:
         algoparamds = json.load(f)
@@ -14,6 +14,10 @@ def tr_update(algoparams,valfile,errfile,expdatafile,wtfile,
     with open(kpstarfile, 'r') as f:
         ds = json.load(f)
     kpstar = ds['parameters'][0]
+    IO = apprentice.appset.TuningObjective2(wtfile,
+                                            expdatafile,
+                                            valfile,
+                                            errfile)
     if gradcond=="NO":
         kDATA = apprentice.io.readH5(kMCout)
         idx = [i for i in range(len(kDATA))]
@@ -26,10 +30,6 @@ def tr_update(algoparams,valfile,errfile,expdatafile,wtfile,
             ds = json.load(f)
         kp1pstar = ds['parameters'][0]
 
-        IO = apprentice.appset.TuningObjective2(wtfile,
-                                                expdatafile,
-                                                valfile,
-                                                errfile)
         chi2_ra_k = IO.objective(kpstar)
         chi2_ra_kp1 = IO.objective(kp1pstar)
 
@@ -96,6 +96,35 @@ def tr_update(algoparams,valfile,errfile,expdatafile,wtfile,
     print("\Delta k+1 \t= %.2f (%s)"%(tr_radius,trradmsg))
 
     print("P k+1 \t\t= {} ({})".format(["%.3f"%(c) for c in curr_p],trcentermsg))
+
+    # Stopping condition
+    # get parameters
+    max_iteration = algoparamds['max_iteration']
+    min_gradientNorm = algoparamds['min_gradientNorm']
+    max_simulationBudget = algoparamds['max_simulationBudget']
+
+    # get budget
+    simulationbudgetused = algoparamds['simulationbudgetused']
+
+    # get gradient of model at current point
+    grad = IO.gradient(curr_p)
+
+    status = "CONTINUE"
+    if np.linalg.norm(grad) <= min_gradientNorm:
+        status = "STOP"
+        print("STOP\t\t= Norm of the gradient too small {}".format(np.linalg.norm(grad)))
+    if currIterationNo >= max_iteration-1:
+        status = "STOP"
+        print("STOP\t\t= Max iterations reached")
+    if simulationbudgetused >= max_simulationBudget:
+        status = "STOP"
+        print("STOP\t\t= Simulation budget depleted")
+    print(status)
+    algoparamds['status'] = status
+    with open(algoparams,'w') as f:
+        json.dump(algoparamds,f,indent=4)
+
+
 
     with open(algoparams,'w') as f:
         json.dump(algoparamds,f,indent=4)
