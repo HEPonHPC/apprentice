@@ -43,6 +43,16 @@ def x2Objective(x):
         sum = sum + new
     return sum
 
+def x2plusCObjective(x):
+    return x2Objective(x) + 0.5
+
+def x2minusCObjective(x):
+    return x2Objective(x) - 0.5
+
+def hybridObjective(x):
+    return x2Objective(x) + shekelObjective(x) + sumOfDiffPowersObjective(x) +\
+            x2plusCObjective(x) + x2minusCObjective(x)
+
 def runSimulation(p,fidelity,problemname,factor=1):
     """
     Run simulation
@@ -50,16 +60,17 @@ def runSimulation(p,fidelity,problemname,factor=1):
     :param n: Fidelity
     :return:
     """
-    if problemname == "Shekel":
-        Y = np.random.normal(factor * (shekelObjective(p)), 1 / np.sqrt(fidelity), 1)
-    elif problemname == "SumOfDiffPowers":
-        Y = np.random.normal(factor * (sumOfDiffPowersObjective(p)), 1 / np.sqrt(fidelity), 1)
-    elif problemname == "X2":
-        Y = np.random.normal(factor * (x2Objective(p)), 1 / np.sqrt(fidelity), 1)
-    elif problemname == "Hybrid":
-        Y = np.random.normal(factor * (x2Objective(p) + shekelObjective(p) + sumOfDiffPowersObjective(p)),
-                             1 / np.sqrt(fidelity), 1)
-    else: raise Exception("Problem name {} unknown".format(problemname))
+    probFn = {
+        "Shekel":shekelObjective,
+        "SumOfDiffPowers":sumOfDiffPowersObjective,
+        "X2":x2Objective,
+        "X2plusC":x2plusCObjective,
+        "X2minusC": x2minusCObjective,
+        "Hybrid":hybridObjective
+    }
+
+    if problemname not in probFn: raise Exception("Problem name {} unknown".format(problemname))
+    Y = np.random.normal(factor * (probFn[problemname](p)), 1 / np.sqrt(fidelity), 1)
     E = [1.]
     return Y,E
 
