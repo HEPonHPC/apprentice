@@ -38,22 +38,13 @@ if __name__ == "__main__":
 
     os.makedirs(args.WD,exist_ok=True)
     newparams_Np = args.WD + "/new_params_Np"
+    prevparams_Np = args.WD + "/prev_params_Np"
     newparams_1 = args.WD + "/new_params_1"
     MCout_Np = args.WD + "/MCout_Np"
     MCout_1 = args.WD + "/MCout_1"
     valapproxfile = args.WD + "/valapprox"
     errapproxfile = args.WD + "/errapprox"
     resultoutfile = args.WD + "/chi2result"
-    k=0
-    newparams_Np_k = newparams_Np+"_k{}.json".format(k)
-    newparams_1_kp1 = newparams_1+"_k{}.json".format(k+1)
-    newparams_1_k = newparams_1+"_k{}.json".format(k)
-    MCout_Np_k = MCout_Np+"_k{}.h5".format(k)
-    MCout_1_k = MCout_1 + "_k{}.h5".format(k)
-    MCout_1_kp1 = MCout_1+"_k{}.h5".format(k+1)
-    valapproxfile_k = valapproxfile+"_k{}.json".format(k)
-    errapproxfile_k = errapproxfile+"_k{}.json".format(k)
-    resultoutfile_k = resultoutfile+"_k{}.json".format(k)
 
     algoparamsfile = os.path.join(args.WD, "algoparams.json")
     assert(algoparamsfile!=args.ALGOPARAMS)
@@ -61,6 +52,16 @@ if __name__ == "__main__":
 
     k=0
     while True:
+        newparams_Np_k = newparams_Np + "_k{}.json".format(k)
+        prevparams_Np_k = prevparams_Np + "_k{}.json".format(k)
+        newparams_1_kp1 = newparams_1 + "_k{}.json".format(k + 1)
+        newparams_1_k = newparams_1 + "_k{}.json".format(k)
+        MCout_Np_k = MCout_Np + "_k{}.h5".format(k)
+        MCout_1_k = MCout_1 + "_k{}.h5".format(k)
+        MCout_1_kp1 = MCout_1 + "_k{}.h5".format(k + 1)
+        valapproxfile_k = valapproxfile + "_k{}.json".format(k)
+        errapproxfile_k = errapproxfile + "_k{}.json".format(k)
+        resultoutfile_k = resultoutfile + "_k{}.json".format(k)
         if k==0:
             import json
             with open(algoparamsfile, 'r') as f:
@@ -97,7 +98,7 @@ if __name__ == "__main__":
         print("Starting iteration {}".format(k + 1))
         print("#####################################")
 
-        buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k)
+        buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k,prevparams_Np_k)
         problem_main_program(algoparamsfile,newparams_Np_k,args.BINIDS,MCout_Np_k)
         run_approx(algoparamsfile,MCout_Np_k,valapproxfile_k,errapproxfile_k,
                    args.EXPDATA,args.WEIGHTS)
@@ -113,7 +114,7 @@ if __name__ == "__main__":
 
         tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
                   newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1)
-        k+=1
+        k += 1
         with open(algoparamsfile, 'r') as f:
             algoparamds = json.load(f)
         if algoparamds['status'] == "STOP":
