@@ -128,18 +128,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate sample points',
                                      formatter_class=SaneFormatter)
     parser.add_argument("-a", dest="ALGOPARAMS", type=str, default=None,
-                        help="Algorithm Parameters JSON")
-    parser.add_argument("-p", dest="PREVPARAMSFN", type=str, default=[], nargs='+',
-                        help="Previous parameters file name e.g., main_new_params_N_p")
-    parser.add_argument("--iter", dest="ITER", type=int, default=0,
+                        help="Algorithm Parameters (JSON)")
+    parser.add_argument("-p", dest="PARAMFILENAME", type=str, default=None,
+                        help="Previous parameters file name string before adding the iteration "
+                             "number and file extention e.g., new_params_N_p") #NOT USED FOR NOW
+    parser.add_argument("--iterno", dest="ITERNO", type=int, default=0,
                         help="Current iteration number")
-    parser.add_argument("-o", dest="OUTFILE", type=str, default=None,
-                        help="Output file")
+    parser.add_argument("--newpout", dest="NEWPOUTFILE", type=str, default=None,
+                        help="New parameters output file (JSON)")
+    parser.add_argument("--prevpout", dest="PREVPOUTFILE", type=str, default=None,
+                        help="Previous parameters (to reuse) output file (JSON)") #NOT USED FOR NOW
 
     args = parser.parse_args()
     buildInterpolationPoints(
         args.ALGOPARAMS,
         args.PREVPARAMSFN,
-        args.ITER,
-        args.OUTFILE
+        args.ITERNO,
+        args.NEWPOUTFILE,
+        args.PREVPOUTFILE
     )

@@ -82,16 +82,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Construct Model',
                                      formatter_class=SaneFormatter)
     parser.add_argument("-a", dest="ALGOPARAMS", type=str, default=None,
-                        help="Algorithm Parameters JSON")
+                        help="Algorithm Parameters (JSON)")
     parser.add_argument("-i", dest="INTERPOLATIONDATAFILE", type=str, default=None,
-                        help="Interpolation data H5 file")
+                        help="Interpolation data (MC HDF5) file")
     parser.add_argument("--valappfile", dest="VALAPPFILE", type=str, default=None,
-                        help="Value approximation output file name")
+                        help="Value approximation output file name (JSON)")
     parser.add_argument("--errappfile", dest="ERRAPPFILE", type=str, default=None,
-                        help="Error approximation output file name")
+                        help="Error approximation output file name (JSON)")
     parser.add_argument("-e", dest="EXPDATA", type=str, default=None,
-                        help="Experimental data file")
+                        help="Experimental data file (JSON)")
     parser.add_argument("-w", dest="WEIGHTS", type=str, default=None,
-                        help="Weights file")
+                        help="Weights file (TXT)")
 
     args = parser.parse_args()
+
+    run_approx(
+        args.ALGOPARAMS,
+        args.INTERPOLATIONDATAFILE,
+        args.VALAPPFILE,
+        args.ERRAPPFILE,
+        args.EXPDATA,
+        args.WEIGHTS
+    )

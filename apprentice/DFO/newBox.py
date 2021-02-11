@@ -142,23 +142,37 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TR Update',
                                      formatter_class=SaneFormatter)
+    parser.add_argument("--iterno", dest="ITERNO", type=int, default=0,
+                        help="Current iteration number")
     parser.add_argument("-a", dest="ALGOPARAMS", type=str, default=None,
-                        help="Algorithm Parameters JSON")
+                        help="Algorithm Parameters (JSON)")
     parser.add_argument("--valappfile", dest="VALAPPFILE", type=str, default=None,
-                        help="Value approximation file name")
+                        help="Value approximation file name (JSON)")
     parser.add_argument("--errappfile", dest="ERRAPPFILE", type=str, default=None,
-                        help="Error approximation file name")
+                        help="Error approximation file name (JSON)")
     parser.add_argument("-e", dest="EXPDATA", type=str, default=None,
-                        help="Experimental data file")
+                        help="Experimental data file (JSON)")
     parser.add_argument("-w", dest="WEIGHTS", type=str, default=None,
-                        help="Weights file")
-    parser.add_argument("--km1pstarfile", dest="KM1PSTARFILE", type=str, default=None,
-                        help="p^* parameter file from iteration k-1")
+                        help="Weights file (TXT)")
     parser.add_argument("--kpstarfile", dest="KPSTARFILE", type=str, default=None,
-                        help="p^* parameter outfile from iteration k")
-    parser.add_argument("--km1MCout", dest="KM1MCOUT", type=str, default=None,
-                        help="MC OUT H5 from iteration k-1")
+                        help="p^* parameter file from iteration k (JSON)")
+    parser.add_argument("--kp1pstarfile", dest="KP1PSTARFILE", type=str, default=None,
+                        help="p^* parameter outfile from iteration k + 1 (JSON)")
     parser.add_argument("--kMCout", dest="KMCOUT", type=str, default=None,
-                        help="MC OUT H5 from iteration k")
+                        help="MC OUT (HDF5) from iteration k")
+    parser.add_argument("--kp1MCout", dest="KP1MCOUT", type=str, default=None,
+                        help="MC OUT (HDF5) from iteration k+1")
 
     args = parser.parse_args()
+    tr_update(
+        args.ITERNO,
+        args.ALGOPARAMS,
+        args.VALAPPFILE,
+        args.ERRAPPFILE,
+        args.EXPDATA,
+        args.WEIGHTS,
+        args.KPSTARFILE,
+        args.KMCOUT,
+        args.KP1PSTARFILE,
+        args.KP1MCOUT
+    )

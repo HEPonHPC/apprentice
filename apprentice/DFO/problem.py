@@ -145,14 +145,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run Simulation (with noise added)',
                                      formatter_class=SaneFormatter)
     parser.add_argument("-a", dest="ALGOPARAMS", type=str, default=None,
-                        help="Algorithm Parameters JSON")
-    parser.add_argument("-p", dest="CURRENTPARAMS", type=str, default=None,
-                        help="Current parameters in JSON")
+                        help="Algorithm Parameters (JSON)")
+    parser.add_argument("--newpin", dest="NEWPINFILE", type=str, default=None,
+                        help="New parameters input file (JSON)")
     parser.add_argument("-b", dest="BINIDS", type=str, default=[], nargs='+',
                         help="Bin ids Shekel#1 or X2#1 and so on")
     parser.add_argument("-o", dest="OUTFILE", type=str, default=None,
-                        help="Output file")
+                        help="MC Output file (HDF5)")
 
     args = parser.parse_args()
 
-    print(runSimulation(P=[[4, 4, 4, 4]], fidelity=1000, problemname="Shekel"))
+    problem_main_program(
+        args.ALGOPARAMS,
+        args.NEWPINFILE,
+        args.BINIDS,
+        args.OUTFILE
+    )
+
+    # print(runSimulation(P=[[4, 4, 4, 4]], fidelity=1000, problemname="Shekel"))
