@@ -5,17 +5,24 @@ from approx import run_approx
 from chi2 import run_chi2_optimization
 from newBox import tr_update
 import numpy as np
+import json
 import sys,os
 from shutil import copyfile
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
     pass
 """
-ddd=X2_2D_1bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights -b X2#1
+ddd=X2_2D_1bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
 
-ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights -b X2#1 X2#2 X2#3
+ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
 
-ddd=X2_2D_3bin_notglobal; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights -b X2#1 X2#2 X2#3
+ddd=X2_2D_3bin_notglobal; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
+
+TEST FOR ORCUN
+ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
+ddd=SumOfDiffPowers_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
+
+
 """
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate sample points',
@@ -28,8 +35,6 @@ if __name__ == "__main__":
                         help="Experimental data file")
     parser.add_argument("-w", dest="WEIGHTS", type=str, default=None,
                         help="Weights file")
-    parser.add_argument("-b", dest="BINIDS", type=str, default=[], nargs='+',
-                        help="Bin ids Shekel#1 or X2#1 and so on")
     parser.add_argument("-d", dest="WD", type=str, default=None,
                         help="Working Directory")
 
@@ -51,6 +56,9 @@ if __name__ == "__main__":
     copyfile(args.ALGOPARAMS,algoparamsfile)
 
     k=0
+    with open(args.EXPDATA, 'r') as f:
+        expdata = json.load(f)
+    binids = [b for b in expdata]
     while True:
         newparams_Np_k = newparams_Np + "_k{}.json".format(k)
         prevparams_Np_k = prevparams_Np + "_k{}.json".format(k)
@@ -63,7 +71,6 @@ if __name__ == "__main__":
         errapproxfile_k = errapproxfile + "_k{}.json".format(k)
         resultoutfile_k = resultoutfile + "_k{}.json".format(k)
         if k==0:
-            import json
             with open(algoparamsfile, 'r') as f:
                 algoparamds = json.load(f)
             tr_center = algoparamds['tr']['center']
@@ -77,7 +84,7 @@ if __name__ == "__main__":
             print("\Delta_1 \t= {}".format(algoparamds['tr']['radius']))
             print("N_p \t\t= {}".format(algoparamds['N_p']))
             print("dim \t\t= {}".format(dim))
-            print("|B| \t\t= {}".format(len(args.BINIDS)))
+            print("|B| \t\t= {}".format(len(binids)))
             print("P_1 \t\t= {}".format(algoparamds['tr']['center']))
             if parambounds is not None:
                 for d in range(dim):
@@ -92,14 +99,14 @@ if __name__ == "__main__":
             }
             with open(newparams_1_k, 'w') as f:
                 json.dump(outds, f, indent=4)
-            problem_main_program(algoparamsfile, newparams_1_k, args.BINIDS, MCout_1_k)
+            problem_main_program(algoparamsfile, newparams_1_k, binids, MCout_1_k)
 
         print("\n#####################################")
         print("Starting iteration {}".format(k + 1))
         print("#####################################")
 
         buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k,prevparams_Np_k)
-        problem_main_program(algoparamsfile,newparams_Np_k,args.BINIDS,MCout_Np_k)
+        problem_main_program(algoparamsfile,newparams_Np_k,binids,MCout_Np_k)
         run_approx(algoparamsfile,MCout_Np_k,valapproxfile_k,errapproxfile_k,
                    args.EXPDATA,args.WEIGHTS)
 
@@ -110,7 +117,7 @@ if __name__ == "__main__":
         if gradcond == "NO":
             run_chi2_optimization(algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
                               resultoutfile_k,newparams_1_kp1)
-            problem_main_program(algoparamsfile, newparams_1_kp1, args.BINIDS, MCout_1_kp1)
+            problem_main_program(algoparamsfile, newparams_1_kp1, binids, MCout_1_kp1)
 
         tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
                   newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1)
