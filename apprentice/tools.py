@@ -744,7 +744,11 @@ class TuningObjective(object):
                         chi2_critical_arr = [chi2_critical] * len(sel)
                         bcount, bstart, bend = neighbours(chi2_test_arr, chi2_critical_arr)
 
-                if bcount == 0: continue
+                if bcount == 0:
+                    # print("%s & \\textbf{%d} & %.2f & %.2f & %.2f\\\\\\hline" % (
+                    #     hn.replace('_', '\\_'), nbins, chi2_critical, chi2_test,
+                    #     chi2_test))
+                    continue
                 for ikeep in range(bstart, bend + 1):
                     keepids.append(self._binids[sel[ikeep]])
                 # nnn = len(range(bstart, bend + 1))
@@ -1116,6 +1120,15 @@ def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, r
 
 if __name__ == "__main__":
     import os, sys
+
+    # T = "../../pyoo/data/A14-RA"
+    # approxfile = T + "/approximation.json"
+    # expdatafile = T + "/experimental_data.json"
+    # weightfile = T + "/weights"
+    # import apprentice
+    #
+    # IO = apprentice.tools.TuningObjective(weightfile, expdatafile, approxfile,
+    #                                       filter_hypothesis=True, filter_envelope=True, debug=True)
 
     approximationfile = "../../pyoo/test_data_min2_noisefree/approximation.json"
     experimentaldatafile = "../../pyoo/test_data_min2_noisefree/experimental_data.json"
