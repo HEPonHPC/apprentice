@@ -74,7 +74,7 @@ def runSimulation(p,fidelity,problemname,factor=1):
     E = [1.]
     return Y,E
 
-def problem_main_program(algoparams,paramfile,binids,outfile):
+def problem_main_program(algoparams,paramfile,binids,outfile,debug):
     with open(algoparams,'r') as f:
         algoparamds = json.load(f)
     param_names = algoparamds["param_names"]
@@ -152,6 +152,8 @@ if __name__ == "__main__":
                         help="Bin ids Shekel#1 or X2#1 and so on")
     parser.add_argument("-o", dest="OUTFILE", type=str, default=None,
                         help="MC Output file (HDF5)")
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
 
@@ -159,7 +161,8 @@ if __name__ == "__main__":
         args.ALGOPARAMS,
         args.NEWPINFILE,
         args.BINIDS,
-        args.OUTFILE
+        args.OUTFILE,
+        args.DEBUG
     )
 
     # print(runSimulation(P=[[4, 4, 4, 4]], fidelity=1000, problemname="Shekel"))

@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 # DO NOT REMOVE COMMENTED CODE FROM THE FUNCTION BELOW
-def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfile,prevparamoutfile):
+def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfile,prevparamoutfile,debug):
     ############################################################
     # Step 0: Get relevent algorithm parameters and past parameter
     # vectors
@@ -62,7 +62,8 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfil
     else:
         minarr = [tr_center[d] - tr_radius for d in range(dim)]
         maxarr = [tr_center[d] + tr_radius for d in range(dim)]
-    print("TR bounds \t= {}".format([["%.3f"%a,"%.3f"%b] for a,b in zip(minarr,maxarr)]))
+    if debug:
+        print("TR bounds \t= {}".format([["%.3f"%a,"%.3f"%b] for a,b in zip(minarr,maxarr)]))
     while np_remain >0:
         ############################################################
         # Step 2: get the remaining points needed (doing uniform random
@@ -138,6 +139,8 @@ if __name__ == "__main__":
                         help="New parameters output file (JSON)")
     parser.add_argument("--prevpout", dest="PREVPOUTFILE", type=str, default=None,
                         help="Previous parameters (to reuse) output file (JSON)") #NOT USED FOR NOW
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
     buildInterpolationPoints(
@@ -145,5 +148,6 @@ if __name__ == "__main__":
         args.PREVPARAMSFN,
         args.ITERNO,
         args.NEWPOUTFILE,
-        args.PREVPOUTFILE
+        args.PREVPOUTFILE,
+        args.DEBUG
     )

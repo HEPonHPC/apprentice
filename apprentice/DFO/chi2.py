@@ -8,7 +8,7 @@ def mkCov(yerrs):
     import numpy as np
     return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
 
-def run_chi2_optimization(valfile,errfile,expdatafile,wtfile,chi2resultoutfile,pstarfile):
+def run_chi2_optimization(valfile,errfile,expdatafile,wtfile,chi2resultoutfile,pstarfile,debug):
     # print("Starting chi2 optimization --")
     import sys
     IO = apprentice.appset.TuningObjective2(wtfile,
@@ -29,7 +29,7 @@ def run_chi2_optimization(valfile,errfile,expdatafile,wtfile,chi2resultoutfile,p
     outds = {
         "parameters": [outputdata['x']]
     }
-    print("\\SP amin \t= {}".format(["%.3f"%(c) for c in res['x']]))
+    if debug: print("\\SP amin \t= {}".format(["%.3f"%(c) for c in res['x']]))
     with open(pstarfile,'w') as f:
         json.dump(outds,f,indent=4)
 
@@ -52,6 +52,8 @@ if __name__ == "__main__":
                         help="Result ouput file (JSON)")
     parser.add_argument("--pstarfile", dest="PSTARFILE", type=str, default=None,
                         help="p^* parameter outfile (JSON)")
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
     run_chi2_optimization(
@@ -60,7 +62,8 @@ if __name__ == "__main__":
         args.EXPDATA,
         args.WEIGHTS,
         args.CHI2RESULTFILE,
-        args.PSTARFILE
+        args.PSTARFILE,
+        args.DEBUG
     )
 
 class SaneFormatter(argparse.RawTextHelpFormatter,

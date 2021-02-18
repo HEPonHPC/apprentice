@@ -37,6 +37,8 @@ if __name__ == "__main__":
                         help="Weights file (TXT)")
     parser.add_argument("-d", dest="WD", type=str, default=None,
                         help="Create and use path (STR) as working Directory")
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
     np.random.seed(args.SEED)
@@ -78,37 +80,39 @@ if __name__ == "__main__":
                                                          algoparamds['param_bounds'] is not None \
                                                         else None
             dim = algoparamds['dim']
-            print("\n#####################################")
-            print("Initially")
-            print("#####################################")
-            print("\Delta_1 \t= {}".format(algoparamds['tr']['radius']))
-            print("N_p \t\t= {}".format(algoparamds['N_p']))
-            print("dim \t\t= {}".format(dim))
-            print("|B| \t\t= {}".format(len(binids)))
-            print("P_1 \t\t= {}".format(algoparamds['tr']['center']))
+            if args.DEBUG:
+                print("\n#####################################")
+                print("Initially")
+                print("#####################################")
+                print("\Delta_1 \t= {}".format(algoparamds['tr']['radius']))
+                print("N_p \t\t= {}".format(algoparamds['N_p']))
+                print("dim \t\t= {}".format(dim))
+                print("|B| \t\t= {}".format(len(binids)))
+                print("P_1 \t\t= {}".format(algoparamds['tr']['center']))
             if parambounds is not None:
                 for d in range(dim):
                     if parambounds[d][0] > tr_center[d] or tr_center[d] > parambounds[d][1]:
                         raise Exception("Starting TR center along dimension {} is not within parameter bound "
                                         "[{}, {}]".format(d+1,parambounds[d][0],parambounds[d][1]))
-                print("Phy bounds \t= {}".format(parambounds))
+                if args.DEBUG: print("Phy bounds \t= {}".format(parambounds))
             else:
-                print("Phy bounds \t= {}".format(None))
+                if args.DEBUG: print("Phy bounds \t= {}".format(None))
             outds = {
                 "parameters": [tr_center]
             }
             with open(newparams_1_k, 'w') as f:
                 json.dump(outds, f, indent=4)
-            problem_main_program(algoparamsfile, newparams_1_k, binids, MCout_1_k)
+            problem_main_program(algoparamsfile, newparams_1_k, binids, MCout_1_k, args.DEBUG)
 
-        print("\n#####################################")
-        print("Starting iteration {}".format(k + 1))
-        print("#####################################")
+        if args.DEBUG:
+            print("\n#####################################")
+            print("Starting iteration {}".format(k + 1))
+            print("#####################################")
 
-        buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k,prevparams_Np_k)
-        problem_main_program(algoparamsfile,newparams_Np_k,binids,MCout_Np_k)
+        buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k,prevparams_Np_k, args.DEBUG)
+        problem_main_program(algoparamsfile,newparams_Np_k,binids,MCout_Np_k, args.DEBUG)
         run_approx(algoparamsfile,MCout_Np_k,valapproxfile_k,errapproxfile_k,
-                   args.EXPDATA,args.WEIGHTS)
+                   args.EXPDATA,args.WEIGHTS, args.DEBUG)
 
         with open(algoparamsfile, 'r') as f:
             algoparamds = json.load(f)
@@ -116,11 +120,11 @@ if __name__ == "__main__":
 
         if gradcond == "NO":
             run_chi2_optimization(valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
-                              resultoutfile_k,newparams_1_kp1)
-            problem_main_program(algoparamsfile, newparams_1_kp1, binids, MCout_1_kp1)
+                              resultoutfile_k,newparams_1_kp1, args.DEBUG)
+            problem_main_program(algoparamsfile, newparams_1_kp1, binids, MCout_1_kp1, args.DEBUG)
 
         tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
-                  newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1)
+                  newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1, args.DEBUG)
         k += 1
         with open(algoparamsfile, 'r') as f:
             algoparamds = json.load(f)

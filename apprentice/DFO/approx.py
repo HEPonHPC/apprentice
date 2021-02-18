@@ -8,7 +8,7 @@ import numpy as np
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
     pass
-def run_approx(algoparams,interpolationdatafile,valoutfile, erroutfile,expdatafile,wtfile):
+def run_approx(algoparams,interpolationdatafile,valoutfile, erroutfile,expdatafile,wtfile,debug):
     # print("Starting approximation --")
     # print("CHANGE ME TO THE PARALLEL VERSION")
     assert (erroutfile != interpolationdatafile)
@@ -74,7 +74,7 @@ def run_approx(algoparams,interpolationdatafile,valoutfile, erroutfile,expdatafi
     if np.linalg.norm(grad) <= sigma * tr_radius:
         algoparamds['tr']['gradientCondition'] = "YES"
     else: algoparamds['tr']['gradientCondition'] = "NO"
-    print("||grad|| \t= %.3f"%(np.linalg.norm(grad)))
+    if debug:print("||grad|| \t= %.3f"%(np.linalg.norm(grad)))
     with open(algoparams,'w') as f:
         json.dump(algoparamds,f,indent=4)
 
@@ -93,6 +93,8 @@ if __name__ == "__main__":
                         help="Experimental data file (JSON)")
     parser.add_argument("-w", dest="WEIGHTS", type=str, default=None,
                         help="Weights file (TXT)")
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
 
@@ -102,5 +104,6 @@ if __name__ == "__main__":
         args.VALAPPFILE,
         args.ERRAPPFILE,
         args.EXPDATA,
-        args.WEIGHTS
+        args.WEIGHTS,
+        args.DEBUG
     )

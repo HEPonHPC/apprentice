@@ -6,7 +6,7 @@ import numpy as np
 from shutil import copyfile
 
 def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
-              kpstarfile,kMCout,kp1pstarfile,kp1MCout):
+              kpstarfile,kMCout,kp1pstarfile,kp1MCout,debug):
     with open(algoparams, 'r') as f:
         algoparamds = json.load(f)
     gradcond = algoparamds['tr']['gradientCondition']
@@ -54,10 +54,11 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
                 continue
         # print("chi2_ra_k=\t{}\nchi2_ra_kp1=\t{}\nchi2_mc_k=\t{}\nchi2_mc_kp1=\t{}\n".format(chi2_ra_k,chi2_ra_kp1,chi2_mc_k,chi2_mc_kp1))
 
-        print("chi2/ra k\t= %.2E" % (chi2_ra_k))
-        print("chi2/ra k+1\t= %.2E" % (chi2_ra_kp1))
-        print("chi2/mc k\t= %.2E" % (chi2_mc_k))
-        print("chi2/mc k+1\t= %.2E" % (chi2_mc_kp1))
+        if debug:
+            print("chi2/ra k\t= %.2E" % (chi2_ra_k))
+            print("chi2/ra k+1\t= %.2E" % (chi2_ra_kp1))
+            print("chi2/mc k\t= %.2E" % (chi2_mc_k))
+            print("chi2/mc k+1\t= %.2E" % (chi2_mc_kp1))
 
         rho = (chi2_mc_k - chi2_mc_kp1) / (chi2_ra_k - chi2_ra_kp1)
         # print("rho={}".format(rho))
@@ -67,7 +68,7 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
         tr_maxradius = algoparamds['tr']['maxradius']
 
         # grad = IO.gradient(kpstar)
-        print("rho k\t\t= %.3f" % (rho))
+        if debug:print("rho k\t\t= %.3f" % (rho))
         if rho < eta :
                 # or np.linalg.norm(grad) <= sigma * tr_radius:
             # print("rho < eta New point rejected")
@@ -97,9 +98,10 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
     # put  tr_radius and curr_p in radius and center and write to algoparams
     algoparamds['tr']['radius'] = tr_radius
     algoparamds['tr']['center'] = curr_p
-    print("\Delta k+1 \t= %.2E (%s)"%(tr_radius,trradmsg))
+    if debug:
+        print("\Delta k+1 \t= %.2E (%s)"%(tr_radius,trradmsg))
 
-    print("P k+1 \t\t= {} ({})".format(["%.3f"%(c) for c in curr_p],trcentermsg))
+        print("P k+1 \t\t= {} ({})".format(["%.3f"%(c) for c in curr_p],trcentermsg))
 
     # Stopping condition
     # get parameters
@@ -118,14 +120,14 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
     status = "CONTINUE"
     if np.linalg.norm(grad) <= min_gradientNorm:
         status = "STOP"
-        print("STOP\t\t= Norm of the gradient too small {}".format(np.linalg.norm(grad)))
+        if debug: print("STOP\t\t= Norm of the gradient too small {}".format(np.linalg.norm(grad)))
     if currIterationNo >= max_iteration-1:
         status = "STOP"
-        print("STOP\t\t= Max iterations reached")
+        if debug: print("STOP\t\t= Max iterations reached")
     if simulationbudgetused >= max_simulationBudget:
         status = "STOP"
-        print("STOP\t\t= Simulation budget depleted")
-    print(status)
+        if debug: print("STOP\t\t= Simulation budget depleted")
+    if debug: print(status)
     algoparamds['status'] = status
     with open(algoparams,'w') as f:
         json.dump(algoparamds,f,indent=4)
@@ -162,6 +164,8 @@ if __name__ == "__main__":
                         help="MC OUT (HDF5) from iteration k")
     parser.add_argument("--kp1MCout", dest="KP1MCOUT", type=str, default=None,
                         help="MC OUT (HDF5) from iteration k+1")
+    parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
+                        help="Turn on some debug messages")
 
     args = parser.parse_args()
     tr_update(
@@ -174,5 +178,6 @@ if __name__ == "__main__":
         args.KPSTARFILE,
         args.KMCOUT,
         args.KP1PSTARFILE,
-        args.KP1MCOUT
+        args.KP1MCOUT,
+        args.DEBUG
     )
