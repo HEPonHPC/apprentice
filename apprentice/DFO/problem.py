@@ -160,12 +160,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     problem_main_program(
-        args.ALGOPARAMS,
-        args.NEWPINFILE,
-        args.PYTHIADIR,
-        args.BINIDS,
-        args.OUTFILE,
-        args.DEBUG
+        algoparams=args.ALGOPARAMS,
+        paramfile=args.NEWPINFILE,
+        pythiadir=args.PYTHIADIR,
+        binids=args.BINIDS,
+        outfile=args.OUTFILE,
+        debug=args.DEBUG
     )
 
     # print(runSimulation(P=[[4, 4, 4, 4]], fidelity=1000, problemname="Shekel"))

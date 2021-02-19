@@ -71,16 +71,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     run_chi2_optimization(
-        args.ALGOPARAMS,
-        args.PROCESSCARD,
-        args.VALAPPFILE,
-        args.ERRAPPFILE,
-        args.EXPDATA,
-        args.WEIGHTS,
-        args.CHI2RESULTFILE,
-        args.PSTARFILE,
-        args.PYTHIADIR,
-        args.DEBUG
+        algoparams=args.ALGOPARAMS,
+        proccardfile=args.PROCESSCARD,
+        valfile=args.VALAPPFILE,
+        errfile=args.ERRAPPFILE,
+        expdatafile=args.EXPDATA,
+        wtfile=args.WEIGHTS,
+        chi2resultoutfile=args.CHI2RESULTFILE,
+        pstarfile=args.PSTARFILE,
+        pythiadir=args.PYTHIADIR,
+        debug=args.DEBUG
     )
 
 class SaneFormatter(argparse.RawTextHelpFormatter,

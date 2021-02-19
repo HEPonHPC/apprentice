@@ -4,7 +4,9 @@ import h5py
 import json
 import numpy as np
 from shutil import copyfile
-
+class SaneFormatter(argparse.RawTextHelpFormatter,
+                    argparse.ArgumentDefaultsHelpFormatter):
+    pass
 def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
               kpstarfile,kMCout,kp1pstarfile,kp1MCout,debug):
     with open(algoparams, 'r') as f:
@@ -137,10 +139,6 @@ def tr_update(currIterationNo,algoparams,valfile,errfile,expdatafile,wtfile,
     with open(algoparams,'w') as f:
         json.dump(algoparamds,f,indent=4)
 
-
-class SaneFormatter(argparse.RawTextHelpFormatter,
-                    argparse.ArgumentDefaultsHelpFormatter):
-    pass
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TR Update',
                                      formatter_class=SaneFormatter)
@@ -169,15 +167,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     tr_update(
-        args.ITERNO,
-        args.ALGOPARAMS,
-        args.VALAPPFILE,
-        args.ERRAPPFILE,
-        args.EXPDATA,
-        args.WEIGHTS,
-        args.KPSTARFILE,
-        args.KMCOUT,
-        args.KP1PSTARFILE,
-        args.KP1MCOUT,
-        args.DEBUG
+        currIterationNo=args.ITERNO,
+        algoparams=args.ALGOPARAMS,
+        valfile=args.VALAPPFILE,
+        errfile=args.ERRAPPFILE,
+        expdatafile=args.EXPDATA,
+        wtfile=args.WEIGHTS,
+        kpstarfile=args.KPSTARFILE,
+        kMCout=args.KMCOUT,
+        kp1pstarfile=args.KP1PSTARFILE,
+        kp1MCout=args.KP1MCOUT,
+        debug=args.DEBUG
     )

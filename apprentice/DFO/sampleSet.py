@@ -157,14 +157,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     buildInterpolationPoints(
-        args.ALGOPARAMS,
-        args.PARAMFILENAME,
-        args.ITERNO,
-        args.PROCESSCARD,
-        args.OUTDIR,
-        args.NEWPJSONOUTFILE,
-        args.NEWPTXTOUTFILE,
-        args.NEWPGENOUTFILE,
-        args.PREVPOUTFILE,
-        args.DEBUG
+        algoparams=args.ALGOPARAMS,
+        paramfileName=args.PARAMFILENAME,
+        iterationNo=args.ITERNO,
+        processcard=args.PROCESSCARD,
+        outdir=args.OUTDIR,
+        newparamoutfile=args.NEWPJSONOUTFILE,
+        fnamep=args.NEWPTXTOUTFILE,
+        fnameg=args.NEWPGENOUTFILE,
+        prevparamoutfile=args.PREVPOUTFILE,
+        debug=args.DEBUG
     )

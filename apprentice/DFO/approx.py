@@ -99,11 +99,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_approx(
-        args.ALGOPARAMS,
-        args.INTERPOLATIONDATAFILE,
-        args.VALAPPFILE,
-        args.ERRAPPFILE,
-        args.EXPDATA,
-        args.WEIGHTS,
-        args.DEBUG
+        algoparams=args.ALGOPARAMS,
+        interpolationdatafile=args.INTERPOLATIONDATAFILE,
+        valoutfile=args.VALAPPFILE,
+        erroutfile=args.ERRAPPFILE,
+        expdatafile=args.EXPDATA,
+        wtfile=args.WEIGHTS,
+        debug=args.DEBUG
     )
