@@ -1,9 +1,12 @@
 import argparse
 import json
 import numpy as np
+import apprentice
 
 # DO NOT REMOVE COMMENTED CODE FROM THE FUNCTION BELOW
-def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfile,prevparamoutfile,debug):
+def buildInterpolationPoints(algoparams,paramfileName=None,iterationNo=0,processcard=None,
+                             outdir=None,newparamoutfile=None,fnamep="params.dat",
+                             fnameg="generator.cmd",prevparamoutfile=None,debug=False):
     ############################################################
     # Step 0: Get relevent algorithm parameters and past parameter
     # vectors
@@ -15,6 +18,7 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfil
     tr_center = ds['tr']['center']
     N_p = ds['N_p']
     dim = ds['dim']
+    pnames = ds['param_names']
     point_min_dist = ds['point_min_dist']
     parambounds = ds['param_bounds'] if "param_bounds" in ds and ds['param_bounds'] is not None else None
 
@@ -121,6 +125,7 @@ def buildInterpolationPoints(algoparams,paramfileName,iterationNo,newparamoutfil
     with open(newparamoutfile,'w') as f:
         json.dump(ds, f, indent=4)
 
+    apprentice.tools.writePythiaFiles(processcard,pnames,newparams,outdir,fnamep,fnameg)
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -133,10 +138,18 @@ if __name__ == "__main__":
     parser.add_argument("-p", dest="PARAMFILENAME", type=str, default=None,
                         help="Previous parameters file name string before adding the iteration "
                              "number and file extention e.g., new_params_N_p") #NOT USED FOR NOW
+    parser.add_argument("-c", dest="PROCESSCARD", type=str, default=None,
+                        help="Process Card location")
+    parser.add_argument("-o", dest="OUTDIR", type=str, default=None,
+                        help="Output Directory")
     parser.add_argument("--iterno", dest="ITERNO", type=int, default=0,
-                        help="Current iteration number")
-    parser.add_argument("--newpout", dest="NEWPOUTFILE", type=str, default=None,
+                        help="Current iteration number") #NOT USED FOR NOW
+    parser.add_argument("--newpout", dest="NEWPJSONOUTFILE", type=str, default=None,
                         help="New parameters output file (JSON)")
+    parser.add_argument("--fnamep", dest="NEWPTXTOUTFILE", type=str, default="params.dat",
+                        help="New parameters output file (Newline TXT)")
+    parser.add_argument("--fnameg", dest="NEWPGENOUTFILE", type=str, default="generator.cmd",
+                        help="New parameters generators output file")
     parser.add_argument("--prevpout", dest="PREVPOUTFILE", type=str, default=None,
                         help="Previous parameters (to reuse) output file (JSON)") #NOT USED FOR NOW
     parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
@@ -145,9 +158,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     buildInterpolationPoints(
         args.ALGOPARAMS,
-        args.PREVPARAMSFN,
+        args.PARAMFILENAME,
         args.ITERNO,
-        args.NEWPOUTFILE,
+        args.PROCESSCARD,
+        args.OUTDIR,
+        args.NEWPJSONOUTFILE,
+        args.NEWPTXTOUTFILE,
+        args.NEWPGENOUTFILE,
         args.PREVPOUTFILE,
         args.DEBUG
     )

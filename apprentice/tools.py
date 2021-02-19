@@ -94,6 +94,32 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testfor
 
     return _app, hasPole
 
+def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
+    def readProcessCard(fname):
+        with open(fname) as f:
+            L = [l.strip() for l in f]
+        return L
+    from os.path import join, exists
+    for num, p in enumerate(points):
+        npad = "{}".format(num).zfill(1+int(np.ceil(np.log10(len(points)))))
+        outd = join(outdir, npad)
+        if not exists(outd):
+            import os
+            os.makedirs(outd)
+
+        outfparams = join(outd, fnamep)
+        with open(outfparams, "w") as pf:
+            for k, v in zip(pnames, p):
+                pf.write("{name} {val:e}\n".format(name=k, val=v))
+
+        outfgenerator = join(outd, fnameg)
+        pc = readProcessCard(proccardfile)
+        with open(outfgenerator, "w") as pg:
+            for l in pc:
+                pg.write(l+"\n")
+            for k, v in zip(pnames, p):
+                pg.write("{name} = {val:e}\n".format(name=k, val=v))
+
 def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
     PF = 1 if mode=="min" else -1
     if use_grad: jac=lambda x:PF*app.gradient(x)

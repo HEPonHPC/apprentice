@@ -1,4 +1,5 @@
 import argparse
+import apprentice
 from sampleSet import buildInterpolationPoints
 from problem import problem_main_program
 from approx import run_approx
@@ -35,6 +36,8 @@ if __name__ == "__main__":
                         help="Experimental data file (JSON)")
     parser.add_argument("-w", dest="WEIGHTS", type=str, default=None,
                         help="Weights file (TXT)")
+    parser.add_argument("-c", dest="PROCESSCARD", type=str, default=None,
+                        help="Process Card location")
     parser.add_argument("-d", dest="WD", type=str, default=None,
                         help="Create and use path (STR) as working Directory")
     parser.add_argument("-v", "--debug", dest="DEBUG", action="store_true", default=False,
@@ -52,6 +55,8 @@ if __name__ == "__main__":
     valapproxfile = args.WD + "/valapprox"
     errapproxfile = args.WD + "/errapprox"
     resultoutfile = args.WD + "/chi2result"
+    pythiadir_Np = args.WD + "/pythia_Np"
+    pythiadir_1 = args.WD + "/pythia_1"
 
     algoparamsfile = os.path.join(args.WD, "algoparams.json")
     assert(algoparamsfile!=args.ALGOPARAMS)
@@ -72,6 +77,10 @@ if __name__ == "__main__":
         valapproxfile_k = valapproxfile + "_k{}.json".format(k)
         errapproxfile_k = errapproxfile + "_k{}.json".format(k)
         resultoutfile_k = resultoutfile + "_k{}.json".format(k)
+        pythiadir_Np_k = pythiadir_Np + "_k{}".format(k)
+        pythiadir_1_k = pythiadir_1 + "_k{}".format(k)
+        pythiadir_1_kp1 = pythiadir_1 + "_k{}".format(k+1)
+
         if k==0:
             with open(algoparamsfile, 'r') as f:
                 algoparamds = json.load(f)
@@ -79,6 +88,7 @@ if __name__ == "__main__":
             parambounds = algoparamds['param_bounds'] if "param_bounds" in algoparamds and \
                                                          algoparamds['param_bounds'] is not None \
                                                         else None
+            paramnames = algoparamds["param_names"]
             dim = algoparamds['dim']
             if args.DEBUG:
                 print("\n#####################################")
@@ -102,15 +112,18 @@ if __name__ == "__main__":
             }
             with open(newparams_1_k, 'w') as f:
                 json.dump(outds, f, indent=4)
-            problem_main_program(algoparamsfile, newparams_1_k, binids, MCout_1_k, args.DEBUG)
+            apprentice.tools.writePythiaFiles(args.PROCESSCARD,paramnames,[tr_center],pythiadir_1_k)
+            problem_main_program(algoparamsfile, newparams_1_k, pythiadir_1_k,binids, MCout_1_k, args.DEBUG)
 
         if args.DEBUG:
             print("\n#####################################")
             print("Starting iteration {}".format(k + 1))
             print("#####################################")
 
-        buildInterpolationPoints(algoparamsfile,newparams_Np,k,newparams_Np_k,prevparams_Np_k, args.DEBUG)
-        problem_main_program(algoparamsfile,newparams_Np_k,binids,MCout_Np_k, args.DEBUG)
+        buildInterpolationPoints(algoparams=algoparamsfile,iterationNo=k,
+                                 processcard=args.PROCESSCARD,outdir=pythiadir_Np_k,
+                                 newparamoutfile=newparams_Np_k, debug=args.DEBUG)
+        problem_main_program(algoparamsfile,newparams_Np_k,pythiadir_Np_k,binids,MCout_Np_k, args.DEBUG)
         run_approx(algoparamsfile,MCout_Np_k,valapproxfile_k,errapproxfile_k,
                    args.EXPDATA,args.WEIGHTS, args.DEBUG)
 
@@ -119,9 +132,14 @@ if __name__ == "__main__":
         gradcond = algoparamds['tr']['gradientCondition']
 
         if gradcond == "NO":
-            run_chi2_optimization(valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
-                              resultoutfile_k,newparams_1_kp1, args.DEBUG)
-            problem_main_program(algoparamsfile, newparams_1_kp1, binids, MCout_1_kp1, args.DEBUG)
+            with open(algoparamsfile, 'r') as f:
+                algoparamds = json.load(f)
+            paramnames = algoparamds["param_names"]
+            run_chi2_optimization(args.PROCESSCARD,paramnames,valapproxfile_k,errapproxfile_k,
+                                  args.EXPDATA,args.WEIGHTS,
+                                  resultoutfile_k,newparams_1_kp1,pythiadir_1_kp1,
+                                  args.DEBUG)
+            problem_main_program(algoparamsfile, newparams_1_kp1, newparams_1_kp1,binids, MCout_1_kp1, args.DEBUG)
 
         tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
                   newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1, args.DEBUG)

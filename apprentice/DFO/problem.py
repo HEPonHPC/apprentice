@@ -74,7 +74,7 @@ def runSimulation(p,fidelity,problemname,factor=1):
     E = [1.]
     return Y,E
 
-def problem_main_program(algoparams,paramfile,binids,outfile,debug):
+def problem_main_program(algoparams,paramfile,pythiadir,binids,outfile,debug):
     with open(algoparams,'r') as f:
         algoparamds = json.load(f)
     param_names = algoparamds["param_names"]
@@ -148,6 +148,8 @@ if __name__ == "__main__":
                         help="Algorithm Parameters (JSON)")
     parser.add_argument("--newpin", dest="NEWPINFILE", type=str, default=None,
                         help="New parameters input file (JSON)")
+    parser.add_argument("--pythiadir", dest="PYTHIADIR", type=str, default=None,
+                        help="Pythia dir with params.dat and generator.cmd in directories")
     parser.add_argument("-b", dest="BINIDS", type=str, default=[], nargs='+',
                         help="Bin ids Shekel#1 or X2#1 and so on")
     parser.add_argument("-o", dest="OUTFILE", type=str, default=None,
@@ -160,6 +162,7 @@ if __name__ == "__main__":
     problem_main_program(
         args.ALGOPARAMS,
         args.NEWPINFILE,
+        args.PYTHIADIR,
         args.BINIDS,
         args.OUTFILE,
         args.DEBUG

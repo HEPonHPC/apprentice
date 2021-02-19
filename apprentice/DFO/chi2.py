@@ -8,9 +8,15 @@ def mkCov(yerrs):
     import numpy as np
     return np.atleast_2d(yerrs).T * np.atleast_2d(yerrs) * np.eye(yerrs.shape[0])
 
-def run_chi2_optimization(valfile,errfile,expdatafile,wtfile,chi2resultoutfile,pstarfile,debug):
+def run_chi2_optimization(algoparams,proccardfile,valfile,errfile,
+                          expdatafile,wtfile,
+                          chi2resultoutfile,pstarfile,pythiadir,
+                          debug):
     # print("Starting chi2 optimization --")
     import sys
+    with open(algoparams, 'r') as f:
+        algoparamds = json.load(f)
+    paramnames = algoparamds["param_names"]
     IO = apprentice.appset.TuningObjective2(wtfile,
                                             expdatafile,
                                             valfile,
@@ -33,6 +39,8 @@ def run_chi2_optimization(valfile,errfile,expdatafile,wtfile,chi2resultoutfile,p
     with open(pstarfile,'w') as f:
         json.dump(outds,f,indent=4)
 
+    apprentice.tools.writePythiaFiles(proccardfile, paramnames, [outputdata['x']], pythiadir)
+
 
 class SaneFormatter(argparse.RawTextHelpFormatter,
                     argparse.ArgumentDefaultsHelpFormatter):
@@ -40,6 +48,12 @@ class SaneFormatter(argparse.RawTextHelpFormatter,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve TR Subproblem',
                                      formatter_class=SaneFormatter)
+    parser.add_argument("-a", dest="ALGOPARAMS", type=str, default=None,
+                        help="Algorithm Parameters (JSON)")
+    parser.add_argument("-c", dest="PROCESSCARD", type=str, default=None,
+                        help="Process Card location")
+    parser.add_argument("--pythiadir", dest="PYTHIADIR", type=str, default=None,
+                        help="Pythia dir with params.dat and generator.cmd in directories")
     parser.add_argument("--valappfile", dest="VALAPPFILE", type=str, default=None,
                         help="Value approximation file name (JSON)")
     parser.add_argument("--errappfile", dest="ERRAPPFILE", type=str, default=None,
@@ -57,12 +71,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     run_chi2_optimization(
+        args.ALGOPARAMS,
+        args.PROCESSCARD,
         args.VALAPPFILE,
         args.ERRAPPFILE,
         args.EXPDATA,
         args.WEIGHTS,
         args.CHI2RESULTFILE,
         args.PSTARFILE,
+        args.PYTHIADIR,
         args.DEBUG
     )
 
