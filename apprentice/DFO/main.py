@@ -20,8 +20,8 @@ ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 
 ddd=X2_2D_3bin_notglobal; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
 
 TEST FOR ORCUN
-ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
-ddd=SumOfDiffPowers_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights 
+ddd=X2_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights -c ../../../log/DFO/P/process.dat -v 
+ddd=SumOfDiffPowers_2D_3bin; python main.py -a ../../../log/DFO/P/$ddd/algoparams_bk.json -s 876 -d /tmp/DFO/$ddd -e ../../../log/DFO/P/$ddd/data.json -w ../../../log/DFO/P/$ddd/weights -c ../../../log/DFO/P/process.dat -v
 
 
 """
@@ -113,7 +113,12 @@ if __name__ == "__main__":
             with open(newparams_1_k, 'w') as f:
                 json.dump(outds, f, indent=4)
             apprentice.tools.writePythiaFiles(args.PROCESSCARD,paramnames,[tr_center],pythiadir_1_k)
-            problem_main_program(algoparamsfile, newparams_1_k, pythiadir_1_k,binids, MCout_1_k, args.DEBUG)
+            problem_main_program(algoparams=algoparamsfile,
+                                 paramfile=newparams_1_k,
+                                 pythiadir=pythiadir_1_k,
+                                 binids=binids,
+                                 outfile=MCout_1_k,
+                                 debug=args.DEBUG)
 
         if args.DEBUG:
             print("\n#####################################")
@@ -123,9 +128,21 @@ if __name__ == "__main__":
         buildInterpolationPoints(algoparams=algoparamsfile,iterationNo=k,
                                  processcard=args.PROCESSCARD,outdir=pythiadir_Np_k,
                                  newparamoutfile=newparams_Np_k, debug=args.DEBUG)
-        problem_main_program(algoparamsfile,newparams_Np_k,pythiadir_Np_k,binids,MCout_Np_k, args.DEBUG)
-        run_approx(algoparamsfile,MCout_Np_k,valapproxfile_k,errapproxfile_k,
-                   args.EXPDATA,args.WEIGHTS, args.DEBUG)
+
+        problem_main_program(algoparams=algoparamsfile,
+                             paramfile=newparams_Np_k,
+                             pythiadir=pythiadir_Np_k,
+                             binids=binids,
+                             outfile=MCout_Np_k,
+                             debug=args.DEBUG)
+
+        run_approx(algoparams=algoparamsfile,
+                   interpolationdatafile=MCout_Np_k,
+                   valoutfile=valapproxfile_k,
+                   erroutfile=errapproxfile_k,
+                   expdatafile=args.EXPDATA,
+                   wtfile=args.WEIGHTS,
+                   debug=args.DEBUG)
 
         with open(algoparamsfile, 'r') as f:
             algoparamds = json.load(f)
@@ -135,14 +152,35 @@ if __name__ == "__main__":
             with open(algoparamsfile, 'r') as f:
                 algoparamds = json.load(f)
             paramnames = algoparamds["param_names"]
-            run_chi2_optimization(args.PROCESSCARD,paramnames,valapproxfile_k,errapproxfile_k,
-                                  args.EXPDATA,args.WEIGHTS,
-                                  resultoutfile_k,newparams_1_kp1,pythiadir_1_kp1,
-                                  args.DEBUG)
-            problem_main_program(algoparamsfile, newparams_1_kp1, newparams_1_kp1,binids, MCout_1_kp1, args.DEBUG)
+            run_chi2_optimization(algoparams=args.ALGOPARAMS,
+                                  proccardfile=args.PROCESSCARD,
+                                  valfile=valapproxfile_k,
+                                  errfile=errapproxfile_k,
+                                  expdatafile=args.EXPDATA,
+                                  wtfile=args.WEIGHTS,
+                                  chi2resultoutfile=resultoutfile_k,
+                                  pstarfile=newparams_1_kp1,
+                                  pythiadir=pythiadir_1_kp1,
+                                  debug=args.DEBUG)
 
-        tr_update(k,algoparamsfile, valapproxfile_k,errapproxfile_k, args.EXPDATA,args.WEIGHTS,
-                  newparams_1_k, MCout_1_k, newparams_1_kp1, MCout_1_kp1, args.DEBUG)
+            problem_main_program(algoparams=algoparamsfile,
+                                 paramfile=newparams_1_kp1,
+                                 pythiadir=pythiadir_1_kp1,
+                                 binids=binids,
+                                 outfile=MCout_1_kp1,
+                                 debug=args.DEBUG)
+
+        tr_update(currIterationNo=k,
+                  algoparams=algoparamsfile,
+                  valfile=valapproxfile_k,
+                  errfile=errapproxfile_k,
+                  expdatafile=args.EXPDATA,
+                  wtfile=args.WEIGHTS,
+                  kpstarfile=newparams_1_k,
+                  kMCout=MCout_1_k,
+                  kp1pstarfile=newparams_1_kp1,
+                  kp1MCout=MCout_1_kp1,
+                  debug=args.DEBUG)
         k += 1
         with open(algoparamsfile, 'r') as f:
             algoparamds = json.load(f)
