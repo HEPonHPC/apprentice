@@ -175,7 +175,7 @@ def putInMemoryMap(memoryMap, key, value):
         pnameds = {"param_names":ds["param_names"]}
         import os
         valdir = os.path.dirname(value)
-        with open(os.path.join(valdir,"param_names.json"), 'w') as f:
+        with open(os.path.join("param_names.json"), 'w') as f:
             json.dump(pnameds,f,indent=4)
         memoryMap[keymap["tr_maxradius"]] = ds['tr']['maxradius']
         memoryMap[keymap["tr_sigma"]] = ds['tr']['sigma']
