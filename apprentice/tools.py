@@ -120,6 +120,15 @@ def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", 
             for k, v in zip(pnames, p):
                 pg.write("{name} = {val:e}\n".format(name=k, val=v))
 
+def writeMemoryMap(memoryMap):
+    import json
+    if getFromMemoryMap(memoryMap=memoryMap, key="debug"):
+        print("Standalone run detected. I will store data structures "
+            "in files for communication between tasks")
+    ds = {"MemoryMap": memoryMap.tolist()}
+    with open("/tmp/memorymap.json", 'w') as f:
+        json.dump(ds, f, indent=4)
+
 def getWorkflowMemoryMap(dim=2):
     dim = int(dim)
     keymap = {
