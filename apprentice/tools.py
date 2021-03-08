@@ -140,7 +140,9 @@ def getWorkflowMemoryMap(dim=2):
         "min_gradientNorm": 11 + (3 * dim),
         "max_simulationBudget": 12 + (3 * dim),
         "simulationbudgetused": 13 + (3 * dim),
-        "param_names":14 + (3 * dim)
+        "param_names":14 + (3 * dim),
+        "iterationNo": 15 + (3 * dim),
+        "debug": 16 + (3 * dim)
     }
     return keymap
 
@@ -216,6 +218,10 @@ def getFromMemoryMap(memoryMap, key):
         with open(key,'r') as f:
             ds = json.load(f)
         return ds["param_names"]
+    elif key in ["iterationNo","dim","simulationbudgetused"]:
+        return int(memoryMap[keymap[key]])
+    elif key in ["debug","tr_gradientCondition"]:
+        return bool(memoryMap[keymap[key]])
     else:
         return memoryMap[keymap[key]]
 
