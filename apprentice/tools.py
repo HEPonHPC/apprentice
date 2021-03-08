@@ -218,7 +218,7 @@ def getFromMemoryMap(memoryMap, key):
         with open(key,'r') as f:
             ds = json.load(f)
         return ds["param_names"]
-    elif key in ["iterationNo","dim","simulationbudgetused"]:
+    elif key in ["iterationNo","dim","simulationbudgetused","max_iteration"]:
         return int(memoryMap[keymap[key]])
     elif key in ["debug","tr_gradientCondition"]:
         return bool(memoryMap[keymap[key]])
