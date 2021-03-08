@@ -120,6 +120,105 @@ def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", 
             for k, v in zip(pnames, p):
                 pg.write("{name} = {val:e}\n".format(name=k, val=v))
 
+def getWorkflowMemoryMap(dim=2):
+    dim = int(dim)
+    keymap = {
+        "dim":0,
+        "tr_center":range(1,1+dim),
+        "min_param_bounds": range(1 + dim, 1 + (2 * dim)),
+        "max_param_bounds": range(1 + (2 * dim),1 + (3 * dim)),
+        "tr_radius":1 + (3 * dim),
+        "tr_maxradius": 2 + (3 * dim),
+        "tr_sigma": 3 + (3 * dim),
+        "tr_eta": 4 + (3 * dim),
+        "tr_gradientCondition": 5 + (3 * dim),
+        "N_p": 6 + (3 * dim),
+        "point_min_dist": 7 + (3 * dim),
+        "fidelity": 8 + (3 * dim),
+        "N_s": 9 + (3 * dim),
+        "max_iteration": 10 + (3 * dim),
+        "min_gradientNorm": 11 + (3 * dim),
+        "max_simulationBudget": 12 + (3 * dim),
+        "simulationbudgetused": 13 + (3 * dim),
+        "param_names":14 + (3 * dim)
+    }
+    return keymap
+
+def createWorkflowMemoryMap(dim=2):
+    keymap = getWorkflowMemoryMap(dim)
+    n = 0
+    for k in keymap:
+        try:
+            for t in keymap[k]:
+                n = max(n,t)
+        except:
+            n = max(n, keymap[k])
+    memorymap = np.zeros(n+1,dtype=np.float)
+    memorymap[keymap['dim']] = dim
+    return memorymap
+
+def putInMemoryMap(memoryMap, key, value):
+    if key == "file":
+        import json
+        with open(value, 'r') as f:
+            ds = json.load(f)
+
+        keymap = getWorkflowMemoryMap(ds['dim'])
+        memoryMap = createWorkflowMemoryMap(ds['dim'])
+        memoryMap[keymap["tr_radius"]] = ds['tr']['radius']
+        j = 0
+        for i in keymap["tr_center"]:
+            memoryMap[i] =ds['tr']['center'][j]
+            j+=1
+        pnameds = {"param_names":ds["param_names"]}
+        import os
+        valdir = os.path.dirname(value)
+        with open(os.path.join(valdir,"param_names.json"), 'w') as f:
+            json.dump(pnameds,f,indent=4)
+        memoryMap[keymap["tr_maxradius"]] = ds['tr']['maxradius']
+        memoryMap[keymap["tr_sigma"]] = ds['tr']['sigma']
+        memoryMap[keymap["tr_eta"]] = ds['tr']['eta']
+        j = 0
+        param_bounds = np.array(ds['param_bounds'])
+        for i in keymap['min_param_bounds']:
+            memoryMap[i] = param_bounds[:,0][j]
+            j+=1
+        j = 0
+        for i in keymap['max_param_bounds']:
+            memoryMap[i] = param_bounds[:, 1][j]
+            j += 1
+
+        for k in ["N_p","dim","point_min_dist","fidelity","N_s",
+                  "max_iteration","min_gradientNorm",
+                  "max_simulationBudget"]:
+            memoryMap[keymap[k]] = ds[k]
+        return memoryMap
+
+    elif key=="tr_center":
+        keymap = getWorkflowMemoryMap(memoryMap[0])
+        j = 0
+        for i in keymap["tr_center"]:
+            memoryMap[i] = value[j]
+            j += 1
+    else:
+        keymap = getWorkflowMemoryMap(memoryMap[0])
+        memoryMap[keymap[key]] = value
+
+def getFromMemoryMap(memoryMap, key):
+    keymap = getWorkflowMemoryMap(memoryMap[0])
+    if key in ["tr_center","min_param_bounds","max_param_bounds"]:
+        arr = []
+        for i in keymap[key]:
+            arr.append(memoryMap[i])
+        return arr
+    elif "param_names.json" in key:
+        import json
+        with open(key,'r') as f:
+            ds = json.load(f)
+        return ds["param_names"]
+    else:
+        return memoryMap[keymap[key]]
+
 def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
     PF = 1 if mode=="min" else -1
     if use_grad: jac=lambda x:PF*app.gradient(x)
@@ -1142,6 +1241,14 @@ def generate_data_from_RA(approximationfile, experimentaldatafile, p0, bbdict, r
 
 if __name__ == "__main__":
     import os, sys
+
+    # memorymap = putInMemoryMap(None,key='file',value="/Users/mkrishnamoorthy/Research/Code/log/DFO/P/X2_2D_1bin/algoparams_bk.json")
+    # print(memorymap)
+    # print(getFromMemoryMap(memorymap,'tr_center'))
+    # print(getFromMemoryMap(memorymap, 'N_p'))
+    # print(getFromMemoryMap(memorymap, 'max_param_bounds'))
+    # print(getFromMemoryMap(memorymap, '/Users/mkrishnamoorthy/Research/Code/log/DFO/P/X2_2D_1bin/param_names.json'))
+    # exit(1)
 
     approximationfile = "../../pyoo/test_data_min2_noisefree/approximation.json"
     experimentaldatafile = "../../pyoo/test_data_min2_noisefree/experimental_data.json"
