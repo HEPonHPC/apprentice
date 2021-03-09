@@ -120,14 +120,34 @@ def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", 
             for k, v in zip(pnames, p):
                 pg.write("{name} = {val:e}\n".format(name=k, val=v))
 
+def readMemoryMap():
+    import json
+    pyhenson = False
+    try:
+        import pyhenson as h
+        memorymap = h.get("MemoryMap")
+        pyhenson = True
+    except:
+        with open("memorymap.json", 'r') as f:
+            ds = json.load(f)
+            memorymap = np.array(ds["MemoryMap"])
+    return (memorymap, pyhenson)
+
 def writeMemoryMap(memoryMap):
     import json
-    if getFromMemoryMap(memoryMap=memoryMap, key="debug"):
-        print("Standalone run detected. I will store data structures "
-            "in files for communication between tasks")
-    ds = {"MemoryMap": memoryMap.tolist()}
-    with open("/tmp/memorymap.json", 'w') as f:
-        json.dump(ds, f, indent=4)
+    pyhenson = False
+    try:
+        import pyhenson as h
+        h.add("MemoryMap", memoryMap)
+        pyhenson = True
+    except:
+        if getFromMemoryMap(memoryMap=memoryMap, key="debug"):
+            print("Standalone run detected. I will store data structures "
+                "in files for communication between tasks")
+        ds = {"MemoryMap": memoryMap.tolist()}
+        with open("memorymap.json", 'w') as f:
+            json.dump(ds, f, indent=4)
+    return pyhenson
 
 def getWorkflowMemoryMap(dim=2):
     dim = int(dim)
@@ -149,9 +169,10 @@ def getWorkflowMemoryMap(dim=2):
         "min_gradientNorm": 11 + (3 * dim),
         "max_simulationBudget": 12 + (3 * dim),
         "simulationbudgetused": 13 + (3 * dim),
-        "param_names":14 + (3 * dim),
-        "iterationNo": 15 + (3 * dim),
-        "debug": 16 + (3 * dim)
+        "iterationNo": 14 + (3 * dim),
+        "debug": 15 + (3 * dim),
+        "status":16 + (3 * dim),
+        "param_names":17 + (3 * dim)
     }
     return keymap
 
@@ -183,14 +204,19 @@ def putInMemoryMap(memoryMap, key, value):
             j+=1
         pnameds = {"param_names":ds["param_names"]}
         import os
-        valdir = os.path.dirname(value)
         with open(os.path.join("param_names.json"), 'w') as f:
             json.dump(pnameds,f,indent=4)
         memoryMap[keymap["tr_maxradius"]] = ds['tr']['maxradius']
         memoryMap[keymap["tr_sigma"]] = ds['tr']['sigma']
         memoryMap[keymap["tr_eta"]] = ds['tr']['eta']
         j = 0
-        param_bounds = np.array(ds['param_bounds'])
+        if "param_bounds" in ds:
+            param_bounds = np.array(ds['param_bounds'])
+        else:
+            param_bounds = []
+            for d in range(ds['dim']):
+                param_bounds.append([-1*np.Infinity,np.Infinity])
+            param_bounds = np.array(param_bounds)
         for i in keymap['min_param_bounds']:
             memoryMap[i] = param_bounds[:,0][j]
             j+=1
@@ -211,6 +237,12 @@ def putInMemoryMap(memoryMap, key, value):
         for i in keymap["tr_center"]:
             memoryMap[i] = value[j]
             j += 1
+    elif key=="simulationbudgetused":
+        keymap = getWorkflowMemoryMap(memoryMap[0])
+        memoryMap[keymap[key]] += value
+    elif key in ["debug", "tr_gradientCondition"]:
+        keymap = getWorkflowMemoryMap(memoryMap[0])
+        memoryMap[keymap[key]] = float(value)
     else:
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] = value
@@ -222,12 +254,12 @@ def getFromMemoryMap(memoryMap, key):
         for i in keymap[key]:
             arr.append(memoryMap[i])
         return arr
-    elif "param_names.json" in key:
+    elif key == "param_names":
         import json
-        with open(key,'r') as f:
+        with open("param_names.json",'r') as f:
             ds = json.load(f)
         return ds["param_names"]
-    elif key in ["iterationNo","dim","simulationbudgetused","max_iteration"]:
+    elif key in ["iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
         return int(memoryMap[keymap[key]])
     elif key in ["debug","tr_gradientCondition"]:
         return bool(memoryMap[keymap[key]])
