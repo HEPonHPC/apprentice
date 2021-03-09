@@ -133,7 +133,7 @@ def readMemoryMap():
             memorymap = np.array(ds["MemoryMap"])
     return (memorymap, pyhenson)
 
-def writeMemoryMap(memoryMap):
+def writeMemoryMap(memoryMap, forceFileWrite=False):
     import json
     pyhenson = False
     try:
@@ -146,6 +146,11 @@ def writeMemoryMap(memoryMap):
                 "in files for communication between tasks")
         ds = {"MemoryMap": memoryMap.tolist()}
         with open("memorymap.json", 'w') as f:
+            json.dump(ds, f, indent=4)
+    if forceFileWrite:
+        k = getFromMemoryMap(memoryMap=memoryMap, key="iterationNo")
+        ds = {"MemoryMap": memoryMap.tolist()}
+        with open("memorymap_k{}.json".format(k), 'w') as f:
             json.dump(ds, f, indent=4)
     return pyhenson
 
