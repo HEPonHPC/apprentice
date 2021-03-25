@@ -177,7 +177,8 @@ def getWorkflowMemoryMap(dim=2):
         "iterationNo": 14 + (3 * dim),
         "debug": 15 + (3 * dim),
         "status":16 + (3 * dim),
-        "param_names":17 + (3 * dim)
+        "param_names":17 + (3 * dim),
+        "useYODAoutput":18 + (3 * dim)
     }
     return keymap
 
@@ -214,6 +215,10 @@ def putInMemoryMap(memoryMap, key, value):
         memoryMap[keymap["tr_maxradius"]] = ds['tr']['maxradius']
         memoryMap[keymap["tr_sigma"]] = ds['tr']['sigma']
         memoryMap[keymap["tr_eta"]] = ds['tr']['eta']
+        useYODAoutput = False
+        if "useYODAoutput" in ds:
+            useYODAoutput = ds["useYODAoutput"]
+        putInMemoryMap(memoryMap,"useYODAoutput",useYODAoutput)
         j = 0
         if "param_bounds" in ds:
             param_bounds = np.array(ds['param_bounds'])
@@ -245,7 +250,7 @@ def putInMemoryMap(memoryMap, key, value):
     elif key=="simulationbudgetused":
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] += value
-    elif key in ["debug", "tr_gradientCondition"]:
+    elif key in ["debug", "tr_gradientCondition","useYODAoutput"]:
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] = float(value)
     else:
@@ -266,7 +271,7 @@ def getFromMemoryMap(memoryMap, key):
         return ds["param_names"]
     elif key in ["iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
         return int(memoryMap[keymap[key]])
-    elif key in ["debug","tr_gradientCondition"]:
+    elif key in ["debug","tr_gradientCondition","useYODAoutput"]:
         return bool(memoryMap[keymap[key]])
     else:
         return memoryMap[keymap[key]]
