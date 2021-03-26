@@ -94,6 +94,75 @@ def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testfor
 
     return _app, hasPole
 
+def getLHSsamples(dim,npoints,criterion,minarr,maxarr,seed=87236):
+    from pyDOE import lhs
+    import apprentice
+    np.random.seed(seed)
+    X = lhs(dim, samples=npoints, criterion=criterion)
+    s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarr, b=maxarr)
+    return s.scaledPoints
+
+def getdLHSsamples(dim,npoints,criterion,minarr,maxarr,seed=87236):
+    import apprentice
+    from pyDOE import lhs
+    np.random.seed(seed)
+    epsarr = []
+    for d in range(dim):
+        # epsarr.append((maxarr[d] - minarr[d])/10)
+        epsarr.append(10 ** -6)
+
+    facepoints = int(2 * numCoeffsRapp(dim - 1, [int(m), int(n)]))
+    insidepoints = int(npoints - facepoints)
+    Xmain = np.empty([0, dim])
+    # Generate inside points
+    minarrinside = []
+    maxarrinside = []
+    for d in range(dim):
+        minarrinside.append(minarr[d] + epsarr[d])
+        maxarrinside.append(maxarr[d] - epsarr[d])
+    X = lhs(dim, samples=insidepoints, criterion=criterion)
+    s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrinside, b=maxarrinside)
+    X = s.scaledPoints
+    Xmain = np.vstack((Xmain, X))
+
+    # Generate face points
+    perfacepoints = int(np.ceil(facepoints / (2 * dim)))
+    index = 0
+    for d in range(dim):
+        for e in [minarr[d], maxarr[d]]:
+            index += 1
+            np.random.seed(seed + index * 100)
+            X = lhs(dim, samples=perfacepoints, criterion=criterion)
+            minarrface = np.empty(shape=dim, dtype=np.float64)
+            maxarrface = np.empty(shape=dim, dtype=np.float64)
+            for p in range(dim):
+                if (p == d):
+                    if e == maxarr[d]:
+                        minarrface[p] = e - epsarr[d]
+                        maxarrface[p] = e
+                    else:
+                        minarrface[p] = e
+                        maxarrface[p] = e + epsarr[d]
+                else:
+                    minarrface[p] = minarr[p]
+                    maxarrface[p] = maxarr[p]
+            s = apprentice.Scaler(np.array(X, dtype=np.float64), a=minarrface, b=maxarrface)
+            X = s.scaledPoints
+            Xmain = np.vstack((Xmain, X))
+    Xmain = np.unique(Xmain, axis=0)
+    X = Xmain
+    formatStr = "{0:0%db}" % (dim)
+    for d in range(2 ** dim):
+        binArr = [int(x) for x in formatStr.format(d)[0:]]
+        val = []
+        for i in range(dim):
+            if (binArr[i] == 0):
+                val.append(minarr[i])
+            else:
+                val.append(maxarr[i])
+        X[d] = val
+    return X
+
 def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
     def readProcessCard(fname):
         with open(fname) as f:
@@ -167,18 +236,19 @@ def getWorkflowMemoryMap(dim=2):
         "tr_eta": 4 + (3 * dim),
         "tr_gradientCondition": 5 + (3 * dim),
         "N_p": 6 + (3 * dim),
-        "point_min_dist": 7 + (3 * dim),
-        "fidelity": 8 + (3 * dim),
-        "N_s": 9 + (3 * dim),
-        "max_iteration": 10 + (3 * dim),
-        "min_gradientNorm": 11 + (3 * dim),
-        "max_simulationBudget": 12 + (3 * dim),
-        "simulationbudgetused": 13 + (3 * dim),
-        "iterationNo": 14 + (3 * dim),
-        "debug": 15 + (3 * dim),
-        "status":16 + (3 * dim),
-        "param_names":17 + (3 * dim),
-        "useYODAoutput":18 + (3 * dim)
+        "theta": 7 + (3 * dim),
+        "thetaprime": 8 + (3 * dim),
+        "fidelity": 9 + (3 * dim),
+        "N_s": 10 + (3 * dim),
+        "max_iteration": 11 + (3 * dim),
+        "min_gradientNorm": 12 + (3 * dim),
+        "max_simulationBudget": 13 + (3 * dim),
+        "simulationbudgetused": 14 + (3 * dim),
+        "iterationNo": 15 + (3 * dim),
+        "debug": 16 + (3 * dim),
+        "status":17 + (3 * dim),
+        "param_names":18 + (3 * dim),
+        "useYODAoutput":19 + (3 * dim)
     }
     return keymap
 
@@ -235,7 +305,7 @@ def putInMemoryMap(memoryMap, key, value):
             memoryMap[i] = param_bounds[:, 1][j]
             j += 1
 
-        for k in ["N_p","dim","point_min_dist","fidelity","N_s",
+        for k in ["N_p","dim","theta","thetaprime","fidelity","N_s",
                   "max_iteration","min_gradientNorm",
                   "max_simulationBudget"]:
             memoryMap[keymap[k]] = ds[k]
