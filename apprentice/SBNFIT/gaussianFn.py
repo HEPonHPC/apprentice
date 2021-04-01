@@ -8,7 +8,7 @@ def gaussianFn(c,x,mu,sd,a):
     e = 0.
     for xno,xd in enumerate(x):
         e += ((x[xno]-mu[xno])**2)/(2 * sd[xno] ** 2)
-    e = -np.exp(-1*e)
+    e = np.exp(-1*e)
 
     return c+(a * e)
 
@@ -40,6 +40,7 @@ def getSignalData(infile):
         half = 10**halfl10
         # half = (np.max(Yall) +np.min(Yall))/2
         sd = [0] * dim
+
         for d in range(dim):
             for x in range(1,Xall[minindex][d]):
                 xx = [kk for kk in Xall[minindex]]
@@ -61,6 +62,8 @@ if __name__ == "__main__":
                         help="Output directory")
     parser.add_argument("-i", "--indfile", dest="INFILE", type=str, default=None,
                         help="Input H5 file")
+    parser.add_argument("-d", "--dimension", dest="DIM", type=str, default=None,
+                        help="Dimension")
     args = parser.parse_args()
 
     signalvals = None
@@ -101,7 +104,7 @@ if __name__ == "__main__":
                                               np.array(x),
                                               np.array(mu_arr[bno]),
                                               np.array(sd_arr[bno]),
-                                              a_arr[bno]))
+                                              -1*a_arr[bno]))
         # print(signalvals[bin])
         fig, ax = plt.subplots(figsize=(12, 7))
         title = "{} {} Heat Map".format(bin, "Gaussian function signal")
