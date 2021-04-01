@@ -4,13 +4,38 @@ import os,sys
 import h5py
 import json
 
-def gaussianFn(c,x,mu,sd,a):
-    e = 0.
-    for xno,xd in enumerate(x):
-        e += ((x[xno]-mu[xno])**2)/(2 * sd[xno] ** 2)
-    e = np.exp(-1*e)
+def gaussianFn(c,x,mu,cov,a):
+    # sd = [cov[0,0],cov[1,1]]
+    # e1 = 0.
+    # for xno,xd in enumerate(x):
+    #     e1 += ((x[xno]-mu[xno])**2)/(2 * sd[xno] ** 2)
+    # e1 = np.exp(-1*e1)
+    #
+    # return c+(a * e1)
 
-    return c+(a * e)
+
+
+    diff = x - mu
+    cov2 = np.matmul(cov.transpose(),cov)
+    e2 = -0.5 * (
+        np.matmul(
+            np.matmul(
+                diff.transpose(),
+                np.linalg.inv(cov2)),
+            diff
+        )
+    )
+    e2 = np.exp(e2)
+
+    # if x[0]>mu[0]-sd[0] and x[0]<mu[0]+sd[0] and \
+    #     x[1]>mu[1]-sd[1] and x[1]<mu[1]+sd[1]:
+    #     print(x)
+    #     print(e1, e2)
+    #     print(c + (a * e1),(c + (a * e2)))
+
+
+    return c + (a * e2)
+
 
 def getSignalData(infile):
     f = h5py.File(infile, "r")
@@ -26,7 +51,7 @@ def getSignalData(infile):
         for j in range(1, npointsperdim + 1):
             Xall.append([i, j])
 
-    signalds = {"binids":[],"a":[],"mu":[],"sd":[],"c":[],"Xall":Xall,
+    signalds = {"binids":[],"a":[],"mu":[],"cov":[],"c":[],"Xall":Xall,
                 "npointsperdim":npointsperdim,"nbin":nbin}
 
     for bno, bin in enumerate(binids):
@@ -35,7 +60,7 @@ def getSignalData(infile):
         signalds["c"].append(np.max(Yall))
         minindex = int(np.argmin(Yall))
         signalds["mu"].append(Xall[minindex])
-        signalds["a"].append(np.max(Yall) - np.min(Yall))
+        signalds["a"].append(-1*(np.max(Yall) - np.min(Yall)))
         halfl10 = (np.log10(np.max(Yall)) + np.log10(np.min(Yall)))/2
         half = 10**halfl10
         # half = (np.max(Yall) +np.min(Yall))/2
@@ -51,9 +76,13 @@ def getSignalData(infile):
                     sd[d] = Xall[minindex][d] - x
                     # print(Xall[minindex][d],x)
                     break
-        signalds['sd'].append(sd)
+        signalds['cov'].append([[sd[0],0],[0,sd[1]]])
+
     return signalds
 
+"""
+python gaussianFn.py -o ../../../log/SBNFIT/plots -i ../../../log/SBNFIT/comparespectrum_mpi_deg2.h5
+"""
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Gaussian Mock data',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -87,7 +116,7 @@ if __name__ == "__main__":
     # Mean
     mu_arr = signalds["mu"]
     # Standard Deviation
-    sd_arr = signalds["sd"]
+    cov_arr = signalds["cov"]
     # Shift
     c_arr = signalds["c"]
     binids = signalds["binids"]
@@ -103,8 +132,8 @@ if __name__ == "__main__":
             signalvals[bin].append(gaussianFn(c_arr[bno],
                                               np.array(x),
                                               np.array(mu_arr[bno]),
-                                              np.array(sd_arr[bno]),
-                                              -1*a_arr[bno]))
+                                              np.array(cov_arr[bno]),
+                                              a_arr[bno]))
         # print(signalvals[bin])
         fig, ax = plt.subplots(figsize=(12, 7))
         title = "{} {} Heat Map".format(bin, "Gaussian function signal")
