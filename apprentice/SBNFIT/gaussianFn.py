@@ -82,6 +82,8 @@ def getSignalData(infile):
 
 """
 python gaussianFn.py -o ../../../log/SBNFIT/plots -i ../../../log/SBNFIT/comparespectrum_mpi_deg2.h5
+
+python gaussianFn.py -o ../../../log/SBNFIT/plots -i ../../../log/SBNFIT/plots/GaussianFnSignal_Optimized.json -t GaussianFunctionSignal_Optimized
 """
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Gaussian Mock data',
@@ -93,10 +95,12 @@ if __name__ == "__main__":
                         help="Input H5 file")
     parser.add_argument("-d", "--dimension", dest="DIM", type=str, default=None,
                         help="Dimension")
+    parser.add_argument("-t", "--valtype", dest="VALTYPE", type=str, default="GaussianFunctionSignal",
+                        help="Val Type String")
     args = parser.parse_args()
 
     signalvals = None
-    valtype = "GaussianFnSignal"
+    valtype = args.VALTYPE
     if args.INFILE is not None:
         if "json" in args.INFILE:
             with open(args.INFILE,"r") as f:
@@ -136,7 +140,7 @@ if __name__ == "__main__":
                                               a_arr[bno]))
         # print(signalvals[bin])
         fig, ax = plt.subplots(figsize=(12, 7))
-        title = "{} {} Heat Map".format(bin, "Gaussian function signal")
+        title = "{} {} Heat Map".format(bin, valtype)
         plt.title(title, fontsize=18)
         ttl = ax.title
         ttl.set_position([0.5, 1.05])
