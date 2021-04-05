@@ -72,6 +72,51 @@ def readH5(fname, idx=None, xfield="params", yfield1="values", yfield2="errors")
     f.close()
     return ret
 
+def readSingleYODAFile(dirnames, parFileName="params.dat", wfile=None):
+    if len(dirnames)>1: raise Exception("readSingleYODAFile cannot read more than one YODA run")
+    import apprentice as app
+    import numpy as np
+    import yoda, glob, os
+    INDIRSLIST = [glob.glob(os.path.join(a, "*")) for a in dirnames]
+    indirs = [item for sublist in INDIRSLIST for item in sublist]
+    PARAMS, HISTOS = app.io.read_rundata(indirs, parFileName)
+    histos = []
+    for k, v in HISTOS.items():
+        temp = []
+        for _k, _v in v.items():
+            temp.append((_k, _v))
+        histos.append((k, temp))
+    _histos = {}
+    _params = {}
+
+    for p in PARAMS:_params.update(PARAMS[p])
+    for rl in histos:
+        for ih in range(0,len(rl),2):
+            hname = rl[ih]
+            if not hname in _histos: _histos[hname] = {}
+            for ir in range(1, len(rl), 2):
+                _histos[hname] = rl[ir][0][1]
+    hbins = {}
+    HNAMES = [str(x) for x in sorted(list(_histos.keys()))]
+    if wfile is not None:
+        observables = list(set(app.io.readObs(wfile)))
+        HNAMES = [hn for hn in HNAMES if hn in observables]
+    X = np.array(list(_params.values()))
+    BNAMES = []
+    for hn in HNAMES:
+        histos = _histos[hn]
+        nbins = len(list(histos))
+        hbins[hn] = nbins
+        for n in range(nbins):
+            BNAMES.append("%s#%i" % (hn, n))
+    _data, xmin, xmax = [], [], []
+    for hn in HNAMES:
+        for nb in range(hbins[hn]):
+            vals = _histos[hn][nb][2]
+            errs = _histos[hn][nb][3]
+            _data.append([X, [np.array(vals)], [np.array(errs)]])
+    return _data
+
 def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI.COMM_WORLD):
     import apprentice as app
     import numpy as np
