@@ -169,6 +169,9 @@ def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", 
             L = [l.strip() for l in f]
         return L
     from os.path import join, exists
+    if not exists(outdir):
+        import os
+        os.makedirs(outdir)
     for num, p in enumerate(points):
         npad = "{}".format(num).zfill(1+int(np.ceil(np.log10(len(points)))))
         outd = join(outdir, npad)
