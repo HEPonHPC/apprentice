@@ -178,10 +178,10 @@ def getOutlevelDict():
     outlevelDict = {
         "0": ["Silent"],
         "10": ["1lineoutput"],
-        "20": ["1lineoutput","interpolationPoints"],
-        "30": ["1lineoutput","interpolationPoints","MC_RA_functionValue"],
-        "40": ["1lineoutput","interpolationPoints","MC_RA_functionValue","NormOfStep"],
-        "50": ["1lineoutput","interpolationPoints","MC_RA_functionValue","NormOfStep","All"]
+        "20": ["1lineoutput","NormOfStep"],
+        "30": ["1lineoutput","NormOfStep","interpolationPoints"],
+        "40": ["1lineoutput","NormOfStep","interpolationPoints","MC_RA_functionValue"],
+        "50": ["1lineoutput","NormOfStep","interpolationPoints","MC_RA_functionValue","All"]
     }
     return outlevelDict
 
