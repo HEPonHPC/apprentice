@@ -162,6 +162,28 @@ def getdLHSsamples(dim,npoints,criterion,minarr,maxarr,seed=87236):
                 val.append(maxarr[i])
         X[d] = val
     return X
+def getFirstOutLevelWithOption(option):
+    outlevelDict = getOutlevelDict()
+    arr = [int(i) for i in outlevelDict.keys()]
+    sarr = np.sort(arr)
+    for level in sarr:
+        if option in outlevelDict[str(level)]:
+            return level
+    return -1
+
+def getOutlevelDef(outlevel):
+    return getOutlevelDict()[str(int(outlevel))]
+
+def getOutlevelDict():
+    outlevelDict = {
+        "0": ["Silent"],
+        "10": ["1lineoutput"],
+        "20": ["1lineoutput","interpolationPoints"],
+        "30": ["1lineoutput","interpolationPoints","MC_RA_functionValue"],
+        "40": ["1lineoutput","interpolationPoints","MC_RA_functionValue","NormOfStep"],
+        "50": ["1lineoutput","interpolationPoints","MC_RA_functionValue","NormOfStep","All"]
+    }
+    return outlevelDict
 
 def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
     def readProcessCard(fname):
@@ -213,7 +235,7 @@ def writeMemoryMap(memoryMap, forceFileWrite=False):
         h.add("MemoryMap", memoryMap)
         pyhenson = True
     except:
-        if getFromMemoryMap(memoryMap=memoryMap, key="debug"):
+        if "All" in getOutlevelDef(getFromMemoryMap(memoryMap=memoryMap, key="outputlevel")):
             print("Standalone run detected. I will store data structures "
                 "in files for communication between tasks")
         ds = {"MemoryMap": memoryMap.tolist()}
@@ -248,7 +270,7 @@ def getWorkflowMemoryMap(dim=2):
         "max_simulationBudget": 13 + (3 * dim),
         "simulationbudgetused": 14 + (3 * dim),
         "iterationNo": 15 + (3 * dim),
-        "debug": 16 + (3 * dim),
+        "outputlevel": 16 + (3 * dim),
         "status":17 + (3 * dim),
         "param_names":18 + (3 * dim),
         "useYODAoutput":19 + (3 * dim)
@@ -323,7 +345,7 @@ def putInMemoryMap(memoryMap, key, value):
     elif key=="simulationbudgetused":
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] += value
-    elif key in ["debug", "tr_gradientCondition","useYODAoutput"]:
+    elif key in ["tr_gradientCondition","useYODAoutput"]:
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] = float(value)
     else:
@@ -342,9 +364,9 @@ def getFromMemoryMap(memoryMap, key):
         with open("param_names.json",'r') as f:
             ds = json.load(f)
         return ds["param_names"]
-    elif key in ["iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
+    elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
         return int(memoryMap[keymap[key]])
-    elif key in ["debug","tr_gradientCondition","useYODAoutput"]:
+    elif key in ["tr_gradientCondition","useYODAoutput"]:
         return bool(memoryMap[keymap[key]])
     else:
         return memoryMap[keymap[key]]
