@@ -265,17 +265,20 @@ def getWorkflowMemoryMap(dim=2):
         "N_p": 7 + (3 * dim),
         "theta": 8 + (3 * dim),
         "thetaprime": 9 + (3 * dim),
-        "fidelity": 10 + (3 * dim),
-        "N_s": 11 + (3 * dim),
-        "max_iteration": 12 + (3 * dim),
-        "min_gradientNorm": 13 + (3 * dim),
-        "max_simulationBudget": 14 + (3 * dim),
-        "simulationbudgetused": 15 + (3 * dim),
-        "iterationNo": 16 + (3 * dim),
-        "outputlevel": 17 + (3 * dim),
-        "status":18 + (3 * dim),
-        "param_names":19 + (3 * dim),
-        "useYODAoutput":20 + (3 * dim)
+        "kappa": 10 + (3 * dim),
+        "fidelity": 11 + (3 * dim),
+        "usefixedfidelity": 12 + (3 * dim),
+        "maxfidelity": 13 + (3 * dim),
+        "N_s": 14 + (3 * dim),
+        "max_iteration": 15 + (3 * dim),
+        "min_gradientNorm": 16 + (3 * dim),
+        "max_simulationBudget": 17 + (3 * dim),
+        "simulationbudgetused": 18 + (3 * dim),
+        "iterationNo": 19 + (3 * dim),
+        "outputlevel": 20 + (3 * dim),
+        "status":21 + (3 * dim),
+        "param_names":22 + (3 * dim),
+        "useYODAoutput":23 + (3 * dim)
     }
     return keymap
 
@@ -316,6 +319,10 @@ def putInMemoryMap(memoryMap, key, value):
         if "useYODAoutput" in ds:
             useYODAoutput = ds["useYODAoutput"]
         putInMemoryMap(memoryMap,"useYODAoutput",useYODAoutput)
+        useFixedFidelity = False
+        if "usefixedfidelity" in ds:
+            useFixedFidelity = ds["usefixedfidelity"]
+        putInMemoryMap(memoryMap,"usefixedfidelity",useFixedFidelity)
         j = 0
         if "param_bounds" in ds:
             param_bounds = np.array(ds['param_bounds'])
@@ -332,8 +339,8 @@ def putInMemoryMap(memoryMap, key, value):
             memoryMap[i] = param_bounds[:, 1][j]
             j += 1
 
-        for k in ["N_p","dim","theta","thetaprime","fidelity","N_s",
-                  "max_iteration","min_gradientNorm",
+        for k in ["N_p","dim","theta","thetaprime","maxfidelity","fidelity","N_s",
+                  "max_iteration","min_gradientNorm","kappa",
                   "max_simulationBudget"]:
             memoryMap[keymap[k]] = ds[k]
         return memoryMap
@@ -347,7 +354,7 @@ def putInMemoryMap(memoryMap, key, value):
     elif key=="simulationbudgetused":
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] += value
-    elif key in ["tr_gradientCondition","useYODAoutput"]:
+    elif key in ["tr_gradientCondition","useYODAoutput","usefixedfidelity"]:
         keymap = getWorkflowMemoryMap(memoryMap[0])
         memoryMap[keymap[key]] = float(value)
     else:
@@ -368,7 +375,7 @@ def getFromMemoryMap(memoryMap, key):
         return ds["param_names"]
     elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
         return int(memoryMap[keymap[key]])
-    elif key in ["tr_gradientCondition","useYODAoutput"]:
+    elif key in ["tr_gradientCondition","useYODAoutput","usefixedfidelity"]:
         return bool(memoryMap[keymap[key]])
     else:
         return memoryMap[keymap[key]]
