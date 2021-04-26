@@ -72,14 +72,14 @@ def readH5(fname, idx=None, xfield="params", yfield1="values", yfield2="errors")
     f.close()
     return ret
 
-def readSingleYODAFile(dirnames, parFileName="params.dat", wfile=None):
-    if len(dirnames)>1: raise Exception("readSingleYODAFile cannot read more than one YODA run")
+def readSingleYODAFile(dirname, parFileName="params.dat", wfile=None):
+    # if len(dirnames)>1: raise Exception("readSingleYODAFile cannot read more than one YODA run")
     import apprentice as app
     import numpy as np
     import yoda, glob, os
-    INDIRSLIST = [glob.glob(os.path.join(a, "*")) for a in dirnames]
-    indirs = [item for sublist in INDIRSLIST for item in sublist]
-    PARAMS, HISTOS = app.io.read_rundata(indirs, parFileName)
+    # INDIRSLIST = [glob.glob(os.path.join(a, "*")) for a in dirnames]
+    # indirs = [item for sublist in INDIRSLIST for item in sublist]
+    PARAMS, HISTOS = app.io.read_rundata([dirname], parFileName)
     histos = []
     for k, v in HISTOS.items():
         temp = []
