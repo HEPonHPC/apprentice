@@ -328,7 +328,7 @@ def putInMemoryMap(memoryMap, key, value):
         if "useYODAoutput" in ds:
             useYODAoutput = ds["useYODAoutput"]
         putInMemoryMap(memoryMap,"useYODAoutput",useYODAoutput)
-        useFixedFidelity = False
+        useFixedFidelity = True
         if "usefixedfidelity" in ds: useFixedFidelity = ds["usefixedfidelity"]
         maxfidelity = ds["fidelity"] if useFixedFidelity else ds["maxfidelity"]
         putInMemoryMap(memoryMap,"usefixedfidelity",useFixedFidelity)
