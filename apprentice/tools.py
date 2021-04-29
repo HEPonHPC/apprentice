@@ -174,6 +174,15 @@ def getFirstOutLevelWithOption(option):
 def getOutlevelDef(outlevel):
     return getOutlevelDict()[str(int(outlevel))]
 
+def getStatusDef(status):
+    statusDict = {
+        0:"OK",
+        1:"Norm of the projected gradient too small",
+        2:"Max iterations reached",
+        3:"Simulation budget depleted"
+    }
+    return statusDict[status]
+
 def getOutlevelDict():
     outlevelDict = {
         "0": ["Silent"],
@@ -373,7 +382,7 @@ def getFromMemoryMap(memoryMap, key):
         with open("param_names.json",'r') as f:
             ds = json.load(f)
         return ds["param_names"]
-    elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","N_p"]:
+    elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","N_p","status"]:
         return int(memoryMap[keymap[key]])
     elif key in ["tr_gradientCondition","useYODAoutput","usefixedfidelity"]:
         return bool(memoryMap[keymap[key]])
