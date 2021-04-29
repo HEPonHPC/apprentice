@@ -329,9 +329,10 @@ def putInMemoryMap(memoryMap, key, value):
             useYODAoutput = ds["useYODAoutput"]
         putInMemoryMap(memoryMap,"useYODAoutput",useYODAoutput)
         useFixedFidelity = False
-        if "usefixedfidelity" in ds:
-            useFixedFidelity = ds["usefixedfidelity"]
+        if "usefixedfidelity" in ds: useFixedFidelity = ds["usefixedfidelity"]
+        maxfidelity = ds["fidelity"] if useFixedFidelity else ds["maxfidelity"]
         putInMemoryMap(memoryMap,"usefixedfidelity",useFixedFidelity)
+        putInMemoryMap(memoryMap,"maxfidelity",maxfidelity)
         j = 0
         if "param_bounds" in ds:
             param_bounds = np.array(ds['param_bounds'])
@@ -348,7 +349,7 @@ def putInMemoryMap(memoryMap, key, value):
             memoryMap[i] = param_bounds[:, 1][j]
             j += 1
 
-        for k in ["N_p","dim","theta","thetaprime","maxfidelity","fidelity","N_s",
+        for k in ["N_p","dim","theta","thetaprime","fidelity","N_s",
                   "max_iteration","min_gradientNorm","kappa",
                   "max_simulationBudget"]:
             memoryMap[keymap[k]] = ds[k]
