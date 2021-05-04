@@ -179,7 +179,8 @@ def getStatusDef(status):
         0:"OK",
         1:"Norm of the projected gradient too small",
         2:"Max iterations reached",
-        3:"Simulation budget depleted"
+        3:"Simulation budget depleted",
+        4:"MC was unsuccessful on single/too many parameters"
     }
     return statusDict[status]
 
