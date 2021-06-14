@@ -434,27 +434,27 @@ class TuningObjective2(object):
         if unbiased: return apprentice.tools.fast_chi(np.ones(len(vals)), self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))
         else:        return apprentice.tools.fast_chi(self._W2[sel]     , self._Y[sel] - vals, 1./(err2 + 1./self._E2[sel]))# self._E2[sel])
 
-    def gradient(self, _x, sel=slice(None, None, None)):
+    def gradient(self, _x, sel=slice(None, None, None),set_cache=False):
         x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel=sel)
         E2=1./self._E2[sel]
-        grads = self._AS.grads(x, sel=sel, set_cache=False)
+        grads = self._AS.grads(x, sel=sel, set_cache=set_cache)
         if self._EAS is not None:
-            err   = self._EAS.vals(  x, sel=sel, set_cache=False)
-            egrads = self._EAS.grads( x, sel=sel, set_cache=False)
+            err   = self._EAS.vals(  x, sel=sel, set_cache=set_cache)
+            egrads = self._EAS.grads( x, sel=sel, set_cache=set_cache)
         else:
             err= np.zeros_like(vals)
             egrads = np.zeros_like(grads)
         return apprentice.tools.fast_grad2(self._W2[sel], self._Y[sel] - vals, E2, err, grads, egrads)[self._freeIdx]
 
-    def hessian(self, _x, sel=slice(None, None, None)):
+    def hessian(self, _x, sel=slice(None, None, None),set_cache=False):
         x=self.mkPoint(_x)
         vals  = self._AS.vals( x, sel = sel)
-        grads = self._AS.grads(x, sel, set_cache=False)[:,self._freeIdx].reshape(len(vals), len(_x))
+        grads = self._AS.grads(x, sel, set_cache=set_cache)[:,self._freeIdx].reshape(len(vals), len(_x))
         hess  = self._AS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         if self._EAS is not None:
             evals  = self._EAS.vals( x, sel = sel)
-            egrads = self._EAS.grads(x, sel, set_cache=False)[:,self._freeIdx].reshape(len(vals), len(_x))
+            egrads = self._EAS.grads(x, sel, set_cache=set_cache)[:,self._freeIdx].reshape(len(vals), len(_x))
             ehess  = self._EAS.hessians(x, sel)[:,self._freeIdx][self._freeIdx,:].reshape(len(_x),len(_x),len(vals))
         else:
             evals  = np.zeros_like(vals)
