@@ -180,7 +180,9 @@ def getStatusDef(status):
         1:"Norm of the projected gradient too small",
         2:"Max iterations reached",
         3:"Simulation budget depleted",
-        4:"MC was unsuccessful on single/too many parameters"
+        4:"MC was successful on less than 1 or N_p parameters (error)",
+        5:"Trust region radius is less than a certain bound",
+        6:"Fidelity is at a maximum value for a specified number of iterations"
     }
     return statusDict[status]
 
@@ -288,7 +290,10 @@ def getWorkflowMemoryMap(dim=2):
         "outputlevel": 20 + (3 * dim),
         "status":21 + (3 * dim),
         "param_names":22 + (3 * dim),
-        "useYODAoutput":23 + (3 * dim)
+        "useYODAoutput":23 + (3 * dim),
+        "max_fidelity_iteration":24 + (3 * dim),
+        "no_iters_at_max_fidelity":25 + (3 * dim),
+        "radius_at_which_max_fidelity_reached":26 + (3 * dim)
     }
     return keymap
 
@@ -351,7 +356,7 @@ def putInMemoryMap(memoryMap, key, value):
             j += 1
 
         for k in ["N_p","dim","theta","thetaprime","fidelity","N_s",
-                  "max_iteration","min_gradientNorm","kappa",
+                  "max_iteration","max_fidelity_iteration","min_gradientNorm","kappa",
                   "max_simulationBudget"]:
             memoryMap[keymap[k]] = ds[k]
         return memoryMap
@@ -384,7 +389,7 @@ def getFromMemoryMap(memoryMap, key):
         with open("param_names.json",'r') as f:
             ds = json.load(f)
         return ds["param_names"]
-    elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","N_p","status"]:
+    elif key in ["outputlevel","iterationNo","dim","simulationbudgetused","max_iteration","max_fidelity_iteration","N_p","status"]:
         return int(memoryMap[keymap[key]])
     elif key in ["tr_gradientCondition","useYODAoutput","usefixedfidelity"]:
         return bool(memoryMap[keymap[key]])
