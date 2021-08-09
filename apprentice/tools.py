@@ -198,7 +198,7 @@ def getOutlevelDict():
     }
     return outlevelDict
 
-def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
+def writePythiaFiles(proccardfilearr, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
     def readProcessCard(fname):
         with open(fname) as f:
             L = [l.strip() for l in f]
@@ -220,12 +220,13 @@ def writePythiaFiles(proccardfile, pnames, points, outdir, fnamep="params.dat", 
                 pf.write("{name} {val:e}\n".format(name=k, val=v))
 
         outfgenerator = join(outd, fnameg)
-        pc = readProcessCard(proccardfile)
-        with open(outfgenerator, "w") as pg:
-            for l in pc:
-                pg.write(l+"\n")
-            for k, v in zip(pnames, p):
-                pg.write("{name} = {val:e}\n".format(name=k, val=v))
+        for proccardfile in proccardfilearr:
+            pc = readProcessCard(proccardfile)
+            with open(outfgenerator, "w") as pg:
+                for l in pc:
+                    pg.write(l+"\n")
+                for k, v in zip(pnames, p):
+                    pg.write("{name} = {val:e}\n".format(name=k, val=v))
 
 def readMemoryMap():
     import json
