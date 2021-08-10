@@ -199,13 +199,13 @@ def getOutlevelDict():
     return outlevelDict
 
 def writePythiaFiles(proccardfilearr, pnames, points, outdir, fnamep="params.dat", fnameg="generator.cmd"):
+    import os
     def readProcessCard(fname):
         with open(fname) as f:
             L = [l.strip() for l in f]
         return L
     from os.path import join, exists
     if not exists(outdir):
-        import os
         os.makedirs(outdir)
     for num, p in enumerate(points):
         npad = "{}".format(num).zfill(1+int(np.ceil(np.log10(len(points)))))
@@ -219,12 +219,16 @@ def writePythiaFiles(proccardfilearr, pnames, points, outdir, fnamep="params.dat
             for k, v in zip(pnames, p):
                 pf.write("{name} {val:e}\n".format(name=k, val=v))
 
-        outfgenerator = join(outd, fnameg)
         for proccardfile in proccardfilearr:
+            if fnameg is None:
+                outfgenerator = join(outd, os.path.basename(proccardfile))
+            else:
+                outfgenerator = join(outd, fnameg)
             pc = readProcessCard(proccardfile)
             with open(outfgenerator, "w") as pg:
                 for l in pc:
                     pg.write(l+"\n")
+                pg.write("\n")
                 for k, v in zip(pnames, p):
                     pg.write("{name} = {val:e}\n".format(name=k, val=v))
 
