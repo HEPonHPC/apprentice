@@ -220,20 +220,15 @@ def writePythiaFiles(proccardfilearr, pnames, points, outdir, fnamep="params.dat
             for k, v in zip(pnames, p):
                 pf.write("{name} {val:e}\n".format(name=k, val=v))
 
+        paramstr = "\n"
+        for k, v in zip(pnames, p):
+            paramstr += "{name} = {val:e}\n".format(name=k, val=v)
         for proccardfile in proccardfilearr:
             if fnameg is None:
                 outfgenerator = join(outd, os.path.basename(proccardfile))
             else:
                 outfgenerator = join(outd, fnameg)
-            # pc = readProcessCard(proccardfile)
-            paramstr = "\n"
-            for k, v in zip(pnames, p):
-                paramstr += "{name} = {val:e}\n".format(name=k, val=v)
             copyfile(proccardfile, outfgenerator)
-            # with open(outfgenerator, "w") as pg:
-            #     for l in pc:
-            #         pg.write(l+"\n")
-            #     pg.write("\n")
             with open(outfgenerator, "a") as pg:
                 pg.write(paramstr)
 
