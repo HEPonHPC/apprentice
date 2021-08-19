@@ -182,7 +182,9 @@ def getStatusDef(status):
         3:"Simulation budget depleted",
         4:"MC was successful on less than 1 or N_p parameters (error)",
         5:"Trust region radius is less than a certain bound",
-        6:"Fidelity is at a maximum value for a specified number of iterations"
+        6:"Fidelity is at a maximum value for a specified number of iterations",
+        7:"The usable vals and errs of a bin was less than what was needed for constructing a polynomial of order (1,0)/"
+          "Too many vals or errs for this bin were either nan or infty"
     }
     return statusDict[status]
 
