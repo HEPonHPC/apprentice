@@ -183,9 +183,11 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
                 vals = [_histos[hn][r][nb][2] if r in _histos[hn].keys() else np.nan for r in runs]
                 errs = [_histos[hn][r][nb][3] if r in _histos[hn].keys() else np.nan for r in runs]
                 # Pick a run that actually exists here
-                goodrun = runs[np.where(np.isfinite(vals))[0][0]]
-                xmin.append(_histos[hn][goodrun][nb][0])
-                xmax.append(_histos[hn][goodrun][nb][1])
+                isitfinite = (np.where(np.isfinite(vals))[0])
+                if len(isitfinite) > 0:
+                    goodrun = runs[np.where(np.isfinite(vals))[0][0]]
+                    xmin.append(_histos[hn][goodrun][nb][0])
+                    xmax.append(_histos[hn][goodrun][nb][1])
                 USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
                 xg=X[USE,:]
                 if len(xg.shape)==3:
