@@ -115,7 +115,7 @@ def readSingleYODAFile(dirname, parFileName="params.dat", wfile=None):
             vals = _histos[hn][nb][2]
             errs = _histos[hn][nb][3]
             _data.append([X, [np.array(vals)], [np.array(errs)]])
-    return _data
+    return _data,BNAMES
 
 def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI.COMM_WORLD):
     import apprentice as app
