@@ -29,7 +29,7 @@ def writeParams(P, templates, outdir, fname="params.dat"):
             with open(tname, "w") as tf:
                 tf.write(txt)
 
-def sample(boxdef, npoints):
+def sample(boxdef, npoints, method):
     is_json=True;
     import json
     with open(boxdef) as f:
@@ -50,28 +50,45 @@ def sample(boxdef, npoints):
     xmin = [B[x][0] for x in porder]
     xmax = [B[x][1] for x in porder]
 
-    # Randomly sampled points
-    # TODO add lhs as preferred option?
-    RSP = np.random.uniform(low=xmin, high=xmax,size=(npoints, len(xmin)))
+    print(xmin, xmax)
+    
+    sampled_points=[]
+    if(method=="RSP"): # randomly sampled points
+        sampled_points = np.random.uniform(low=xmin, high=xmax,size=(npoints, len(xmin)))
+    elif(method=="LHS"): # latin hypercube sampling
+        from scipy.stats import qmc
+        sampler = qmc.LatinHypercube(d=len(B.keys()))
+        sample = sampler.random(n=npoints)
+        sampled_points = qmc.scale(sample, xmin, xmax)
+    else:
+        throw("app-sample\tERROR\tUnknown sampling method.")
+        
     for p in porder:
         print(p)
 
+    print(sampled_points)
+        
     # As dictionaries
-    return [ dict(zip(porder, x)) for x in RSP]
+    return [ dict(zip(porder, x)) for x in sampled_points ]
 
 
 if __name__=="__main__":
     import sys
-    PP = sample(sys.argv[1], int(sys.argv[2]))
 
     # First arg: json with param box
     # 2nd arg: number of points to sample i.e. number of sub directories to create
     # 3rd arg: template
+    # 4th arg: sampling method
 
     import os
     tname = os.path.basename(sys.argv[3])
     TEMPLATES={}
     with open(sys.argv[3], "r") as f:
         TEMPLATES[tname] = f.read()
-
-    writeParams(PP, TEMPLATES, "newscan")
+        
+    if(len(sys.argv)==4):
+        PP = sample(sys.argv[1], int(sys.argv[2]), "RSP")
+        writeParams(PP, TEMPLATES, "newscan")
+    elif(len(sys.argv)==5):
+        PP = sample(sys.argv[1], int(sys.argv[2]), sys.argv[4])
+        writeParams(PP, TEMPLATES, "newscan")
