@@ -27,22 +27,23 @@ def calcHistoCov(h, COV_P, result):
     return COV_H
 
 
-from apprentice.numba import jit, njit
-@jit(parallel=True, forceobj=True)
+from apprentice.numba_ import jit, njit
+# @jit(parallel=True, forceobj=True)
 def startPoints(self, _PP):
     _CH = np.empty(len(_PP))
     for p in range(len(_PP)):
        _CH[p] = self.objective(_PP[p])
     return _PP[np.argmin(_CH)]
 
-@jit(forceobj=True)#, parallel=True)
+# @jit(forceobj=True)#, parallel=True)
 def prime(GREC, COEFF, dim, NNZ):
     ret = np.empty((len(COEFF), dim))
     for i in range(dim):
         ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=2).flatten()
     return ret
 
-@jit(forceobj=True)#, parallel=True)
+# TODO jit here causes problems with oneAPI python
+# @jit(forceobj=True)#, parallel=True)
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
     ret = np.empty((dim, dim, NSEL), dtype=np.float64)
     for numx in range(dim):
@@ -55,7 +56,7 @@ def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
 
     return ret
 
-@jit
+# @jit
 def jitprime(GREC, COEFF, dim):
     ret = np.empty((len(COEFF), dim))
     for i in range(dim):
@@ -65,7 +66,7 @@ def jitprime(GREC, COEFF, dim):
 
 
 
-@njit(parallel=True)
+# @njit(parallel=True)
 def calcSpans(spans1, DIM, G1, G2, H2, H3, grads, egrads):
     for numx in range(DIM):
         for numy in range(DIM):
