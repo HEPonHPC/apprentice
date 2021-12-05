@@ -1,5 +1,5 @@
 import numpy as np
-from numba import jit, njit
+from apprentice.numba import jit, njit
 
 @njit
 def mono_next_grlex(m, x):
