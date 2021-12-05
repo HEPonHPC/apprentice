@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from numba import jit
+from apprentice.numba import jit
 import apprentice
 import numpy as np
 

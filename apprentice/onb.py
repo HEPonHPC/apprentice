@@ -1,7 +1,7 @@
 import numpy as np
 
 
-from numba import jit
+from apprentice.numba import jit
 
 @jit
 def fast_calc(_X, M, Mdof):

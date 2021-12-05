@@ -27,7 +27,7 @@ def calcHistoCov(h, COV_P, result):
     return COV_H
 
 
-from numba import jit, njit
+from apprentice.numba import jit, njit
 @jit(parallel=True, forceobj=True)
 def startPoints(self, _PP):
     _CH = np.empty(len(_PP))

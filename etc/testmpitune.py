@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     if opts.DEBUG: print("[{}] After filtering: len(binids) = {}".format(rank, len(binids)))
 
-    # from numba import jit, njit
+    # from apprentice.numba import jit, njit
     # @jit(fastmath=True, parallel=True)
     def fast_chi(lW2, lY, lRA, lE2, nb):
         s=0
