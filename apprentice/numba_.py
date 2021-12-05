@@ -1,6 +1,6 @@
 
 try:
-    import numba
+#    import numba
     from numba import jit
     from numba import njit
     from numba.typed import List

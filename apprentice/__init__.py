@@ -1,4 +1,4 @@
-from apprentice import numba
+from apprentice import numba_
 from apprentice import *
 from apprentice.rationalapproximation   import RationalApproximation
 from apprentice.polynomialapproximation import PolynomialApproximation

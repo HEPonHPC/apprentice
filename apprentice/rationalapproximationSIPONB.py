@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
-from apprentice.numba import jit, njit
+from apprentice.numba_ import jit, njit
 
 @jit
 def fast_robustObj(coeff, q_ipo, M, N):
