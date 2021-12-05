@@ -174,7 +174,7 @@ def fast_grad(w, d, e, g):
     v = -2 * w * d * e # TODO check where the minus comes from
     return np.sum(g * v.reshape((v.shape[0], 1)), axis=0)
 
-from apprentice.numba import jit
+from apprentice.numba_ import jit
 # @jit
 def fast_grad2(w, d, E2, e, g, ge):
     errterm=1./(E2 + e*e)
@@ -447,7 +447,11 @@ def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=Non
     import yoda
     for obs in observables:
         idx = np.where(hids==obs)
-        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
+        try:
+            P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
+        except:
+            P2D = [yoda.Point2D(x,y,dx,dy, source=b'') for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
+
         Y2D.append(yoda.Scatter2D(P2D, obs, obs))
     yoda.write(Y2D, fout)
 
