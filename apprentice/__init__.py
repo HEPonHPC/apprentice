@@ -1,3 +1,4 @@
+from apprentice import numba_
 from apprentice import *
 from apprentice.loader import loadPlugin
 

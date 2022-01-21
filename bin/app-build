@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import apprentice as app
 import numpy as np
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         print("{} neither directory nor file, exiting".format(args[0]))
         exit(1)
 
-    comm.barrier()
+    if size>1: comm.barrier() # TODO why do we need a barrier here?
     print("[{}] will proceed to calculate approximations for {} objects".format(rank, len(DATA)))
     sys.stdout.flush()
 
@@ -223,8 +223,14 @@ if __name__ == "__main__":
         binedges[thisBinId] = (xmin[num], xmax[num])
 
 
-    DAPPS = comm.gather(dapps, root=0)
-    DEDGE = comm.gather(binedges, root=0)
+    if size>1:
+        DAPPS = comm.gather(dapps, root=0)
+        DEDGE = comm.gather(binedges, root=0)
+    else:
+        DAPPS=[dapps]
+        DEDGE=[binedges]
+
+
     t5   = time.time()
     if rank==0:
         print()

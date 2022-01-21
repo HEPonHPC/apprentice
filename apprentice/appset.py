@@ -27,23 +27,15 @@ def calcHistoCov(h, COV_P, result):
     return COV_H
 
 
-from numba import jit, njit
-@jit(parallel=True, forceobj=True)
+from apprentice.numba_ import jit, njit
+# @jit(parallel=True, forceobj=True)
 def startPoints(self, _PP):
     _CH = np.zeros(len(_PP))
     for p in range(len(_PP)):
        _CH[p] = self.objective(_PP[p])
     return _PP[np.argmin(_CH)]
 
-# @jit
-# def prime(GREC, COEFF, dim, NNZ):
-    # ret = np.zeros((len(COEFF), dim))
-    # for i in range(dim):
-        # ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i, NNZ[i]], axis=1)
-    # return ret
-
-# This is the explicit triple loop version if anyone want to take a crack at speeding that up
-@njit
+# @jit(forceobj=True)#, parallel=True)
 def prime(GREC, COEFF, dim, NNZ):
     ret = np.zeros((len(COEFF), dim))
     for i in range(dim):
@@ -53,23 +45,8 @@ def prime(GREC, COEFF, dim, NNZ):
 
     return ret
 
-
-@jit
-def hreduction(xs, ee):
-    dim =len(xs)
-    nel = len(ee)
-    ret = np.ones(nel)
-    for n in range(nel):
-        for d in range(dim):
-            if ee[n][d] == 0: continue
-            if ee[n][d] == 1:
-                ret[n] *= xs[d]
-            else:
-                ret[n] *= pow(xs[d], ee[n][d])
-    return ret
-
-
-@jit
+# TODO jit here causes problems with oneAPI python
+# @jit(forceobj=True)#, parallel=True)
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
     ret = np.zeros((dim, dim, NSEL), dtype=np.float64)
     for numx in range(dim):
@@ -82,10 +59,17 @@ def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
 
     return ret
 
+# @jit
+def jitprime(GREC, COEFF, dim):
+    ret = np.empty((len(COEFF), dim))
+    for i in range(dim):
+        for j in range(len(COEFF)):
+            ret[j,i] = np.sum(COEFF[j] * GREC[i])
+    return ret
 
 
 
-@njit(parallel=True)
+# @njit(parallel=True)
 def calcSpans(spans1, DIM, G1, G2, H2, H3, grads, egrads):
     for numx in range(DIM):
         for numy in range(DIM):
@@ -221,7 +205,11 @@ class AppSet(object):
         vals = np.sum(MM, axis=1)
         if self._hasRationals:
             den = np.sum(self._maxrec * self._QC[sel], axis=1)
-            vals /= den
+            vals/=den
+            # FIXME this logic with the mask is not working
+            # The code will divide by zero in case we hav mixed bits here
+            # Note that this will go away come federations
+            # vals[self._mask[sel]] /= den[self._mask[sel]]
         return vals
 
     def grads(self, x, sel=slice(None, None, None), set_cache=True):
@@ -318,7 +306,7 @@ class TuningObjective2(object):
         NOTE that hnames is in fact an array of strings repeating the histo name for each corresp bin
         """
         weights = []
-        for hn in self._hnames[self._good]: weights.append(wdict[hn])
+        for hn in self._hnames: weights.append(wdict[hn])
         self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
     def setLimitsAndFixed(self, fname):
@@ -407,7 +395,7 @@ class TuningObjective2(object):
         self._E = E[good]
         self._Y = Y[good]
         self._W2 = np.array([w * w for w in np.array(weights[nonzero])[good]], dtype=np.float64)
-        self._hnames = np.array([b.split("#")[0]  for b in AS._binids[nonzero]])
+        self._hnames = np.array([b.split("#")[0]  for b in self._binids])
         # Add in error approximations
         if f_errors is not None:
             EAS = AppSet(f_errors)

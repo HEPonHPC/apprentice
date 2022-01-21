@@ -4,10 +4,15 @@ def readInputDataH5(fname, wfile=None):
     import apprentice as app
     import numpy as np
     import h5py
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
+
+    try:
+        from mpi4py import MPI
+        comm=MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    except:
+        size = 1
+        rank = 0
 
     pnames, binids, IDX, xmin, xmax = None, None, None, None, None
     if rank==0:
@@ -20,17 +25,20 @@ def readInputDataH5(fname, wfile=None):
         with h5py.File(fname, "r") as f:
             xmin = f["xmin"][:]
             xmax = f["xmax"][:]
-    pnames  = comm.bcast(pnames     , root=0)
-    binids  = comm.bcast(binids     , root=0)
-    xmin    = comm.bcast(xmin, root=0)
-    xmax    = comm.bcast(xmax, root=0)
 
-    rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else None
-    rankIdx = comm.scatter(rankIdx, root=0)
+    if size>1:
+        pnames  = comm.bcast(pnames     , root=0)
+        binids  = comm.bcast(binids     , root=0)
+        xmin    = comm.bcast(xmin, root=0)
+        xmax    = comm.bcast(xmax, root=0)
+        rankIdx = app.tools.chunkIt(IDX, size) if rank==0 else None
+        rankIdx = comm.scatter(rankIdx, root=0)
+    else:
+        rankIdx=IDX
     DATA    = app.io.readH5(fname, rankIdx)
     return DATA, np.array(binids)[rankIdx], pnames, rankIdx, xmin[rankIdx], xmax[rankIdx]
 
-def readH5(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
+def readH5(fname, idx=None, xfield="params", yfield1="values", yfield2="errors"):
     """
     Read X,Y, errors values etc from HDF5 file.
     By default, only the first object is read.
@@ -42,25 +50,32 @@ def readH5(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
     import numpy as np
     import h5py
 
-    ret = []
-    f = h5py.File(fname, "r")
+    with h5py.File(fname, "r") as f:
+        indexsize = f.get("index").size
 
-    # Read parameters
-    _X = np.array(f.get(xfield))
-    Y = f.get(yfield1)[:][idx]
+        if idx is not None and len(idx) > 0:
+            assert (max(idx) <= indexsize)
+        else:
+            idx = [i for i in range(indexsize)]
+        ret = []
+        # f = h5py.File(fname, "r")
 
-    if yfield2 in f:
-        E = f.get(yfield2)[:][idx]
-        # Read y-values
-        for i in range(len(idx)):
-            _Y = Y[i]
-            _E = E[i]
-            USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
-            ret.append([_X[USE], _Y[USE], _E[USE]])
-    else:
-        for i in range(len(idx)):
-            _Y = Y[i]
-            ret.append([_X, _Y, np.zeros(len(_Y))])
+        # Read parameters
+        _X = np.array(f.get(xfield))
+        Y = f.get(yfield1)[:][idx]
+
+        if yfield2 in f:
+            E = f.get(yfield2)[:][idx]
+            # Read y-values
+            for i in range(len(idx)):
+                _Y = Y[i]
+                _E = E[i]
+                USE = np.where((~np.isinf(_Y)) & (~np.isnan(_Y)) & (~np.isinf(_E)) & (~np.isnan(_E)))
+                ret.append([_X[USE], _Y[USE], _E[USE]])
+        else:
+            for i in range(len(idx)):
+                _Y = Y[i]
+                ret.append([_X, _Y, np.zeros(len(_Y))])
 
     f.close()
     return ret
@@ -68,20 +83,33 @@ def readH5(fname, idx, xfield="params", yfield1="values", yfield2="errors"):
 def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None):
     import apprentice as app
     import numpy as np
-    import yoda, glob, os
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
+    import glob, os
+
+    try:
+        import yoda
+    except:
+        raise Exception("YODA is required.")
+
+    try:
+        from mpi4py import MPI
+        comm=MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    except:
+        size = 1
+        rank = 0
 
     indirs=None
     if rank==0:
         INDIRSLIST = [glob.glob(os.path.join(a, "*")) for a in dirnames]
         indirs     = [item for sublist in INDIRSLIST for item in sublist]
-    indirs = comm.bcast(indirs, root=0)
 
-    rankDirs = app.tools.chunkIt(indirs, size) if rank==0 else None
-    rankDirs = comm.scatter(rankDirs, root=0)
+    if size>1:
+        indirs = comm.bcast(indirs, root=0)
+        rankDirs = app.tools.chunkIt(indirs, size) if rank==0 else None
+        rankDirs = comm.scatter(rankDirs, root=0)
+    else:
+        rankDirs = indirs
 
     PARAMS, HISTOS = app.io.read_rundata(rankDirs, parFileName)
     send = []
@@ -91,23 +119,33 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
             temp.append((_k, _v))
         send.append((k, temp))
 
-    params = comm.gather(PARAMS, root=0)
-    histos = comm.gather(send, root=0)
+    if size>1:
+        params = comm.gather(PARAMS, root=0)
+        histos = comm.gather(send, root=0)
+    else:
+        params=PARAMS
+        histos=HISTOS
 
 
     rankIdx, binids, X, Y, E, xmin, xmax, pnames, BNAMES, data= None, None, None, None, None, None, None, None, None, None
     if rank==0:
         _params = {}
         _histos = {}
-        for p in params: _params.update(p)
+        if size>1:
+            for p in params: _params.update(p)
+        else:
+            _params = params
 
-        for rl in histos:
-            for ih in range(len(rl)):
-                hname = rl[ih][0]
-                if not hname in _histos: _histos[hname] = {}
-                for ir in range(len(rl[ih][1])):
-                    run =  rl[ih][1][ir][0]
-                    _histos[hname][run] = rl[ih][1][ir][1]
+        if size>1:
+            for rl in histos:
+                for ih in range(len(rl)):
+                    hname = rl[ih][0]
+                    if not hname in _histos: _histos[hname] = {}
+                    for ir in range(len(rl[ih][1])):
+                        run =  rl[ih][1][ir][0]
+                        _histos[hname][run] = rl[ih][1][ir][1]
+        else:
+            _histos=histos
 
         pnames = [str(x) for x in _params[list(_params.keys())[0]].keys()]
         runs = sorted(list(_params.keys()))
@@ -151,20 +189,23 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
         im   = {ls: np.where(np.char.find(BNAMES, ls) > -1)[0] for ls in observables}
         IDX  = np.sort(np.concatenate(list(im.values())))
 
+    if size>1:
         rankIdx = app.tools.chunkIt(IDX, size)
         data = app.tools.chunkIt(_data, size)
         xmin = app.tools.chunkIt(xmin, size)
         xmax = app.tools.chunkIt(xmax, size)
         binids = app.tools.chunkIt(BNAMES, size)
-    rankIdx = comm.scatter(rankIdx, root=0)
-    data = comm.scatter(data, root=0)
-    xmin = comm.scatter(xmin, root=0)
-    xmax = comm.scatter(xmax, root=0)
-    binids = comm.scatter(binids, root=0)
-    pnames = comm.bcast(pnames, root=0)
-
-
-    comm.barrier()
+        rankIdx = comm.scatter(rankIdx, root=0)
+        data = comm.scatter(data, root=0)
+        xmin = comm.scatter(xmin, root=0)
+        xmax = comm.scatter(xmax, root=0)
+        binids = comm.scatter(binids, root=0)
+        pnames = comm.bcast(pnames, root=0)
+        comm.barrier() # looks superfluous to me as bcast has implicit barrier
+    else:
+        data = _data
+        binids = BNAMES
+        rankIdx = IDX
 
     return data, binids, pnames, rankIdx, xmin, xmax
 
@@ -370,7 +411,10 @@ def readPnamesH5(fname, xfield):
     import h5py
 
     with h5py.File(fname, "r") as f:
-        pnames = [p.astype(str) for p in f.get(xfield).attrs["names"]]
+        try:
+            pnames = [p.astype(str) for p in f.get(xfield).attrs["names"]]
+        except:
+            pnames = [p for p in f.get(xfield).attrs["names"]]
 
     return pnames
 

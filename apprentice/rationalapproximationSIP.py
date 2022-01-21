@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
-from numba import jit, njit
+from apprentice.numba_ import jit, njit
 
 """
 Print scipy model

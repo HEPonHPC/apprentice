@@ -231,7 +231,7 @@ class PolynomialApproximation(BaseEstimator, RegressorMixin):
 
     def gradient(self, X):
         import numpy as np
-        struct = np.array(self._struct_p, dtype=np.float)
+        struct = np.array(self._struct_p, dtype=float)
         X = self._scaler.scale(np.array(X))
 
         if self.dim==1:
@@ -317,8 +317,13 @@ if __name__=="__main__":
     Y3 =  [p3(p) for p in TX]
 
 
-    import autograd.numpy as np
-    from autograd import hessian, grad
+    try:
+        import autograd.numpy as np
+        from autograd import hessian, grad
+        have_autograd=True
+    except:
+        print("No autograd...")
+        have_autograd=False
 
     def f(x):
         return 2*x**2 +1
@@ -338,12 +343,13 @@ if __name__=="__main__":
 
     myg = [pp.gradient(x) for x in X]
 
-    g = grad(pp)
-    G = [g(x) for x in X]
+    if have_autograd:
+        g = grad(pp)
+        G = [g(x) for x in X]
+        pylab.plot(X, G, label="auto gradient")
     FP = [fp(x) for x in X]
 
     pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
-    pylab.plot(X, G, label="auto gradient")
     pylab.plot(X, myg, label="manual gradient")
     pylab.legend()
 

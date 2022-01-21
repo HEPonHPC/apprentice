@@ -32,8 +32,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
         """
         self._vmin=None
         self._vmax=None
-        self._xmin=None
-        self._xmax=None
+        self._xmin = None
+        self._xmax = None
         if initDict is not None:
             self.mkFromDict(initDict, set_structures=set_structures)
         elif fname is not None:
@@ -71,7 +71,7 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
     @property
     def xmin(self): return self._xmin
     @property
-    def xmax(self): return self._xmax
+    def xmax(self):return self._xmax
 
     def setStructures(self):
         self._struct_p = apprentice.monomialStructure(self.dim, self.m)
@@ -188,8 +188,8 @@ class RationalApproximation(BaseEstimator, RegressorMixin):
 
     def gradient(self, X):
         import numpy as np
-        struct_p = np.array(self._struct_p, dtype=np.float)
-        struct_q = np.array(self._struct_q, dtype=np.float)
+        struct_p = np.array(self._struct_p, dtype=float)
+        struct_q = np.array(self._struct_q, dtype=float)
         X = self._scaler.scale(np.array(X))
         p = self.P(X)
         q = self.Q(X)
@@ -323,19 +323,22 @@ if __name__=="__main__":
     # t1=time.time()
     # print(t1-t0)
 
-    import autograd.numpy as np
-    from autograd import hessian, grad
-    g = grad(pp)
-    # t2=time.time()
-    # for _ in range(10000): g(5.)
-    # t3=time.time()
-    # print("{} vs. {}, ratio {}".format(t1-t0, t3-t2, (t3-t2)/(t1-t0)))
-    G = [g(x) for x in X]
+    try:
+        import autograd.numpy as np
+        from autograd import hessian, grad
+        g = grad(pp)
+        # t2=time.time()
+        # for _ in range(10000): g(5.)
+        # t3=time.time()
+        # print("{} vs. {}, ratio {}".format(t1-t0, t3-t2, (t3-t2)/(t1-t0)))
+        G = [g(x) for x in X]
+        pylab.plot(X, G, label="auto gradient")
+    except:
+        pass
     myg = [pp.gradient(x) for x in X]
 
     pylab.plot(X, [pp(x) for x in X], label="Rational approx")
     # pylab.plot(X, FP, marker="s", linestyle="none", label="analytic gradient")
-    pylab.plot(X, G, label="auto gradient")
     pylab.plot(X, myg, label="manual gradient", linestyle="--")
     # pylab.plot(X, myg, label="manual gradient")
     pylab.legend()
