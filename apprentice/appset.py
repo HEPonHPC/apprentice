@@ -522,7 +522,7 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
-    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddlePointCheck=True,comm = MPI.COMM_WORLD):
+    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddle_point_check=True,comm = MPI.COMM_WORLD,minimize=True):
         # comm = MPI.COMM_WORLD
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -536,7 +536,8 @@ class TuningObjective2(object):
         import datetime
         t0 = time.time()
         for ii in rankWork:
-            res = self.minimize(nstart,1,sel,method,tol,saddlePointCheck,use_MPI_for_x0=False)
+            res = self.minimize(nstart=nstart,nrestart=1,sel=sel,method=method,tol=tol,
+                                saddle_point_check=saddle_point_check,use_MPI_for_x0=False,minimize=minimize)
             _res[ii] = res
             _F[ii] = res["fun"]
 
@@ -563,8 +564,11 @@ class TuningObjective2(object):
         return myreturnvalue
 
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6,
-                 saddlePointCheck=True, use_MPI_for_x0 = False):
+                 minimize=True,saddle_point_check=True, use_mpi=False,use_MPI_for_x0 = False, comm=None):
         from scipy import optimize
+        if not minimize: raise Exception("not implemented")
+        if use_mpi: return self.minimizeMPI(nstart=nstart,nrestart=nrestart,sel=sel,method=method,tol=tol,
+                                            minimize=minimize,saddle_point_check=saddle_point_check,comm=comm)
         minobj = np.Infinity
         finalres = None
         import time
@@ -583,7 +587,7 @@ class TuningObjective2(object):
                 else: raise Exception("Unknown minimiser {}".format(method))
 
 
-                isSaddle = False if not saddlePointCheck else self.isSaddle(res.x)
+                isSaddle = False if not saddle_point_check else self.isSaddle(res.x)
                 if isSaddle and maxtries>0:
                     if self._debug: print("Minimisation ended up in saddle point, retrying, {} tries left".format(maxtries))
                     maxtries -= 1

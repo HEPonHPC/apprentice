@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 setup(
-  name = 'pyapprentice',
+  name = 'apprentice',
   version = '1.0.6',
   description = 'The apprentice',
   url = 'https://computing.fnal.gov/hep-on-hpc/',
