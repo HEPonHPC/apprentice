@@ -1,6 +1,6 @@
 import apprentice
 import numpy as np
-from mpi4py import MPI
+from apprentice.mpi4py_ import MPI_
 
 # https://stackoverflow.com/questions/32808383/formatting-numbers-so-they-align-on-decimal-point
 def dot_aligned(seq):
@@ -506,7 +506,7 @@ class TuningObjective2(object):
         return _PP[_CH.index(min(_CH))]
 
     def startPointMPI(self, ntrials, sel=slice(None, None, None)):
-        comm = MPI.COMM_WORLD
+        comm = MPI_.COMM_WORLD
         rank = comm.Get_rank()
         XX = self.rbox(ntrials)
         rankWork = apprentice.tools.chunkIt(XX, comm.Get_size()) if rank == 0 else []
@@ -522,7 +522,7 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
-    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddle_point_check=True,comm = MPI.COMM_WORLD,minimize=True):
+    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddle_point_check=True,comm = MPI_.COMM_WORLD,minimize=True):
         # comm = MPI.COMM_WORLD
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -561,6 +561,7 @@ class TuningObjective2(object):
             for r in range(size): _F[allWork[r]] = b[r]
             myreturnvalue = _res[np.argmin(_F)]
         myreturnvalue = comm.bcast(myreturnvalue, root=0)
+
         return myreturnvalue
 
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6,

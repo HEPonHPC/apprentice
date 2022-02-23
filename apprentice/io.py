@@ -1,7 +1,7 @@
 import apprentice as app
-from mpi4py import MPI
+from apprentice.mpi4py_ import MPI_
 
-def readInputDataH5(fname, wfile=None, comm=MPI.COMM_WORLD):
+def readInputDataH5(fname, wfile=None, comm=MPI_.COMM_WORLD):
     import apprentice as app
     import numpy as np
     import h5py
@@ -117,7 +117,7 @@ def readSingleYODAFile(dirname, parFileName="params.dat", wfile=None):
             _data.append([X, [np.array(vals)], [np.array(errs)]])
     return _data,BNAMES
 
-def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI.COMM_WORLD):
+def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI_.COMM_WORLD):
     import apprentice as app
     import numpy as np
     import yoda, glob, os
