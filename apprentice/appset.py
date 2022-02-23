@@ -1,6 +1,7 @@
 import apprentice
 import numpy as np
 from apprentice.mpi4py_ import MPI_
+import pandas as pd
 
 # https://stackoverflow.com/questions/32808383/formatting-numbers-so-they-align-on-decimal-point
 def dot_aligned(seq):
@@ -423,6 +424,38 @@ class TuningObjective2(object):
         x[self._fixIdx] = self._fixVal
         x[self._freeIdx] = _x
         return x
+
+    def objective_without_surrograte_values(self,
+                                            surrogate_alternate_df:pd.DataFrame,
+                                            unbiased=False):
+        """
+
+                         MC                      DMC
+        bin1.P        [[1,2],[3,4],[6,3]]     [[1,2],[3,4],[6,3]]
+        bin1.V        [19, 18, 17]               [99, 98, 97]
+        bin2.P        [[1,2],[3,4],[6,3]]     [[1,2],[3,4],[6,3]]
+        bin2.V        [29, 28, 27]              [89, 88, 87]
+        """
+        columnnames = list(surrogate_alternate_df.index)
+        rownames = list(surrogate_alternate_df.columns.values)
+        obj_val = 0.
+        for cnum in range(0, len(columnnames),2):
+            val = surrogate_alternate_df[rownames[0]]['{}'.format(columnnames[cnum+1])]
+            if self._EAS is not None:
+                err = surrogate_alternate_df[rownames[1]]['{}'.format(columnnames[cnum+1])]
+            else:
+                err = [0.]
+            term_name = columnnames[cnum].split('.')[0]
+            if '#' not in term_name:
+                term_name += "#1"
+            if term_name in self._binids and len(val) > 0:
+                ionum = self._binids.index(term_name)
+                w2 = 1. if unbiased else self._W2[ionum]
+                obj_val += w2 * (
+                        (val[0] - self._Y[ionum]) ** 2 / (err[0] ** 2 + self._E[ionum] ** 2))
+            else:
+                continue
+        return obj_val
 
     def objective(self, _x, sel=slice(None, None, None), unbiased=False):
         x=self.mkPoint(_x)
