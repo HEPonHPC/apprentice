@@ -1,3 +1,5 @@
+import sys
+
 import apprentice as app
 from apprentice.mpi4py_ import MPI_
 
@@ -116,6 +118,81 @@ def readSingleYODAFile(dirname, parFileName="params.dat", wfile=None):
             errs = _histos[hn][nb][3]
             _data.append([X, [np.array(vals)], [np.array(errs)]])
     return _data,BNAMES
+
+def read_input_data_YODA_on_all_ranks(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None,comm = MPI_.COMM_WORLD):
+    import apprentice as app
+    import numpy as np
+    import yoda, glob, os
+    rank = comm.Get_rank()
+    indirs=None
+    if rank==0:
+        INDIRSLIST = [glob.glob(os.path.join(a, "*")) for a in dirnames]
+        indirs     = [item for sublist in INDIRSLIST for item in sublist]
+    indirs = comm.bcast(indirs, root=0)
+    PARAMS, HISTOS = app.io.read_rundata(indirs, parFileName)
+    send = []
+    for k, v in HISTOS.items():
+        temp = []
+        for _k, _v in v.items():
+            temp.append((_k, _v))
+        send.append((k, temp))
+
+    params = [PARAMS]
+    histos = [send]
+
+    _params = {}
+    _histos = {}
+    for p in params: _params.update(p)
+
+    for rl in histos:
+        for ih in range(len(rl)):
+            hname = rl[ih][0]
+            if not hname in _histos: _histos[hname] = {}
+            for ir in range(len(rl[ih][1])):
+                run =  rl[ih][1][ir][0]
+                _histos[hname][run] = rl[ih][1][ir][1]
+    pnames = [str(x) for x in _params[list(_params.keys())[0]].keys()]
+    runs = sorted(list(_params.keys()))
+    X=np.array([list(_params[r].values()) for r in runs])
+
+    # Iterate through all histos, bins and mc runs to rearrange data
+    hbins ={}
+    HNAMES=[str(x) for x in sorted(list(_histos.keys()))]
+    if wfile is not None:
+        observables = list(set(app.io.readObs(wfile)))
+        HNAMES = [hn for hn in HNAMES if hn in observables]
+    BNAMES = []
+    for hn in HNAMES:
+        histos = _histos[hn]
+        nbins = len(list(histos.values())[0])
+        hbins[hn]=nbins
+        for n in range(nbins):
+            BNAMES.append("%s#%i"%(hn, n))
+
+    _data, xmin, xmax = [], [], []
+    for hn in HNAMES:
+        for nb in range(hbins[hn]):
+            vals = [_histos[hn][r][nb][2] if r in _histos[hn].keys() else np.nan for r in runs]
+            errs = [_histos[hn][r][nb][3] if r in _histos[hn].keys() else np.nan for r in runs]
+            # Pick a run that actually exists here
+            isitfinite = (np.where(np.isfinite(vals))[0])
+            if len(isitfinite) > 0:
+                goodrun = runs[np.where(np.isfinite(vals))[0][0]]
+                xmin.append(_histos[hn][goodrun][nb][0])
+                xmax.append(_histos[hn][goodrun][nb][1])
+            USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
+            xg=X[USE,:]
+            if len(xg.shape)==3:
+                xg=xg.reshape(xg.shape[1:])
+            _data.append([xg, np.array(vals)[USE], np.array(errs)[USE]])
+
+    if storeAsH5 is not None:
+        writeInputDataSetH5(storeAsH5, _data, runs, BNAMES, pnames, xmin, xmax)
+
+    data = _data
+    binids = BNAMES
+
+    return data, binids, pnames, xmin, xmax
 
 def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=None, comm = MPI_.COMM_WORLD):
     import apprentice as app
