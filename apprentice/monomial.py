@@ -51,8 +51,8 @@ def monomialStructure(dim, order):
     gen = genStruct(dim, np.zeros(dim))
     structure = np.array([ copy.copy(next(gen)) for _ in range(ncmax)], dtype=int)
     # Dimension one requires some extra treatment when returning ---writing out is fine
-    if dim==1:
-        return structure.ravel()
+    # if dim==1:
+    #     return structure.ravel()
     return structure
 
 def recurrence1D(X, structure):
