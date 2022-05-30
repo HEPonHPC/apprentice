@@ -403,7 +403,7 @@ def read_rundata(dirs, pfname="params.dat", verbosity=1):
     numruns = len(dirs)
     for num, d in enumerate(sorted(dirs)):
         pct = 100*(num+1)/float(numruns)
-        if (num+1)%100 == 0: print("Reading run '%s' data: %d/%d = %2.0f%%" % (d, num+1, numruns, pct))
+        # if (num+1)%100 == 0: print("Reading run '%s' data: %d/%d = %2.0f%%" % (d, num+1, numruns, pct))
         files = glob.glob(os.path.join(d, "*"))
         for f in files:
             ## Params file
