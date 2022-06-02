@@ -180,7 +180,9 @@ def read_input_data_YODA_on_all_ranks(dirnames, parFileName="params.dat", wfile=
                 goodrun = runs[np.where(np.isfinite(vals))[0][0]]
                 xmin.append(_histos[hn][goodrun][nb][0])
                 xmax.append(_histos[hn][goodrun][nb][1])
-            USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
+            # USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
+            # Use everthing since nan will be handled by workflow
+            USE = np.where((~np.isinf([i for i in range(len(vals))])))
             xg=X[USE,:]
             if len(xg.shape)==3:
                 xg=xg.reshape(xg.shape[1:])
