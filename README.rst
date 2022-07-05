@@ -1,5 +1,5 @@
 ======================================================
-Quickstart
+Introduction to APPRENTICE
 ======================================================
 
 Overview of Apprentice
@@ -61,13 +61,13 @@ To install apprentice_, execute the following commands::
 Testing the installation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-To test the install, run the unit tests_ over all modules of apprentice::
+To test the install, run the unit `unit tests`_ over all modules of apprentice::
 
     cd  apprentice/apprentice
     python -m unittest discover .
 
-.. _tests: https://github.com/HEPonHPC/apprentice/tree/master/apprentice
-.. _apprentice: https://github.com/HEPonHPC/apprentice
+.. _`unit tests`: https://github.com/HEPonHPC/apprentice/tree/main/apprentice
+.. _apprentice: https://github.com/HEPonHPC/apprentice/tree/main
 .. _Pyomo: http://www.pyomo.org
 .. _h5py: https://www.h5py.org
 .. _numba: https://numba.pydata.org
