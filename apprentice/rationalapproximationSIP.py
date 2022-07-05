@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
-from numba import jit, njit
+from apprentice.numba_ import jit, njit
 
 """
 Print scipy model
@@ -97,9 +97,7 @@ def calculateNonLin(dim, n):
     N = tools.numCoeffsPoly(dim, n)
     return N - (dim + 1)
 
-# from sklearn.base import BaseEstimator, RegressorMixin
-# class RationalApproximationSIP(BaseEstimator, RegressorMixin):
-class RationalApproximationSIP():
+class RationalApproximationSIP(object):
     def __init__(self, *args, **kwargs):
         """
         Multivariate rational approximation p(x)_m/q(x)_n

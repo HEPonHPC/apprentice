@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import apprentice as app
 import numpy as np
 
-
+"""
+seed=873662; MN=3,1; data=A14; ./app-build ../../log/SimulationData/$data-h5/*.h5  --order $MN --msg 1  -o ../../log/ApproximationsCrossValidation/$data/$MN/val_$seed.json --doCV --reqbindir ../../pyoo/data/$data -s $seed
+"""
 if __name__ == "__main__":
 
     import optparse, os, sys, h5py
@@ -22,6 +24,15 @@ if __name__ == "__main__":
     op.add_option("--msg", dest="MSGEVERY", default=5, type=int, help="Verbosity of progress (default: %default)")
     op.add_option("-t", "--testpoles", dest="TESTPOLES", type=int, default=10, help="Number of multistarts for pole detection (default: %default)")
     op.add_option("--convert", dest="CONVERTINPUT", default=None, help="Option to store input data as hdf, needs argument (default: %default)")
+    op.add_option("--solver", dest="SOLVER", default="ipopt", help="AMPL solver for rational approximations (default: %default)")
+    op.add_option("--abstract", dest="ABSTRACT", default=False, action="store_true", help="Use caching of abstract pyomo models (default: %default)")
+    op.add_option("--tmpdir", dest="TMPDIR", default="/tmp", help="Temp dir for AMPL files (default: %default)")
+    op.add_option("--doCV", dest="CROSSVAL", default=False, action="store_true", help="Run in crossvalidation model. \"--reqbindir\" and \"-s\" (seed) should be set. (default: %default)")
+    op.add_option("--reqbindir", dest="REQBINDIR", default=None,
+                  help="Dir where approximations (as approximation.json), data "
+                             "(as experimental_data.json) and weight file (as weights) are stored "
+                             "This will be used to find the bins for which crossvalidation needs to be conducted. "
+                            "(default: %default)")
     opts, args = op.parse_args()
 
     rank=0
@@ -61,21 +72,94 @@ if __name__ == "__main__":
         print("{} neither directory nor file, exiting".format(args[0]))
         exit(1)
 
-    comm.barrier()
+    if size>1: comm.barrier() # TODO why do we need a barrier here?
     print("[{}] will proceed to calculate approximations for {} objects".format(rank, len(DATA)))
     sys.stdout.flush()
 
     apps = []
     M, N = [int(x) for x in opts.ORDER.split(",")]
 
+    # Check if AMPL solver is available
+    if N>0:
+        from shutil import which
+        if which(opts.SOLVER) is None:
+            print("AMPL solver {} not found in PATH, exiting".format(opts.SOLVER))
+            sys.exit(1)
+
+
+
     import time
     t4   = time.time()
     import datetime
     binedges = {}
     dapps = {}
+    amCache = {}
+    for num, (X, Y, E) in  enumerate(DATA):
+        if opts.ABSTRACT:
+            amCache[len(Y)] = None
+        else:
+            amCache[len(Y)] = False
+
+    TO2 = None
+    if opts.CROSSVAL:
+        approxfile = os.path.join(opts.REQBINDIR, "approximation.json")
+        expdatafile = os.path.join(opts.REQBINDIR, "experimental_data.json")
+        weightfile = os.path.join(opts.REQBINDIR, "weights")
+        errapproxfile = None
+        if os.path.exists(os.path.join(opts.REQBINDIR, "errapproximation.json")):
+            errapproxfile = os.path.join(opts.REQBINDIR, "errapproximation.json")
+        from apprentice.appset import TuningObjective2
+
+        TO2 = TuningObjective2(weightfile, expdatafile, approxfile, errapproxfile,
+                              filter_hypothesis=False, filter_envelope=False)
+
+        outdir = os.path.dirname(opts.OUTPUT)
+        testdatafn = os.path.join(outdir, "testdata_{}.json".format(opts.SEED))
+        if os.path.exists(testdatafn):
+            os.remove(testdatafn)
+
+
     for num, (X, Y, E) in  enumerate(DATA):
         thisBinId = binids[num]
+        if opts.CROSSVAL and thisBinId not in TO2._binids:
+            # Dont run cross validation on bins not in Tunining Objective
+            continue
+        # Additional protection for robustness
+        # NOTE this is stricty speaking a duplication of code already present in h5 reader
+        # but needed here for dealing with YODA
+        USE = np.where((~np.isinf(Y)) & (~np.isnan(Y)) & (~np.isinf(E)) & (~np.isnan(E)))
+        X=X[USE]
+        Y=Y[USE]
+        E=E[USE]
+        if opts.CROSSVAL:
+            keepout = 0.1
+            np.random.seed(opts.SEED)
+            Ntr = int((1 - keepout) * len(Y))
+            trindex = np.random.choice(np.arange(len(Y)), Ntr, replace=False)
+            Xtr = X[trindex, :]
+            Ytr = Y[trindex]
+            Etr = E[trindex]
+            outdir = os.path.dirname(opts.OUTPUT)
+            os.makedirs(outdir,exist_ok=True)
+            testdatafn = os.path.join(outdir, "testdata_{}.json".format(opts.SEED))
+            if not os.path.exists(testdatafn):
+                teindex = np.in1d(np.arange(len(Y)), trindex)
+                teindex = ~teindex
+                Xte = X[teindex, :]
+                Yte = Y[teindex]
+                Ete = E[teindex]
 
+                ds = {"teindex":teindex.tolist(),"Xte" : X.tolist(),"Yte" : Yte.tolist(),"Ete":Ete.tolist(),"seed":opts.SEED}
+                import json
+                with open(testdatafn,'w') as f:
+                    json.dump(ds,f,indent=4)
+            X = Xtr
+            Y = Ytr
+            E = Etr
+            if opts.ABSTRACT:
+                amCache[len(Y)] = None
+            else:
+                amCache[len(Y)] = False
         if rank==0 or rank==size-1:
             if ((num+1)%opts.MSGEVERY ==0):
                 now = time.time()
@@ -85,44 +169,53 @@ if __name__ == "__main__":
                 eta = datetime.datetime.fromtimestamp(now + ttg)
                 sys.stdout.write("{}[{}] {}/{} (elapsed: {:.1f}s, to go: {:.1f}s, ETA: {})\r".format(80*" " if rank>0 else "", rank, num+1, len(DATA), tel, ttg, eta.strftime('%Y-%m-%d %H:%M:%S')) ,)
                 sys.stdout.flush()
-        # USE = np.where( (_Y>0) ) if opts.ISLOG else np.where( (_E>=0) )
-        # from IPython import embed
-        # embed()
-        # X = _X[USE, :]
-        # Y =  np.log10(_Y[USE]) if opts.ISLOG else _Y[USE]
-        # E =  np.log10(_E[USE]) if opts.ISLOG else _E[USE]
 
         if len(X) == 0:
-            print("No data to calculate approximation for {} --- skipping".format(binids[rankIdx[num]]))
+            print("No data to calculate approximation for {} --- skipping\n".format(binids[rankIdx[num]]))
             import sys
             sys.stdout.flush()
             continue
         if len(X) < app.tools.numCoeffsRapp(len(X[0]),order=(M,N)):
-            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping".format(len(X), app.tools.numCoeffsRapp(len(X[0]), order=(M,N)), binids[rankIdx[num]]))
+            print("Not enough data ({} vs {}) to calculate approximation for {} --- skipping\n".format(len(X), app.tools.numCoeffsRapp(len(X[0]), order=(M,N)), binids[rankIdx[num]]))
             import sys
             sys.stdout.flush()
             continue
 
+
+
         if opts.ERRS:
-            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            temp,  hasPole = app.tools.calcApprox(X, E, (M,N), pnames,
+                    opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES,
+                    ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER,
+                    abstractmodel=amCache[len(X)], tmpdir=opts.TMPDIR)
             vmin = np.min(E)
             vmax = np.max(E)
         else:
-            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames, opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES, ftol=opts.FTOL, itslsqp=opts.ITSLSQP)
+            temp,  hasPole = app.tools.calcApprox(X, Y, (M,N), pnames,
+                    opts.MODE, debug=opts.DEBUG, testforPoles=opts.TESTPOLES,
+                    ftol=opts.FTOL, itslsqp=opts.ITSLSQP, solver=opts.SOLVER,
+                    abstractmodel=amCache[len(X)], tmpdir=opts.TMPDIR)
             vmin = np.min(Y)
             vmax = np.max(Y)
+
+        try:
+            if amCache[len(X)] is None:
+                amCache[len(X)] = temp._abstractmodel
+        except Exception as e:
+            print("AM no worky: {}".format(e))
+        # print(abstractmodel)
         if temp is None:
-            print("Unable to calculate value approximation for {} --- skipping".format(thisBinId))
+            print("Unable to calculate value approximation for {} --- skipping\n".format(thisBinId))
             import sys
             sys.stdout.flush()
             continue
         else:
             if hasPole:
-                print("Warning: pole detected in {}".format(thisBinId))
+                print("Warning: pole detected in {}\n".format(thisBinId))
                 import sys
                 sys.stdout.flush()
-        temp._vmin = vmin
-        temp._vmax = vmax
+        temp._vmin = float(vmin)
+        temp._vmax = float(vmax)
         temp._xmin = xmin[num]
         temp._xmax = xmax[num]
         apps.append((temp, xmin[num], xmax[num]))
@@ -130,8 +223,14 @@ if __name__ == "__main__":
         binedges[thisBinId] = (xmin[num], xmax[num])
 
 
-    DAPPS = comm.gather(dapps, root=0)
-    DEDGE = comm.gather(binedges, root=0)
+    if size>1:
+        DAPPS = comm.gather(dapps, root=0)
+        DEDGE = comm.gather(binedges, root=0)
+    else:
+        DAPPS=[dapps]
+        DEDGE=[binedges]
+
+
     t5   = time.time()
     if rank==0:
         print()
@@ -157,7 +256,6 @@ if __name__ == "__main__":
         # TODO delete __xmin __xmax
         JD["__xmin"]=xmin
         JD["__xmax"]=xmax
-
         import json
         with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
 
