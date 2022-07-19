@@ -17,8 +17,7 @@ def timeit(method):
         return result
     return timed
 
-from sklearn.base import BaseEstimator, RegressorMixin
-class PolynomialApproximation(BaseEstimator, RegressorMixin):
+class PolynomialApproximation():
     def __init__(self, X=None, Y=None, order=2, fname=None, initDict=None, strategy=2, scale_min=-1, scale_max=1, pnames=None, set_structures=True, computecov=False):
         """
         Multivariate polynomial approximation

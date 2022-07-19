@@ -4,9 +4,9 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
-from numba import jit, njit
+# from numba import jit, njit
 
-@jit
+# @jit
 def fast_robustObj(coeff, q_ipo, M, N):
     s=0.0
     for i in range(M, M + N):
@@ -52,7 +52,7 @@ def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
 
     print(s)
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
     # c=""
 
@@ -68,7 +68,7 @@ def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
         ret[ts] = mysum - 1.0
     return ret
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_robustSample(coeff, q_ipo, M, N):
     # c=""
     mysum=0.0
@@ -80,7 +80,7 @@ def fast_robustSample(coeff, q_ipo, M, N):
     return mysum - 1.0
 
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
     mysum = 0.0
 
@@ -108,7 +108,7 @@ def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
     # sys.exit(1)
     return mysum
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
     h = 1.5e-8
     jac = np.zeros_like(coeff)
@@ -120,7 +120,7 @@ def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
         jac[i] = (f_d - f_0) / h
     return jac
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_jac_robo(coeff, q_ipo, M, N):
     h = 1.5e-8
     jac = np.zeros_like(coeff)

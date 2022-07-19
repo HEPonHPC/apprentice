@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from timeit import default_timer as timer
 import apprentice
 
-from numba import jit, njit
+# from numba import jit, njit
 
 """
 Print scipy model
@@ -38,7 +38,7 @@ def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
         s+=">=1;\n"
     print(s)
 
-@njit(fastmath=True, parallel=True)
+# @njit(fastmath=True, parallel=True)
 def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
     # c=""
     ret = np.zeros(trainingsize,dtype=np.float64)

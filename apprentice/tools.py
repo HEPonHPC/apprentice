@@ -484,7 +484,7 @@ def fast_grad(w, d, e, g):
     v = -2 * w * d * e # TODO check where the minus comes from
     return np.sum(g * v.reshape((v.shape[0], 1)), axis=0)
 
-from numba import jit
+# from numba import jit
 # @jit
 def fast_grad2(w, d, E2, e, g, ge):
     errterm=1./(E2 + e*e)
@@ -627,7 +627,7 @@ def gradientRecursion(X, struct, jacfac):
         REC[coord][nonzero] = np.prod(RR, axis=1)
     return REC
 
-@jit(forceobj=True, parallel=True)
+# @jit(forceobj=True, parallel=True)
 def gradientRecursionFast(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point

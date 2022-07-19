@@ -1,9 +1,9 @@
 import numpy as np
 
 
-from numba import jit
+# from numba import jit
 
-@jit
+# @jit
 def fast_calc(_X, M, Mdof):
     """
     Stieltjes ONB procedure
@@ -62,7 +62,7 @@ def fast_calc(_X, M, Mdof):
 
 
 
-@jit
+# @jit
 def fast_recurrence(X, dof, R, recVar, recInd):
     """
     Build the recurrence matrix for point X.

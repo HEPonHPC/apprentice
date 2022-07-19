@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
-  name = 'apprentice',
-  version = '1.0.6',
+  name = 'apprenticeDFO',
+  version = '1.0.9',
   description = 'The apprentice',
   url = 'https://computing.fnal.gov/hep-on-hpc/',
   author = 'Mohan Krishnamoorthy, Holger Schulz',
