@@ -35,7 +35,7 @@ MOCK_MODULES = [
     "numpy.lib.recfunctions",
     "numpy.linalg",
     "numpy.random",
-    "numpy.fft"
+    "numpy.fft",
     "matplotlib.pyplot",
     "GPy",
     "pandas",
