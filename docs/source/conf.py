@@ -34,6 +34,7 @@ MOCK_MODULES = [
     "numpy.lib",
     "numpy.lib.recfunctions",
     "numpy.linalg",
+    "numpy.random",
     "matplotlib.pyplot",
     "GPy",
     "pandas",
@@ -49,7 +50,7 @@ MOCK_MODULES = [
     "apprentice.minimizer.Minimizer",
     "apprentice.scipyminimizer.ScipyMinimizer",
     "apprentice.monomial",
-    "apprentice.space.Space",
+    "apprentice.space.Space"
 
 ]
 sys.path.insert(0, os.path.abspath('../../apprentice/'))
