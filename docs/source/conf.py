@@ -36,6 +36,7 @@ MOCK_MODULES = [
     "numpy.linalg",
     "numpy.random",
     "numpy.fft",
+    "numpy.lib.scimath",
     "matplotlib.pyplot",
     "GPy",
     "pandas",
