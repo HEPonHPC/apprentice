@@ -7,8 +7,19 @@ from apprentice.util import Util
 
 
 class Function(object):
+    """
+    Function base class
+    """
     def __init__(self, dim, fnspace=None, **kwargs):
         """
+
+        Initialize the Function class
+
+        :param dim: parameter dimension
+        :type dim: int
+        :param fnspace: function space object
+        :type fnspace: apprentice.space.Space
+
         """
         self.dim_ = dim # raise Exception if no dim given
         if fnspace is None:
@@ -39,16 +50,28 @@ class Function(object):
 
     def set_bounds(self, bmin, bmax):
         """
-        Expect min, max
-        We always expect bounds are being set for all dimensions, not just the free ones
+
+        Set minimum and maximum bounds
+
+        :param bmin: bound minimum
+        :type bmin: list
+        :param bmax: bound maximum
+        :type bmax: list
+
         """
+
         for d in range(self.dim_):
             self.bounds_[d][0] = bmin[d]
             self.bounds_[d][1] = bmax[d]
 
     def set_fixed_parameters(self, fixed):
         """
-        list of tuples, (index, value)
+
+        Set fixed dimension onf the function
+
+        :param fixed: fixed dimensions of the function
+        :type fixed: list
+
         """
         self.fixed_indices_ = ([fx[0] for fx in fixed],)
         self.fixed_values_  =  [fx[1] for fx in fixed]
@@ -63,10 +86,26 @@ class Function(object):
 
     @classmethod
     def mk_empty(cls, dim):
+        """
+
+        A class function to make an empty function
+
+        :param dim: parameter dimension
+        :type dim: int
+
+        """
         return cls(dim)
 
     @classmethod
     def from_space(cls, spc, **kwargs):
+        """
+
+        A class function to make a function from parameter space
+
+        :param spc: parameter space
+        :type spc: apprentice.space.Space
+
+        """
         if Util.inherits_from(spc, 'Space'):
             return cls(spc.dim, spc, **kwargs)
         else:
@@ -79,8 +118,12 @@ class Function(object):
     @classmethod
     def from_surrogates(cls, surrogates):
         """
-        surrogates is a list of approximation objects.
-        They must have the same dimension
+
+        A class function to make a function from surrogates
+
+        :param surrogates: surrogate models for all terms for the function
+        :type surrogates: list
+
         """
         checkdim = None
         for s in surrogates:
@@ -97,33 +140,78 @@ class Function(object):
 
     @property
     def dim(self):
+        """
+
+        Get the parameter dimension value
+
+        :return: parameter dimension
+        :rtype: int
+
+        """
         return self.dim_
 
     @property
     def bounds(self):
+        """
+
+        Get bounds of the parameter space
+
+        :return: parameter bounds
+        :rtype: np.array
+
+        """
         return self.bounds_
 
     @property
     def has_gradient(self):
         """
-        Return true if an implementation of gradient is found.
+
+        Check if gradient is implemented
+
+        :return: true if an implementation of gradient is found.
+        :rtype: bool
+
         """
         return hasattr(self, "gradient")
 
     @property
     def has_hessian(self):
         """
-        Return true if an implementation of hessian is found.
+
+        Check if hessian is implemented
+
+        :return: true if an implementation of hessian is found.
+        :rtype: bool
+
         """
         return hasattr(self, "hessian")
 
     def objective(self,x):
+        """
+
+        Compute the function objective at a new data point.
+        This function needs to be implemented in a class that
+        inherits this class
+
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: objective value of the function at the new point
+        :rtype: float
+
+        """
         raise Exception("The function objective must be implemented in the derived class")
 
     def __call__(self, x):
         """
-        If we have N fixed parameters, and the dim is D, the x is expected to be
-        of size D - N
+
+        Compute the function objective at a free indices at a new data point
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: objective value of the function at the new point
+        :rtype: float
+
         """
         self.currpoint_[self.free_indices_] = x
         return self.objective(self.currpoint_)

@@ -5,9 +5,31 @@ import numpy as np
 
 class LeastSquares(Function):
     """
-    sum a^2*(f(x) - d)^2 / (s^2 + e(x)^2)
+
+    Lease squares objective function
+
     """
     def __init__(self, dim, fnspace, data, s_val, errors, prefactors, e_val=None, **kwargs):
+        """
+
+        Initialize the least squares function
+
+        :param dim: parameter dimension
+        :type dim: int
+        :param fnspace: function space object
+        :type fnspace: apprentice.space.Space
+        :param data: data values
+        :type data: np.array
+        :param s_val: surrogate polyset or list of SurrogateModel
+        :type s_val: apprentice.polyset.PolySet or list
+        :param errors: data errors
+        :type errors: np.array
+        :param prefactors: prefactors (weights)
+        :type prefactors: np.array
+        :param e_val: surrogate polyset or list of SurrogateModel
+        :type e_val: apprentice.polyset.PolySet or list
+
+        """
         super(LeastSquares, self).__init__(dim, fnspace, **kwargs) # bounds and fixed go in kwargs
 
         self.data_         = data
@@ -37,6 +59,16 @@ class LeastSquares(Function):
             self.evals     = None
 
     def objective(self, x):
+        """
+
+        Compute least squares objective function value at new data point x
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: least squares objective function value at new data point x
+        :rtype: float
+
+        """
         nom   = self.prf2_ * ( np.array( self.vals(x) ) - self.data_ )**2
         denom = 1*self.err2_
         if self.evals is not None:  denom += np.array( self.evals(x) )**2
@@ -44,6 +76,16 @@ class LeastSquares(Function):
 
 
     def gradient(self, x):
+        """
+
+        Get gradient of the least squares function
+
+        :param x: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: gradient of the least squares function
+        :rtype: np.array
+
+        """
         self.currpoint_[self.free_indices_] = x # This is hidden when using the __call__ operator of the base class for objective
         vals  = self.vals(self.currpoint_)
         grads = self.grads(self.currpoint_)
@@ -66,6 +108,16 @@ class LeastSquares(Function):
         return gr[self.free_indices_]
 
     def hessian(self, x):
+        """
+
+        Get hessian of the least squares function
+
+        :param x: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: hessian of the least squares function
+        :rtype: np.array
+
+        """
         self.currpoint_[self.free_indices_] = x # This is hidden when using the __call__ operator of the base class for objective
         vals  = np.array(self.vals(self.currpoint_))
         grads = np.array(self.grads(self.currpoint_))[:,self.free_indices_].reshape(len(vals), len(x))

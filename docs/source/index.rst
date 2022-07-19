@@ -21,6 +21,9 @@ Welcome to Apprentice's documentation!
    :caption: Tutorials:
 
    tutorials/surrogate_models
+   tutorials/surrogate_models_pa
+   tutorials/surrogate_models_ra
+   tutorials/surrogate_models_gp
    tutorials/functions
    tutorials/optimization
 

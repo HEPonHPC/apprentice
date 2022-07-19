@@ -24,6 +24,9 @@ def timeit(method):
     return timed
 
 class RationalApproximation(SurrogateModel):
+    """
+    Rational approximation surrogate model
+    """
     __allowed = ("m_", "m", "n_", "n", "pcoeff","qcoeff",
                  "pcoeff_","qcoeff_",'training_size',
                  "training_size_", "pnames","pnames_", "strategy_", "strategy",
@@ -36,6 +39,16 @@ class RationalApproximation(SurrogateModel):
                  'local_solver','max_restarts', 'threshold',)
 
     def __init__(self,dim, fnspace=None, **kwargs: dict):
+        """
+
+        Rational approximation surrogate model construction function
+
+        :param dim: parameter dimension
+        :type dim: int
+        :param fnspace: function space object
+        :type fnspace: apprentice.space.Space
+
+        """
         super().__init__(dim, fnspace)
         for k, v in kwargs.items():
             if k in ['m','n','training_size',"pcoeff","qcoeff",'strategy','ftol','iterations','use_abstract_model',
@@ -85,80 +98,192 @@ class RationalApproximation(SurrogateModel):
 
     @property
     def max_restarts(self):
+        """
+
+        Get max restarts
+
+        :return: max restarts
+        :rtype: int
+
+        """
         if hasattr(self, 'max_restarts_'):
             return self.max_restarts_
         else: return 100
 
     @property
     def threshold(self):
+        """
+
+        Get threshold value
+
+        :return: threshold value
+        :rtype: float
+
+        """
         if hasattr(self, 'threshold_'):
             return self.threshold_
         else: return 0.02
 
     @property
     def ftol(self):
+        """
+
+        Get function tolerance
+
+        :return: function tolerance
+        :rtype: float
+
+        """
         if hasattr(self, 'ftol_'):
             return self.ftol_
         else: return 1e-6
 
     @property
     def iterations(self):
+        """
+
+        Get number of iterations
+
+        :return: number of iterarations
+        :rtype: int
+
+        """
         if hasattr(self, 'iterations_'):
             return self.iterations_
         else: return 200
 
     @property
     def tmpdir(self):
+        """
+
+        Get PYOMO temp directory
+
+        :return: temp directory path
+        :rtype: str
+
+        """
         if hasattr(self, 'tmpdir_'):
             return self.tmpdir_
         else: return "/tmp"
 
     @property
     def debug(self):
+        """
+
+        Get debug value
+
+        :return: true if debug mode is on, false otherwise
+        :rtype: bool
+
+        """
         if hasattr(self, 'debug_'):
             return self.debug_
         else: return False
 
     @property
     def use_abstract_model(self):
+        """
+
+        Whether to use PYOMO abstract model
+
+        :return: true if to use PYOMO abstract model
+        :rtype: bool
+
+        """
         if hasattr(self, 'use_abstract_model_'):
             return self.use_abstract_model_
         return True
 
     @property
     def dim(self):
+        """
+
+        Get the parameter dimension value
+
+        :return: parameter dimension
+        :rtype: int
+
+        """
         return self.fnspace.dim
 
     @property
     def pnames(self):
+        """
+
+        Get names of the parameter dimension names
+
+        :return: array of parameter dimension string names
+        :rtype: list
+
+        """
         return self.fnspace.pnames
 
     @property
     def order_numerator(self):
+        """
+
+        Get the numerator order
+
+        :return: numerator order
+        :rtype: int
+
+        """
         if hasattr(self, 'm_'):
             return self.m_
         return 1
 
     @property
     def order_denominator(self):
+        """
+
+        Get the denominator order
+
+        :return: denominator order
+        :rtype: int
+
+        """
         if hasattr(self, 'n_'):
             return self.n_
         return 1
 
     @property
     def fit_solver(self):
+        """
+
+        Get the fit solver
+
+        :return: fit solver
+        :rtype: str
+
+        """
         if hasattr(self, 'fit_solver_'):
             return self.fit_solver_
         return "scipy"
 
     @property
     def local_solver(self):
+        """
+
+        Get the local order
+
+        :return: local solver
+        :rtype: str
+
+        """
         if hasattr(self, 'local_solver_'):
             return self.local_solver_
         return "scipy"
 
     @property
     def fit_strategy(self):
+        """
+
+        Get the fit strategy
+
+        :return: fit strategy
+        :rtype: str
+
+        """
         strat_num_to_str = {
             "1.1": "m/1",
             "2.1": "m/n pole s1",
@@ -179,17 +304,41 @@ class RationalApproximation(SurrogateModel):
 
     @property
     def coeff_numerator(self):
+        """
+
+        Get the numerator coefficients. The order of coefficients is as in
+        https://people.math.sc.edu/Burkardt/py_src/polynomial/polynomial.html
+
+        :return: list of numerator coefficients.
+        :rtype: list
+
+        """
         if hasattr(self, 'pcoeff_'):
             return np.array(self.pcoeff_)
         raise Exception("Numerator coeffecients cannot be found. Perform a fit first")
 
     @property
     def coeff_denominator(self):
+        """
+
+        Get the denominator coefficients. The order of coefficients is as in
+        https://people.math.sc.edu/Burkardt/py_src/polynomial/polynomial.html
+
+        :return: list of denominator coefficients.
+        :rtype: list
+
+        """
         if hasattr(self, 'qcoeff_'):
             return np.array(self.qcoeff_)
         raise Exception("Denominator coeffecients cannot be found. Perform a fit first")
 
     def set_structures(self):
+        """
+
+        Set monomial structures into self. The order is as in
+        https://people.math.sc.edu/Burkardt/py_src/polynomial/polynomial.html
+
+        """
         m=self.order_numerator
         n=self.order_denominator
         self.struct_p_ = apprentice.monomialStructure(self.dim, m)
@@ -200,17 +349,48 @@ class RationalApproximation(SurrogateModel):
         self.K_ = 1 + m + n
 
     @property
-    def M(self): return self.M_
+    def M(self):
+        """
+
+        Get number of numerator coefficients
+
+        :return: number of numerator coefficients
+        :rtype: int
+
+        """
+        return self.M_
     @property
-    def N(self): return self.N_
+    def N(self):
+        """
+
+        Get number of denominator coefficients
+
+        :return: number of denominator coefficients
+        :rtype: int
+
+        """
+        return self.N_
 
 
     # @timeit
     def coeff_solve(self, VM, VN, Y):
         """
-        This does the solving for the numerator and denominator coefficients
-        following Anthony's recipe.
+
+        Find coefficients of the rational approximation. The resulting
+        rational approximation may contain poles using the linear algebra technique
+        proposed in our paper https://www.sciencedirect.com/science/article/abs/pii/S0010465520303222
+        [https://arxiv.org/abs/1912.02272]
+
+        :param VM: Vandermonde matrix of numerator
+        :type VM: np.array
+        :param VN: Vandermonde matrix of denominator
+        :type VN: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
+
         Fmatrix=np.diag(Y)
         # rcond changes from 1.13 to 1.14
         rcond = -1 if np.version.version < "1.15" else None
@@ -226,13 +406,24 @@ class RationalApproximation(SurrogateModel):
     # @timeit
     def coeff_solve2(self, VM, VN, Y):
         """
-        This does the solving for the numerator and denominator coefficients.
-        F = p/q is reformulated as 0 = p - qF using the VanderMonde matrices.
-        That defines the problem Ax = b and we solve for x in an SVD manner,
-        exploiting A = U x S x V.T
-        There is an additional manipulation exploiting on setting the constant
-        coefficient in q to 1.
+
+        Find coefficients of the rational approximation.
+        F = p/q is reformulated as 0 = p - qF using the Vandermonde matrices.
+        That defines the problem Ax = b and we solve for x using using Singular
+        Value Decomposition (SVD), exploiting A = U x S x V.T. There is an
+        additional manipulation exploiting on setting the constant coefficient in
+        q to 1. The resulting rational approximation may contain poles.
+
+        :param VM: Vandermonde matrix of numerator
+        :type VM: np.array
+        :param VN: Vandermonde matrix of denominator
+        :type VN: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
+
         FQ = - (VN.T * Y).T # This is something like -F*q
         A = np.hstack([VM, FQ[:,1:]]) # Note that we leave the b0 terms out when defining A
         U, S, Vh = np.linalg.svd(A)
@@ -247,11 +438,22 @@ class RationalApproximation(SurrogateModel):
     # @timeit
     def coeff_solve3(self, VM, VN, Y):
         """
-        This does the solving for the numerator and denominator coefficients.
-        F = p/q is reformulated as 0 = p - qF using the VanderMonde matrices.
-        That defines the problem Ax = 0 and we solve for x in an SVD manner,
-        exploiting A = U x S x V.T
-        We get the solution as the last column in V (corresponds to the smallest singular value)
+
+        Find coefficients of the rational approximation
+        F = p/q is reformulated as 0 = p - qF using the Vandermonde matrices.
+        That defines the problem Ax = b and we solve for x using using Singular
+        Value Decomposition (SVD), exploiting A = U x S x V.T. We get the solution
+        as the last column in V (corresponds to the smallest singular value).
+        The resulting rational approximation may contain poles.
+
+        :param VM: Vandermonde matrix of numerator
+        :type VM: np.array
+        :param VN: Vandermonde matrix of denominator
+        :type VN: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
         FQ = - (VN.T * Y).T
         A = np.hstack([VM, FQ])
@@ -260,6 +462,19 @@ class RationalApproximation(SurrogateModel):
         self.qcoeff_ = Vh[-1][self.M:]
 
     def fit_order_denominator_one(self,X,Y):
+        """
+
+        Find pole-free coefficients of the rational approximation
+        with numerator order :math:`m` and denominator order :math:`1`
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: list
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
+        """
         def fit_order_one():
             def scipyfit(coeffs0, cons, iprint=3):
                 def fast_leastSqObj(coeff, ipop, ipoq, M, N, Y):
@@ -511,6 +726,24 @@ class RationalApproximation(SurrogateModel):
         else: fit_order_one()
 
     def fit_sip(self, X,Y):
+        """
+
+        Find coefficients of the rational approximation
+        with numerator order :math:`m` and denominator order :math:`n` with minimal
+        number of poles. The number of poles is reduced using the semi-infinite
+        programming technique proposed in our paper
+        https://www.sciencedirect.com/science/article/abs/pii/S0010465520303222
+        [https://arxiv.org/abs/1912.02272]
+
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: list
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
+        """
         def fast_robustSampleV(coeff, q_ipo, M, N):
             return np.sum(coeff[M:M+N] * q_ipo, axis=1) - 1.0
 
@@ -802,7 +1035,16 @@ class RationalApproximation(SurrogateModel):
 
     def fit(self, X, Y):
         """
-        Do everything.
+
+        Surrogate model fitting method.
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
         X = self.fnspace.scale(X)
         # Set M, N, K, polynomial structures
@@ -830,21 +1072,43 @@ class RationalApproximation(SurrogateModel):
 
     def Q(self, X):
         """
-        Evaluation of the denom poly at X.
+
+        Evaluation of the denominator polynomial at new point.
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: denominator polynomial at new point
+        :rtype: np.array
+
         """
+
         rec_q = np.array(self.recurrence(X, self.struct_q_))
         q = self.coeff_denominator.dot(rec_q)
         return q
 
     def denom(self, X):
         """
-        Alias for Q, for compatibility
+
+        Evaluation of the denominator polynomial at new point.
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: denominator polynomial at new point
+        :rtype: np.array
+
         """
         return self.Q(X)
 
     def P(self, X):
         """
-        Evaluation of the numer poly at X.
+
+        Evaluation of the numerator polynomial at new point.
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: numerator polynomial at new point
+        :rtype: np.array
+
         """
         rec_p = np.array(self.recurrence(X, self.struct_p_))
         p = self.coeff_numerator.dot(rec_p)
@@ -852,13 +1116,30 @@ class RationalApproximation(SurrogateModel):
 
     def predict(self, X):
         """
-        Return the prediction of the RationalApproximation at X.
+
+        Evaluate the rational approximation at a new point
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: surrogate model value at the new point
+        :rtype: float
+
         """
         X=self.function_space.scale(np.array(X))
         return self.P(X)/self.Q(X)
 
 
     def gradient(self, X):
+        """
+
+        Get gradient of the rational approximation
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: gradient of the rational approximation at a new point
+        :rtype: list
+
+        """
         import numpy as np
         struct_p = np.array(self.struct_p_, dtype=float)
         struct_q = np.array(self.struct_q_, dtype=float)
@@ -885,23 +1166,49 @@ class RationalApproximation(SurrogateModel):
 
     def f_x(self, x):
         """
-        Operator version of predict.
+
+        Calculate the surrogate model at a new point.
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: surrogate model value at the new point
+        :rtype: float
+
         """
         return self.predict(x)
 
     def f_X(self,X):
+        """
+
+        Calculate the surrogate model at a multiple date points.
+
+        :param X: multiple x point, an araay of size :math:`dim \times n`
+            where :math:`dim` is the parameter dimension and :math:`n` is the number of new data points
+        :type X: list
+        :return: surrogate model value at the new points an araay of size :math:`n`
+            where :math:`n` is the number of new data points
+        :rtype: list
+
+        """
         return [self.predict(x) for x in X]
 
     def __repr__(self):
         """
-        Print-friendly representation.
-        """
+
+       Print-friendly representation.
+
+       """
         return "<RationalApproximation dim:{} m:{} n:{}>".format(self.dim, self.order_numerator, self.order_denominator)
 
     @property
     def as_dict(self):
         """
-        Store all info in dict as basic python objects suitable for JSON
+
+        Get the rational approximation fit as a dictionary
+
+        :return: rational approximation fit dictionary
+        :rtype: dict
+
         """
         d={}
         d["m"] = self.order_numerator
@@ -914,12 +1221,28 @@ class RationalApproximation(SurrogateModel):
         return d
 
     def save(self, fname):
+        """
+
+        Save the rational approximation fit into a file
+
+        :param fname: file path to save rational approximation fit
+        :type fname: str
+
+        """
         import json
         with open(fname, "w") as f:
             json.dump(self.as_dict, f,indent=4)
 
     @classmethod
-    def from_data_structure(cls,data_structure):
+    def from_data_structure(cls,data_structure,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure.
+
+        :param data_structure: previously fit surrogate model saved as a data structure
+        :type data_structure: dict
+
+        """
         if not isinstance(data_structure, dict):
             raise Exception("data_structure has to be a dictionary")
         dim = data_structure['fnspace']['dim_']
@@ -956,7 +1279,15 @@ class RationalApproximation(SurrogateModel):
     #     if set_structures: self.setStructures()
 
     @classmethod
-    def from_file(cls, filepath):
+    def from_file(cls, filepath,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure saved in a file.
+
+        :param filepath: file path of a previously fit surrogate model saved as a data structure
+        :type filepath: str
+
+        """
         import json
         with open(filepath,'r') as f:
             d = json.load(f)
@@ -975,6 +1306,14 @@ class RationalApproximation(SurrogateModel):
 
     @property
     def coeff_norm(self):
+        """
+
+        Get 1-norm of the rational approximation fit coefficients
+
+        :return: 1-norm of the rational approximation fit coefficients
+        :rtype: float
+
+        """
         nrm = 0
         for p in self.coeff_numerator:
             nrm+= abs(p)
@@ -984,6 +1323,14 @@ class RationalApproximation(SurrogateModel):
 
     @property
     def coeff2_norm(self):
+        """
+
+        Get 2-norm of the polynomial approximation fit coefficients
+
+        :return: 2-norm of the polynomial approximation fit coefficients
+        :rtype: float
+
+        """
         nrm = 0
         for p in self.coeff_numerator:
             nrm+= p*p

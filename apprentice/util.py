@@ -3,8 +3,24 @@ import numpy as np
 
 class Util(object):
 
+    """
+    Utility class
+    """
+
     @staticmethod
     def inherits_from(child, parent_name):
+        """
+
+        Check if child inherits from parent
+
+        :param child: child object
+        :type child: any
+        :param parent_name: parent object
+        :type parent_name: any
+        :return: true if child inherits from parent, false otherwise
+        :rtype: bool
+
+        """
         if inspect.isclass(child.__class__):
             if parent_name in [c.__name__ for c in inspect.getmro(child.__class__)[1:]]:
                 return True
@@ -14,7 +30,16 @@ class Util(object):
     @staticmethod
     def num_coeffs_poly(dim, order):
         """
-        Number of coefficients a dim-dimensional polynomial of order order has.
+
+        Find number of coefficients a dim-dimensional polynomial of order order has.
+
+        :param dim: dimension value
+        :type dim: int
+        :param order: order of polynomial
+        :type order: int
+        :return: number of coeffecients in polynomial
+        :rtype: int
+
         """
         ntok = 1
         r = min(order, dim)
@@ -25,8 +50,19 @@ class Util(object):
     @staticmethod
     def num_coeffs_to_order(dim, ncoeffs):
         """
-        Infer the polynomial order from the number of coefficients and the dimension
+
+        Infer the polynomial order from the number of coefficients
+        and the dimension
+
+        :param dim: dimension
+        :type dim: int
+        :param ncoeffs: number of coeffecients
+        :type ncoeffs: int
+        :return: polynomial order
+        :rtype: int
+
         """
+
         if ncoeffs == 1:
             return 0
         curr  = 1
@@ -39,20 +75,40 @@ class Util(object):
     @staticmethod
     def num_coeffs_rapp(dim, order):
         """
+
         Number of coefficients a dim-dimensional rational approximation of order (m,n) has.
+
+        :param dim: dimension value
+        :type dim: int
+        :param order: order of polynomial
+        :type order: int
+        :return: number of coeffecients in rational approximation
+        :rtype: int
+
         """
         return Util.num_coeffs_poly(dim, order[0]) + Util.num_coeffs_poly(dim, order[1])
 
     @staticmethod
     def gradient_recurrence(X, struct, jacfac, NNZ, sred):
         """
-        X ... scaled point
-        struct ... polynomial structure
-        jacfac ... jacobian factor
-        NNZ  ... list of np.where results
-        sred ... reduced structure
-        returns array suitable for multiplication with coefficient vector
+
+        Get array suitable for multiplication with coefficient vector
+
+        :param X:  scaled point
+        :type X:
+        :param struct: polynomial structure
+        :type struct:
+        :param jacfac: jacobian factor
+        :type jacfac:
+        :param NNZ: list of np.where results
+        :type NNZ:
+        :param sred: reduced structure
+        :type sred:
+        :return: array suitable for multiplication with coefficient vector
+        :rtype: np.array
+
         """
+
         # import numpy as np
         dim = len(X)
         REC = np.zeros((dim, len(struct)))

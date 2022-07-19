@@ -3,7 +3,18 @@ from scipy import optimize
 from apprentice.minimizer import Minimizer
 
 class ScipyMinimizer(Minimizer):
+    """
+    SciPy minimizer
+    """
     def __init__(self, function, **kwargs):
+        """
+
+        Initialize minimizer object
+
+        :param function: function
+        :type function: apprentice.function.Function
+
+        """
         super(ScipyMinimizer, self).__init__(function, **kwargs)
 
         # self.bounds_ = function.bounds
@@ -16,6 +27,20 @@ class ScipyMinimizer(Minimizer):
 
     def minimize(self, x0=None, nrestart=1, method="tnc", tol=1e-6):
         """
+
+        Minimize
+
+        :param x0: starting point
+        :type x0: np.array
+        :param nrestart: number of restarts
+        :type nrestart: int
+        :param method: solver method name
+        :type method: str
+        :param tol: tolerance
+        :type tol: float
+        :return:  minimization result
+        :rtype: dict
+
         """
         minobj = np.Infinity
         finalres = None
@@ -46,6 +71,18 @@ class ScipyMinimizer(Minimizer):
 
 
     def minimiseTNC(self, x0, tol=1e-6):
+        """
+
+        Minimize using Truncated Newton (TNC) algorithm
+
+        :param x0: starting point
+        :type x0: np.array
+        :param tol: tolerance
+        :type tol: float
+        :return:  minimization result
+        :rtype: dict
+
+        """
         from scipy import optimize
         res = optimize.minimize(
                 lambda x: self.function_(x),
@@ -56,6 +93,18 @@ class ScipyMinimizer(Minimizer):
         return res
 
     def minimiseLBFGSB(self, x0, tol=1e-6):
+        """
+
+        Minimize using L-BFGS-B algorithm
+
+        :param x0: starting point
+        :type x0: np.array
+        :param tol: tolerance
+        :type tol: float
+        :return:  minimization result
+        :rtype: dict
+
+        """
         from scipy import optimize
         res = optimize.minimize(
                 lambda x: self.function_(x),
@@ -66,6 +115,18 @@ class ScipyMinimizer(Minimizer):
         return res
 
     def minimiseSLSQP(self, x0, tol=1e-6):
+        """
+
+        Minimize using Sequential Least Squares Programming (SLSQP)
+
+        :param x0: starting point
+        :type x0: np.array
+        :param tol: tolerance
+        :type tol: float
+        :return:  minimization result
+        :rtype: dict
+
+        """
         from scipy import optimize
         res = optimize.minimize(
                 lambda x: self.function_(x),
@@ -76,6 +137,20 @@ class ScipyMinimizer(Minimizer):
         return res
 
     def minimizeNCG(self, x0, sel=slice(None, None, None), tol=1e-6):
+        """
+
+        Minimize using Newton conjugate gradient trust-region algorithm
+
+        :param x0: starting point
+        :type x0: np.array
+        :param sel: selected bins
+        :type sel: slice
+        :param tol: tolerance
+        :type tol: float
+        :return:  minimization result
+        :rtype: dict
+
+        """
         from scipy import optimize
         res = optimize.minimize(
                 lambda x: self.function_(x),

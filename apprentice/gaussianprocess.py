@@ -11,6 +11,9 @@ from apprentice.mpi4py_ import MPI_
 from apprentice.space import Space
 
 class GaussianProcess(SurrogateModel):
+    """
+    Gaussian process surrogate model
+    """
     __allowed = (
                  "debug_","debug",
                  "training_size_","training_size",
@@ -29,6 +32,16 @@ class GaussianProcess(SurrogateModel):
                  )
 
     def __init__(self, dim, fnspace=None, **kwargs: dict):
+        """
+
+        Gaussian process surrogate model construction function
+
+        :param dim: parameter dimension
+        :type dim: int
+        :param fnspace: function space object
+        :type fnspace: apprentice.space.Space
+
+        """
         super().__init__(dim, fnspace)
         for k, v in kwargs.items():
             if k in ['debug',"training_size",'strategy','seed','use_mpi_tune',
@@ -41,30 +54,72 @@ class GaussianProcess(SurrogateModel):
 
     @property
     def use_mpi_tune(self):
+        """
+
+        Check if to use MPI tune
+
+        :return: true if to use MPI tune
+        :rtype: bool
+
+        """
         if hasattr(self, 'use_mpi_tune_'):
             return self.use_mpi_tune_
         else:return False
 
     @property
     def stopping_bound(self):
+        """
+
+        Get the stopping bound
+
+        :return: stopping bound
+        :rtype: float
+
+        """
         if hasattr(self, 'stopping_bound_'):
             return self.stopping_bound_
         else:return 10 **-4
 
     @property
     def polynomial_order(self):
+        """
+
+        Find the order of the polynomial
+
+        :return: polynomial order
+        :rtype: int
+
+        """
         if hasattr(self, 'polynomial_order_'):
             return self.polynomial_order_
         else:return 3
 
     @property
     def sample_size(self):
+        """
+
+        Get the sample size
+
+        :return: sample size
+        :rtype: int
+
+        """
         if hasattr(self, 'sample_size_'):
             return self.sample_size_
         else:return 25
 
     @property
     def fit_strategy(self, print_descr = False):
+        """
+
+        Get the fit strategy
+
+        :param print_descr: whether to print description
+        :type print_descr: true if to print description, false otherwise
+        :return: fit strategy
+        :rtype: str
+
+        """
         strat_num_to_descr = {
             "1": "Most Likely Heteroscedastic Gaussian Process (HeGP-ML)",
             "2": "Heteroscedastic Gaussian Process using Stochastic Kriging (HeGP-SK)",
@@ -91,49 +146,121 @@ class GaussianProcess(SurrogateModel):
 
     @property
     def debug(self):
+        """
+
+        Get debug value
+
+        :return: true if debug mode is on, false otherwise
+        :rtype: bool
+
+        """
         if hasattr(self, 'debug_'):
             return self.debug_
         else:return False
 
     @property
     def max_restarts(self):
+        """
+
+        Get the maximum restarts
+
+        :return: max restarts
+        :rtype: int
+
+        """
         if hasattr(self, 'max_restarts_'):
             return self.max_restarts_
         else: return 100
 
     @property
     def mean_surrogate_model(self):
+        """
+
+        Get the mean surrogate model
+
+        :return: mean surrogate model
+        :rtype: apprentice.surrogatemodel.SurrogateModel
+
+        """
         if hasattr(self, 'mean_surrogate_model_'):
             return self.mean_surrogate_model_
         raise Exception("Mean surrogate model required but not provided")
 
     @property
     def error_surrogate_model(self):
+        """
+
+        Get the error surrogate model
+
+        :return: error surrogate model
+        :rtype: apprentice.surrogatemodel.SurrogateModel
+
+        """
         if hasattr(self, 'error_surrogate_model_'):
             return self.error_surrogate_model_
         raise Exception("Error surrogate model required but not provided")
     @property
     def dim(self):
+        """
+
+        Get the parameter dimension value
+
+        :return: parameter dimension
+        :rtype: int
+
+        """
         return self.fnspace.dim
 
     @property
     def pnames(self):
+        """
+
+        Get names of the parameter dimension names
+
+        :return: array of parameter dimension string names
+        :rtype: list
+
+        """
         return self.fnspace.pnames
 
     @property
     def kernel(self):
+        """
+
+        Get the kernel
+
+        :return: kernel
+        :rtype: str
+
+        """
         if hasattr(self, 'kernel_'):
             return self.kernel_
         else:return "sqe"
 
     @property
     def seed(self):
+        """
+
+        Get the seed
+
+        :return: seed
+        :rtype: int
+
+        """
         if hasattr(self, 'seed_'):
             return self.seed_
         else:return 97834667
 
     @property
     def keepout_percentage(self):
+        """
+
+        Get the keepout percentage
+
+        :return: keepout percentage
+        :rtype: float
+
+        """
         if hasattr(self, 'keepout_percentage_'):
             return self.keepout_percentage_
         else:
@@ -141,7 +268,16 @@ class GaussianProcess(SurrogateModel):
 
     def fit(self,X,Y):
         """
-        Do everything.
+
+        Surrogate model fitting method.
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
         strategy = self.fit_strategy
         if strategy == '1':
@@ -154,6 +290,14 @@ class GaussianProcess(SurrogateModel):
         else: raise Exception("fit() strategy %i not implemented"%strategy)
 
     def save(self, fname):
+        """
+
+        Save the gaussian process fit into a file
+
+        :param fname: file path to save gaussian process fit
+        :type fname: str
+
+        """
         comm = MPI_.COMM_WORLD
         rank = comm.Get_rank()
         if rank == 0:
@@ -163,17 +307,41 @@ class GaussianProcess(SurrogateModel):
 
     @property
     def as_dict(self):
+        """
+
+        Get the gaussian process fit as a dictionary
+
+        :return: gaussian process fit dictionary
+        :rtype: dict
+
+        """
         self.data["fnspace"] = self.fnspace.as_dict
         return self.data
 
     def __repr__(self):
         """
+
         Print-friendly representation.
+
         """
         return "<GaussianProcess dim:{} kernel:{} strategy:{}>".format(self.dim, self.kernel,self.fit_strategy)
 
     @staticmethod
     def get_kernel(kernel_str, dim, poly_order):
+        """
+
+        Get kernel
+
+        :param kernel_str: kernel
+        :type kernel_str: str
+        :param dim: parameter dimension
+        :type dim: int
+        :param poly_order: polynomial order
+        :type poly_order: int
+        :return: GPy kernel
+        :rtype: GPy.kern
+
+        """
         availablekernels = ["sqe","ratquad","matern32","matern52","poly"]
         if kernel_str == "sqe":
             kernel_obj = GPy.kern.RBF(input_dim=dim, ARD=True)
@@ -195,6 +363,24 @@ class GaussianProcess(SurrogateModel):
 
     @staticmethod
     def mpi_tune(model,num_restarts,use_mpi=False,robust=True,debug=False):
+        """
+
+        Do MPI tuning
+
+        :param model: GPy model
+        :type model: GPy.core.GP or GPy.models
+        :param num_restarts: number of restarts
+        :type num_restarts: int
+        :param use_mpi: whether to use MPI
+        :type use_mpi: bool
+        :param robust: whether the tuning should be robust
+        :type robust: bool
+        :param debug: debug value
+        :type debug: bool
+        :return: return value
+        :rtype: int
+
+        """
         comm = MPI_.COMM_WORLD
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -253,6 +439,21 @@ class GaussianProcess(SurrogateModel):
             return myreturnvalue
 
     def build_MLHGP_model_from_data(self,X,Y):
+        """
+
+        Build GP model using Most Likely Heteroscedastic Gaussian Process (HeGP-ML)
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+        :return: Model for values (model Y), model for heteroscedastic varaince (model Z), and
+            database of model Y & model Z information
+        :rtype: GPy.core.GP/GPy.models, GPy.core.GP/GPy.models, dict
+
+        """
         np.random.seed(self.seed)
         X = np.array(X)
         Y = np.array(Y)
@@ -498,6 +699,21 @@ class GaussianProcess(SurrogateModel):
         return bestmodely,bestmodelz,database
 
     def build_SK_model_from_data(self,X,Y):
+        """
+
+        Build GP model using Heteroscedastic Gaussian Process using Stochastic Kriging (HeGP-SK)
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+        :return: Model for values (model Y), model for heteroscedastic varaince (model Z), and
+            database of model Y & model Z information
+        :rtype: GPy.core.GP/GPy.models, GPy.core.GP/GPy.models, dict
+
+        """
         np.random.seed(self.seed)
         X = np.array(X)
         Y = np.array(Y)
@@ -651,6 +867,20 @@ class GaussianProcess(SurrogateModel):
         return modelY,modelZ,database
 
     def build_GP_model_from_data(self,X, Y):
+        """
+
+        Build GP model using Homoscedastic Gaussian Process (HoGP)
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+        :return: Model for values (model Y) and database of model Y & model Z information
+        :rtype: GPy.core.GP/GPy.models, dict
+
+        """
         import json
         comm = MPI_.COMM_WORLD
         rank = comm.Get_rank()
@@ -783,6 +1013,14 @@ class GaussianProcess(SurrogateModel):
 
     @classmethod
     def from_file(cls, filepath,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure saved in a file.
+
+        :param filepath: file path of a previously fit surrogate model saved as a data structure
+        :type filepath: str
+
+        """
         comm = MPI_.COMM_WORLD
         rank = comm.Get_rank()
         d = None
@@ -795,6 +1033,14 @@ class GaussianProcess(SurrogateModel):
 
     @classmethod
     def from_data_structure(cls,data_structure,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure.
+
+        :param data_structure: previously fit surrogate model saved as a data structure
+        :type data_structure: dict
+
+        """
         if not isinstance(data_structure, dict):
             raise Exception("data_structure has to be a dictionary")
 
@@ -902,6 +1148,20 @@ class GaussianProcess(SurrogateModel):
 
     @staticmethod
     def predict_static_homoscedastic(Xte, Mte, modely):
+        """
+
+        Predict static homoscedastic at test data points
+
+        :param Xte: test data points
+        :type Xte: np.array
+        :param Mte: test mean values
+        :type Mte: list
+        :param modely: Y model
+        :type modely: GPy.core.GP
+        :return: mean value and standard deviation
+        :rtype: np.array, np.array
+
+        """
         ybar, vy = modely.predict(Xte)
 
         Ymean = np.array([y[0] for y in ybar])
@@ -914,6 +1174,22 @@ class GaussianProcess(SurrogateModel):
 
     @staticmethod
     def predict_static_heteroscedastic(Xte,Mte,modely,modelz):
+        """
+
+        Predict static heteroschedastic at test data points
+
+        :param Xte: test data points
+        :type Xte: np.array
+        :param Mte: test mean values
+        :type Mte: list
+        :param modely: Y model
+        :type modely: GPy.core.GP/GPy.models
+        :param modelz: Z model
+        :type modelz: GPy.core.GP/GPy.models
+        :return: mean value and standard deviation
+        :rtype: np.array, np.array
+
+        """
         Zbar, Zv = modelz.predict(Xte)
         Zmean = np.array([z[0] for z in Zbar])
         Zvar = np.array([z[0] for z in Zv])
@@ -932,6 +1208,26 @@ class GaussianProcess(SurrogateModel):
 
     @staticmethod
     def get_metrics(Xte,MCte,DeltaMCte,Mte,modely,modelz):
+        """
+
+        Get metrics
+
+        :param Xte: test data points
+        :type Xte: np.array
+        :param MCte: test mean values
+        :type MCte: list
+        :param DeltaMCte: test standard deviation values
+        :type DeltaMCte: list
+        :param Mte: test mean values
+        :type Mte: list
+        :param modely: Y model
+        :type modely: GPy.core.GP/GPy.models
+        :param modelz: Z model
+        :type modelz: GPy.core.GP/GPy.models
+        :return: mean MSE metric, standard deviation MSE metric, :math:`\chi^2`
+        :rtype: np.array, np.array, np.array
+
+        """
         if modelz is None:
             (Ymean, Ysd) = GaussianProcess.predict_static_homoscedastic(Xte,Mte,modely)
         else:
@@ -944,6 +1240,17 @@ class GaussianProcess(SurrogateModel):
         return meanmsemetric,sdmsemetric,chi2metric
 
     def predict_heteroscedastic(self,X):
+        """
+
+        Predict using heteroschedastic GP at new point
+
+        :param X: multiple x point, an araay of size :math:`dim \times n`
+            where :math:`dim` is the parameter dimension and :math:`n` is the number of new data points
+        :type X: list
+        :return: surrogate model mean and standard deviation value at the new points
+        :rtype: list,list
+
+        """
         Mte = np.array([self.mean_surrogate_model(x) for x in X])
         Zbar, Zv = self.modelz.predict(np.array(X))
         Zmean = np.array([z[0] for z in Zbar])
@@ -962,6 +1269,17 @@ class GaussianProcess(SurrogateModel):
         return Ymean,Ysd
 
     def predict_homoscedastic(self,X):
+        """
+
+        Predict using homoscedastic GP at new point
+
+        :param X: multiple x point, an araay of size :math:`dim \times n`
+            where :math:`dim` is the parameter dimension and :math:`n` is the number of new data points
+        :type X: list
+        :return: surrogate model mean and standard deviation value at the new points
+        :rtype: list,list
+
+        """
         Mte = np.array([self.mean_surrogate_model(x) for x in X])
 
         ybar, vy = self.modely.predict(np.array(X))
@@ -975,6 +1293,16 @@ class GaussianProcess(SurrogateModel):
         return Ymean,Ysd
 
     def f_x(self,x):
+        """
+
+        Calculate the surrogate model at a new point.
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: surrogate model value at the new point
+        :rtype: float, float
+
+        """
         if hasattr(self, 'modelz') and self.modelz is not None:
             (Ymean, Ysd) = self.predict_heteroscedastic([x])
         else:
@@ -982,6 +1310,18 @@ class GaussianProcess(SurrogateModel):
         return Ymean[0], Ysd[0]
 
     def f_X(self,X):
+        """
+
+        Calculate the surrogate model at a multiple date points.
+
+        :param X: multiple x point, an araay of size :math:`dim \times n`
+            where :math:`dim` is the parameter dimension and :math:`n` is the number of new data points
+        :type X: list
+        :return: surrogate model value at the new points an araay of size :math:`n`
+            where :math:`n` is the number of new data points
+        :rtype: list
+
+        """
         if hasattr(self, 'modelz') and self.modelz is not None:
             return self.predict_heteroscedastic(X)
         else:

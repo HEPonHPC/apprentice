@@ -22,6 +22,9 @@ def timeit(method):
     return timed
 
 class PolynomialApproximation(SurrogateModel):
+    """
+    Polynomial approximation surrogate model
+    """
     __allowed = ("m_", "m",
                  "pcoeff_","pcoeff",
                  "training_size_","training_size_",
@@ -31,6 +34,16 @@ class PolynomialApproximation(SurrogateModel):
                  )
 
     def __init__(self, dim, fnspace=None, **kwargs: dict):
+        """
+
+        Polynomial approximation surrogate model construction function
+
+        :param dim: parameter dimension
+        :type dim: int
+        :param fnspace: function space object
+        :type fnspace: apprentice.space.Space
+
+        """
         super().__init__(dim, fnspace)
         for k, v in kwargs.items():
             if k in ['m','training_size',"pcoeff",'strategy','cov','compute_cov']:
@@ -77,37 +90,92 @@ class PolynomialApproximation(SurrogateModel):
 
     @property
     def dim(self):
+        """
+
+        Get the parameter dimension value
+
+        :return: parameter dimension
+        :rtype: int
+
+        """
         return self.fnspace.dim
 
     @property
     def pnames(self):
+        """
+
+        Get names of the parameter dimension names
+
+        :return: array of parameter dimension string names
+        :rtype: list
+
+        """
         return self.fnspace.pnames
 
     @property
     def order_numerator(self):
+        """
+
+        Get the numerator order
+
+        :return: numerator order
+        :rtype: int
+
+        """
         if hasattr(self, 'm_'):
             return self.m_
         return 1
 
     @property
     def fit_strategy(self):
+        """
+
+        Get the fit strategy
+
+        :return: fit strategy
+        :rtype: int
+
+        """
         if hasattr(self, 'strategy_'):
             return self.strategy_
         return 1
 
     @property
     def to_compute_covariance(self):
+        """
+
+        Get the choice of whether covariance should be computed
+
+        :return: true if covariance should be computed
+        :rtype: bool
+
+        """
         if hasattr(self, 'compute_cov_'):
             return self.compute_cov_
         return False
 
     @property
     def coeff_numerator(self):
+        """
+
+        Get the numerator coefficients. The order of coefficients is as in
+        https://people.math.sc.edu/Burkardt/py_src/polynomial/polynomial.html
+
+        :return: list of numerator coefficients.
+        :rtype: list
+
+        """
         if hasattr(self, 'pcoeff_'):
             return self.pcoeff_
         raise Exception("Numerator coeffecients cannot be found. Perform a fit first")
 
     def set_structures(self):
+        """
+
+        Set monomial structures into self. The order is as in
+        https://people.math.sc.edu/Burkardt/py_src/polynomial/polynomial.html
+
+        """
         m = self.order_numerator
         self.struct_p_ = apprentice.monomialStructure(self.dim, m)
         from apprentice import tools
@@ -117,8 +185,17 @@ class PolynomialApproximation(SurrogateModel):
     # @timeit
     def coeff_solve(self, VM, Y):
         """
-        SVD solve coefficients.
+
+        Solve coefficients using Singular Value Decomposition (SVD)
+
+        :param VM: Vandermonde matrix
+        :type VM: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
+
         # TODO check for singular values below threshold and raise Exception
         U, S, V = np.linalg.svd(VM)
         # SM dixit: manipulations to solve for the coefficients
@@ -129,7 +206,15 @@ class PolynomialApproximation(SurrogateModel):
     # @timeit
     def coeff_solve2(self, VM, Y):
         """
-        Least square solve coefficients.
+
+        Solve coefficients using least squares regression
+
+        :param VM: Vandermonde matrix
+        :type VM: np.array
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
         rcond = -1 if np.version.version < "1.15" else None
         x, res, rank, s = np.linalg.lstsq(VM, Y, rcond=rcond)
@@ -137,7 +222,16 @@ class PolynomialApproximation(SurrogateModel):
 
     def fit(self, X, Y):
         """
-        Do everything
+
+        Surrogate model fitting method.
+
+        :param X: a 2-D array of size :math:`dim \times N_p` and it is the x data values to fit where
+            :math:`dim` is the parameter dimension and :math:`N_p` is the the number of data points
+        :type X: list
+        :param Y: an array of size :math:`N_p` and it is the y data values to fit where
+            :math:`N_p` is the the number of data points
+        :type Y: np.array
+
         """
         m = self.order_numerator
         from apprentice import tools
@@ -163,7 +257,14 @@ class PolynomialApproximation(SurrogateModel):
 
     def f_x_slow(self, x):
         """
-        Evaluation of the numer poly at X.
+
+        Calculate the surrogate model at a new point. This is a slower version.
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: surrogate model value at the new point
+        :rtype: float
+
         """
         x = self.fnspace.scale(np.array(x))
         if self.dim==1: recurrence=apprentice.monomial.recurrence1D
@@ -173,8 +274,14 @@ class PolynomialApproximation(SurrogateModel):
 
     def f_x(self, x):
         """
-        Evaluation of the numer poly at X.
-        10% faster than predict --- exploit structure somewhat
+
+        Calculate the surrogate model at a new point.
+
+        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type x: list
+        :return: surrogate model value at the new point
+        :rtype: float
+
         """
         x = self.fnspace.scale(np.array(x))
         if self.dim==1: rec_p=apprentice.monomial.recurrence1D(x, self.struct_p_)
@@ -183,21 +290,36 @@ class PolynomialApproximation(SurrogateModel):
 
     def f_X(self, X):
         """
-        Evaluation of the numer poly at many points X.
+
+        Calculate the surrogate model at a multiple date points.
+
+        :param X: multiple x point, an araay of size :math:`dim \times n`
+            where :math:`dim` is the parameter dimension and :math:`n` is the number of new data points
+        :type X: list
+        :return: surrogate model value at the new points an araay of size :math:`n`
+            where :math:`n` is the number of new data points
+        :rtype: list
+
         """
         return [self.f_x(x) for x in X]
 
     def __repr__(self):
         """
+
         Print-friendly representation.
+
         """
         return "<PolynomialApproximation dim:{} order:{}>".format(self.dim, self.order_numerator)
 
     @property
     def as_dict(self):
-        #TODO to check
         """
-        Store all info in dict as basic python objects suitable for JSON
+
+        Get the polynomial approximation fit as a dictionary
+
+        :return: polynomial approximation fit dictionary
+        :rtype: dict
+
         """
         d = {}
         d["m"] = self.order_numerator
@@ -215,12 +337,28 @@ class PolynomialApproximation(SurrogateModel):
         return d
 
     def save(self, fname):
+        """
+
+        Save the polynomial approximation fit into a file
+
+        :param fname: file path to save polynomial approximation fit
+        :type fname: str
+
+        """
         import json
         with open(fname, "w") as f:
             json.dump(self.as_dict, f,indent=4)
 
     @classmethod
-    def from_data_structure(cls,data_structure):
+    def from_data_structure(cls,data_structure,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure.
+
+        :param data_structure: previously fit surrogate model saved as a data structure
+        :type data_structure: dict
+
+        """
         if not isinstance(data_structure, dict):
             raise Exception("data_structure has to be a dictionary")
         dim = data_structure['fnspace']['dim_']
@@ -240,7 +378,15 @@ class PolynomialApproximation(SurrogateModel):
         return cls(dim,fnspace,**data_structure)
 
     @classmethod
-    def from_file(cls, filepath):
+    def from_file(cls, filepath,**kwargs):
+        """
+
+        A class method to construct surrogate model from data structure saved in a file.
+
+        :param filepath: file path of a previously fit surrogate model saved as a data structure
+        :type filepath: str
+
+        """
         import json
         with open(filepath,'r') as f:
             d = json.load(f)
@@ -254,6 +400,14 @@ class PolynomialApproximation(SurrogateModel):
 
     @property
     def coeff_norm(self):
+        """
+
+        Get 1-norm of the polynomial approximation fit coefficients
+
+        :return: 1-norm of the polynomial approximation fit coefficients
+        :rtype: float
+
+        """
         nrm = 0
         for p in self.coeff_numerator:
             nrm += abs(p)
@@ -261,12 +415,31 @@ class PolynomialApproximation(SurrogateModel):
 
     @property
     def coeff2_norm(self):
+        """
+
+        Get 2-norm of the polynomial approximation fit coefficients
+
+        :return: 2-norm of the polynomial approximation fit coefficients
+        :rtype: float
+
+        """
         nrm = 0
         for p in self.coeff_numerator:
             nrm += p * p
         return np.sqrt(nrm)
 
     def gradient(self, X):
+        """
+
+        Get gradient of the polynomial approximation
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: gradient of the polynomial approximation at a new point
+        :rtype: list
+
+        """
+
         import numpy as np
         struct = np.array(self.struct_p_, dtype=float)
         X = self.function_space.scale(np.array(X))
@@ -281,6 +454,16 @@ class PolynomialApproximation(SurrogateModel):
         return np.sum(GREC * self.coeff_numerator, axis=1)
 
     def hessian(self, X):
+        """
+
+        Get hessian of the polynomial approximation
+
+        :param X: a new point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :type X: list
+        :return: hessian of the polynomial approximation at a new point
+        :rtype: list
+
+        """
         import numpy as np
         X = self.function_space.scale(np.array(X))
         S = self.struct_p_
