@@ -41,6 +41,7 @@ MOCK_MODULES = [
     "GPy",
     "pandas",
     "scipy",
+    "scipy.optimize",
     "apprentice.numba_"
 
 ]
