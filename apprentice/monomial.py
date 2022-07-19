@@ -4,7 +4,7 @@ Utility functions for building and working with monomials
 import numpy as np
 
 
-def mono_next_grlex(x: list[int]) -> list[int]:
+def mono_next_grlex(x):
     """
     Return next monomial. This is a deterministic procedure.
 
@@ -53,7 +53,7 @@ def mono_next_grlex(x: list[int]) -> list[int]:
     return x
 
 
-def genStruct(mnm: list[int]) -> list[int]:
+def genStruct(mnm) :
     """
     Generator for mono_next_grlex.
     Allows for a deterministic generation of monomial terms.
@@ -92,7 +92,7 @@ from functools import lru_cache
 
 
 @lru_cache(maxsize=32)
-def monomialStructure(dim: int, order: int):
+def monomialStructure(dim, order):
     """
     Generate the monomial structure of a dim-dimensional polynomial of order order.
     The rows are the terms. The columns are the dimensions.
@@ -123,7 +123,7 @@ def monomialStructure(dim: int, order: int):
     return structure
 
 
-def recurrence1D(x: float, structure) -> list[float]:
+def recurrence1D(x, structure) :
     """
     Evaluate recurrence relation for a one-dimensional polynomial
     structure.
@@ -147,7 +147,7 @@ def recurrence1D(x: float, structure) -> list[float]:
     return x ** structure
 
 
-def recurrence(x: list[float], structure) -> list[float]:
+def recurrence(x, structure):
     """
     Generalised version of recurrence1D for multidimensional problems.
 
@@ -164,7 +164,7 @@ def recurrence(x: list[float], structure) -> list[float]:
     return np.prod(x ** structure, axis=1, dtype=np.float64)
 
 
-def recurrence2(x: list[float], structure, nnz=slice(None, None, None)) -> list[float]:
+def recurrence2(x, structure, nnz=slice(None, None, None)) :
     """
     Efficient version of recurrence with beforehand knowledge of nonzero (nnz)
     structure elements.

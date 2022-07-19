@@ -209,7 +209,7 @@ class Space(object):
 
         return s
 
-    def mkSubSpace(self, dims: list[int]):
+    def mkSubSpace(self, dims):
         """
 
         Return a Space using only the dimensions specified in dims.
@@ -226,7 +226,7 @@ class Space(object):
         return Space(newdim, [self.a_[d] for d in dims], [self.b_[d] for d in dims], pnames=newnames)
 
     @staticmethod
-    def sample_main(b_min, b_max, npoints: int, method="uniform", seed=None):
+    def sample_main(b_min, b_max, npoints, method="uniform", seed=None):
         """
 
         Sample npoints dim-dimensional pointsrandomly from within this space's bounds.
@@ -267,7 +267,7 @@ class Space(object):
 
         return points
 
-    def sample(self, npoints: int, method="uniform", seed=None):
+    def sample(self, npoints, method="uniform", seed=None):
         """
 
         Sample in unsclaed box
@@ -284,7 +284,7 @@ class Space(object):
         """
         return self.sample_main(b_min=self.a_,b_max=self.b_,npoints=npoints,method=method,seed=seed)
 
-    def sample_scaled(self, npoints: int, method="uniform", seed=None):
+    def sample_scaled(self, npoints, method="uniform", seed=None):
         """
 
         Sample in sclaed box
