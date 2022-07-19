@@ -39,7 +39,9 @@ MOCK_MODULES = [
     "numpy.lib.scimath",
     "matplotlib.pyplot",
     "GPy",
-    "pandas"
+    "pandas",
+    "apprentice.numba_"
+
 ]
 sys.path.insert(0, os.path.abspath('../../apprentice/'))
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
