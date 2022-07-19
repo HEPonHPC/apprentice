@@ -1,8 +1,8 @@
 import apprentice
 import numpy as np
-from numba import jit
+# from numba import jit
 
-@jit
+# @jit
 def gradientRecurrence(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point
@@ -57,7 +57,7 @@ def gradientRecurrenceMulti(X, struct, jacfac, NNZ, sred):
 
 
 # This is the explicit triple loop version
-@jit
+# @jit
 def prime(GREC, COEFF, dim, NNZ):
     ret = np.zeros((len(COEFF), dim))
     for i in range(dim):
@@ -66,7 +66,7 @@ def prime(GREC, COEFF, dim, NNZ):
                 ret[j][i] += COEFF[j][k] * GREC[i][k]
     return ret
 
-@jit
+# @jit
 def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
     ret = np.zeros((dim, dim, NSEL), dtype=np.float64)
     for numx in range(dim):
@@ -79,7 +79,7 @@ def doubleprime(dim, xs, NSEL, HH, HNONZ, EE, COEFF):
 
     return ret
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def hreduction(xs, ee):
     dim =len(xs)
     nel = len(ee)
@@ -93,7 +93,7 @@ def hreduction(xs, ee):
                 ret[n] *= pow(xs[d], ee[n][d])
     return ret
 
-@jit
+# @jit
 def intpower(xs, ee):
     dim =len(xs)
     nel = len(ee)
@@ -108,8 +108,8 @@ def intpower(xs, ee):
     return ret
 
 
-from numba import jit
-@jit
+# from numba import jit
+# @jit
 def jval(rec, pc):
     nitems = len(pc)
     nterms = len(rec)
