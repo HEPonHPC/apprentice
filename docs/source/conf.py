@@ -40,6 +40,7 @@ MOCK_MODULES = [
     "matplotlib.pyplot",
     "GPy",
     "pandas",
+    "scipy"
     "apprentice.numba_"
 
 ]
