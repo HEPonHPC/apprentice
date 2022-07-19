@@ -39,21 +39,7 @@ MOCK_MODULES = [
     "numpy.lib.scimath",
     "matplotlib.pyplot",
     "GPy",
-    "pandas",
-    "apprentice.numba_",
-    "apprentice.rationalapproximation.RationalApproximation",
-    "apprentice.rationalapproximation.PolynomialApproximation",
-    "apprentice.util.Util",
-    "apprentice.surrogatemodel.SurrogateModel",
-    "apprentice.gaussianprocess.GaussianProcess",
-    "apprentice.function.Function",
-    "apprentice.leastsquares.LeastSquares",
-    "apprentice.generatortuning.GeneratorTuning",
-    "apprentice.minimizer.Minimizer",
-    "apprentice.scipyminimizer.ScipyMinimizer",
-    "apprentice.monomial",
-    "apprentice.space.Space"
-
+    "pandas"
 ]
 sys.path.insert(0, os.path.abspath('../../apprentice/'))
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
