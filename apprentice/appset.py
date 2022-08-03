@@ -1,3 +1,5 @@
+import copy
+
 import apprentice
 import numpy as np
 from apprentice.mpi4py_ import MPI_
@@ -555,7 +557,7 @@ class TuningObjective2(object):
         xbest = comm.bcast(xbest, root=0)
         return xbest
 
-    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddle_point_check=True,comm = MPI_.COMM_WORLD,minimize=True):
+    def minimizeMPI(self,nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6, saddle_point_check=True,comm = MPI_.COMM_WORLD,minimize=True,x00=None):
         # comm = MPI.COMM_WORLD
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -569,8 +571,9 @@ class TuningObjective2(object):
         import datetime
         t0 = time.time()
         for ii in rankWork:
+            xx00 = x00 if ii == 0 else None
             res = self.minimize(nstart=nstart,nrestart=1,sel=sel,method=method,tol=tol,
-                                saddle_point_check=saddle_point_check,use_MPI_for_x0=False,minimize=minimize)
+                                saddle_point_check=saddle_point_check,use_MPI_for_x0=False,minimize=minimize,x00=xx00)
             _res[ii] = res
             _F[ii] = res["fun"]
 
@@ -598,11 +601,11 @@ class TuningObjective2(object):
         return myreturnvalue
 
     def minimize(self, nstart=1, nrestart=1, sel=slice(None, None, None), method="tnc", tol=1e-6,
-                 minimize=True,saddle_point_check=True, use_mpi=False,use_MPI_for_x0 = False, comm=None):
+                 minimize=True,saddle_point_check=True, use_mpi=False,use_MPI_for_x0 = False, comm=None,x00=None):
         from scipy import optimize
         if not minimize: raise Exception("not implemented")
         if use_mpi: return self.minimizeMPI(nstart=nstart,nrestart=nrestart,sel=sel,method=method,tol=tol,
-                                            minimize=minimize,saddle_point_check=saddle_point_check,comm=comm)
+                                            minimize=minimize,saddle_point_check=saddle_point_check,comm=comm,x00=x00)
         minobj = np.Infinity
         finalres = None
         import time
@@ -611,7 +614,11 @@ class TuningObjective2(object):
             isSaddle = True
             maxtries=10
             while (isSaddle):
-                x0 = np.array(self.startPointMPI(nstart, sel=sel), dtype=np.float64) if use_MPI_for_x0 else np.array(
+                if x00 is not None:
+                    x0 = copy.deepcopy(x00)
+                    x00 = None
+                else:
+                    x0 = np.array(self.startPointMPI(nstart, sel=sel), dtype=np.float64) if use_MPI_for_x0 else np.array(
                             self.startPoint(nstart, sel=sel), dtype=np.float64)
 
                 if   method=="tnc":    res = self.minimizeTNC(   x0, sel, tol=tol)
