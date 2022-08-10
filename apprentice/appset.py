@@ -440,24 +440,36 @@ class TuningObjective2(object):
         """
         columnnames = list(surrogate_alternate_df.index)
         rownames = list(surrogate_alternate_df.columns.values)
-        obj_val = 0.
+        obj_val_all = []
         for cnum in range(0, len(columnnames),2):
-            val = surrogate_alternate_df[rownames[0]]['{}'.format(columnnames[cnum+1])]
-            if self._EAS is not None:
-                err = surrogate_alternate_df[rownames[1]]['{}'.format(columnnames[cnum+1])]
-            else:
-                err = [0.]
             term_name = columnnames[cnum].split('.')[0]
             if '#' not in term_name:
                 term_name += "#1"
-            if term_name in self._binids and len(val) > 0:
-                ionum = self._binids.index(term_name)
-                w2 = 1. if unbiased else self._W2[ionum]
-                obj_val += w2 * (
-                        (val[0] - self._Y[ionum]) ** 2 / (err[0] ** 2 + self._E[ionum] ** 2))
-            else:
-                continue
-        return obj_val
+            for pno in range(len(surrogate_alternate_df[rownames[0]]['{}'.format(columnnames[cnum])])):
+                try:
+                    val = surrogate_alternate_df[rownames[0]]['{}'.format(columnnames[cnum+1])][pno]
+                except:
+                    val = None
+                if self._EAS is not None:
+                    try:
+                        err = surrogate_alternate_df[rownames[1]]['{}'.format(columnnames[cnum+1])][pno]
+                    except:
+                        err = 0.
+                else:
+                    err = 0.
+
+                if term_name in self._binids and val is not None:
+                    ionum = self._binids.index(term_name)
+                    w2 = 1. if unbiased else self._W2[ionum]
+                    obj_val = w2 * (
+                            (val - self._Y[ionum]) ** 2 / (err ** 2 + self._E[ionum] ** 2))
+                else:
+                    obj_val = 0.
+                if cnum == 0:
+                    obj_val_all.append(obj_val)
+                else:
+                    obj_val_all[pno] += obj_val
+        return obj_val_all
 
     def objective(self, _x, sel=slice(None, None, None), unbiased=False):
         x=self.mkPoint(_x)
