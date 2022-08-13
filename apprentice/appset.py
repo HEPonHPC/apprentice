@@ -789,6 +789,7 @@ class TuningObjective2(object):
                     res['fun'] = np.infty
                     break
                 x0 = [x + x*random.uniform(-0.09, 0.09) for x in x0]
+            ntry += 1
         return res
 
     def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
