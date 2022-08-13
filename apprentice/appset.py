@@ -772,12 +772,23 @@ class TuningObjective2(object):
 
     def minimizeTNC(self, x0, sel=slice(None, None, None), tol=1e-6):
         from scipy import optimize
-        res = optimize.minimize(
-                lambda x: self.objective(x, sel=sel),
-                x0,
-                bounds=self._bounds[self._freeIdx],
-                jac=lambda x:self.gradient(x, sel=sel),
-                method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+        ntries = 10
+        ntry = 0
+        while ntry < ntries:
+            res = optimize.minimize(
+                    lambda x: self.objective(x, sel=sel),
+                    x0,
+                    bounds=self._bounds[self._freeIdx],
+                    jac=lambda x:self.gradient(x, sel=sel),
+                    method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+            if self.objective(x0, sel=sel) != self.objective(res['x'], sel=sel):
+                break
+            else:
+                import random
+                if ntry == ntries-1:
+                    res['fun'] = np.infty
+                    break
+                x0 = [x + x*random.uniform(-0.09, 0.09) for x in x0]
         return res
 
     def minimizeLBFGSB(self, x0, sel=slice(None, None, None), tol=1e-6):
