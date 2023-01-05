@@ -433,7 +433,7 @@ def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=Non
 
     hids=np.array([b.split("#")[0] for b in vals._binids])
 #   the following will remove duplicates but preserve the order
-    hnames=list(dict.fromkeys(hids))
+    hnames = sorted(set(hids))
     observables = sorted([x for x in set(app.io.readObs(wfile)) if x in hnames]) if wfile is not None else hnames
 
     with open(fvals) as f:
@@ -441,21 +441,21 @@ def prediction2YODA(fvals, Peval, fout="predictions.yoda", ferrs=None, wfile=Non
         rd = json.load(f)
         xmin = np.array(rd["__xmin"])
         xmax = np.array(rd["__xmax"])
-# The order of the keys in the JSON read are not set
-    analysisIds=np.array([b.split("#")[0] for b in list(rd.keys())])
+    ids_nicesort = vals._binids
+    ids_likefile = [x for x in rd.keys() if not x.startswith("__")]
+    likefile2nicesort = [ids_likefile.index(x) for x in ids_nicesort]
+    xmin = xmin[likefile2nicesort]
+    xmax = xmax[likefile2nicesort]
 
     DX = (xmax-xmin)*0.5
     X  = xmin + DX
     Y2D = []
+
 # X and Y are not guaranteed to be in the same order
     import yoda
-    start = 0
     for obs in observables:
-        idx = np.where(analysisIds==obs)
-        strand = np.size(idx)
-        jdx = np.arange(start,start+strand)
-        start = start + strand
-        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[jdx], DX[idx], dY[jdx])]
+        idx = np.where(hids==obs)
+        P2D = [yoda.Point2D(x,y,dx,dy) for x,y,dx,dy in zip(X[idx], Y[idx], DX[idx], dY[idx])]
         Y2D.append(yoda.Scatter2D(P2D, obs, obs))
     yoda.write(Y2D, fout)
 

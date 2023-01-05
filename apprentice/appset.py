@@ -383,9 +383,9 @@ class TuningObjective2(object):
         self._hnames = np.array([b.split("#")[0]  for b in self._binids])
         # Add in error approximations
         if f_errors is not None:
-            EAS = AppSet(f_errors)
-            ERA = [EAS._RA[g] for g in good]
-            self._EAS=AppSet(ERA, self._binids)
+        #    EAS = AppSet(f_errors)
+        #    ERA = [EAS._RA[g] for g in good]
+            self._EAS=AppSet(f_errors, binids=self._binids)
         else:
             self._EAS=None
         self.setAttributes(**kwargs)
