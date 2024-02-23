@@ -197,7 +197,7 @@ def read_histos(path):
     """
     import yoda
     from packaging import version
-    if version.Version(yoda.__version__.decode()) < version.parse("1.8.0"):
+    if version.Version(yoda.__version__) < version.parse("1.8.0"):
         return read_yoda_pre180(path)
 
     histos = {}
