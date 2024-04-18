@@ -24,7 +24,6 @@ def refitPolyAX(p, A, X):
     # import scipy
     # return scipy.linalg.lapack.dgesv(A,b)[2]
 
-# deprecated
 def regularise(app, threshold=1e-6):
     pc = np.zeros_like(app._pcoeff)
     for num, c in enumerate(app._pcoeff):
@@ -38,15 +37,17 @@ def regularise(app, threshold=1e-6):
         app._qcoeff=qc
 
 def denomMinMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
     from scipy import optimize
-    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=rapp.fnspace.box) for sp in rapp.fnspace.sample(multistart)]
+    opt = [optimize.minimize(lambda x:rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
     return X[np.argmin(Y)]
 
 def denomMaxMS(rapp, multistart=10):
+    box=rapp._scaler.box_scaled
     from scipy import optimize
-    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=rapp.fnspace.box) for sp in rapp.fnspace.sample(multistart)]
+    opt = [optimize.minimize(lambda x:-rapp.denom(x), sp, bounds=box) for sp in rapp._scaler.drawSamples_scaled(multistart)]
     Y = [o["fun"] for o in opt]
     X = [o["x"]   for o in opt]
     return X[np.argmin(Y)]
@@ -59,26 +60,38 @@ def denomChangesSignMS(rapp, multistart=10):
     else:   return False, xmin, xmax
 
 
-# N = 1 --> 1.1 (uses ipopt)
-# N > 1 --> 2.1 if not care about poles
-# N > 1 --> 3.1 if care about poles
-
-def calcApprox(X, Y, order, pnames, careaboutpoles=True, fit_solver="ipopt", local_solver="ipopt", test_for_poles=100):
+def calcApprox(X, Y, order, pnames, mode= "sip", onbtol=-1, debug=False, testforPoles=100, ftol=1e-9, itslsqp=200):
     M, N = order
     import apprentice as app
     if N==0:
-        _app = app.PolynomialApproximation.from_interpolation_points(X, Y, m=M, pnames=pnames)
-        hasPole=False
-    elif N==1:
-        _app = app.RationalApproximation.from_interpolation_points(X, Y, m=M, n=N, pnames=pnames, strategy="1.1", fit_solver=fit_solver)
+        _app = app.PolynomialApproximation(X, Y, order=M, pnames=pnames)
         hasPole=False
     else:
-        if careaboutpoles:
-            _app = app.RationalApproximation.from_interpolation_points(X, Y, m=M, n=N, pnames=pnames, strategy="3.1", fit_solver=fit_solver, local_solver=local_solver)
+        if mode == "la":    _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2)
+        elif mode == "onb": _app = app.RationalApproximationONB(X, Y, order=(M,N), pnames=pnames, tol=onbtol, debug=debug)
+        elif mode == "sip":
+            try:
+                _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+        elif mode == "lasip":
+            try:
+                _app = app.RationalApproximation(X, Y, order=(M,N), pnames=pnames, strategy=2, debug=debug)
+            except Exception as e:
+                print("Exception:", e)
+                return None, True
+            has_pole = denomChangesSignMS(_app, 100)[0]
+            if has_pole:
+                try:
+                    _app = app.RationalApproximationSLSQP(X, Y, order=(M,N), pnames=pnames, debug=debug, ftol=ftol, itslsqp=itslsqp)
+                except Exception as e:
+                    print("Exception:", e)
+                    return None, True
         else:
-            _app = app.RationalApproximation.from_interpolation_points(X, Y, m=M, n=N, pnames=pnames, strategy="2.1") # Linear algebra
+            raise Exception("Specified mode {} does not exist, choose la|onb|sip".format(mode))
+        hasPole = denomChangesSignMS(_app, testforPoles)[0]
 
-        hasPole = denomChangesSignMS(_app, test_for_poles)[0]
     return _app, hasPole
 
 def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
@@ -98,7 +111,6 @@ def extreme(app, nsamples=1, nrestart=1, use_grad=False, mode="min"):
     return PF*min(res)
 
 
-# deprecated
 def neighbours(arr, karr):
     n = len(arr)
     asum, maxcount, maxstartindex, maxendindex, changestartto = 0, 0, 0, 0, 0
@@ -120,7 +132,7 @@ def neighbours(arr, karr):
         maxstartindex += 1
     return maxcount, maxstartindex, maxendindex
 
-# keep?
+
 def pInBox(P, box):
     for i in range(len(P)):
         if P[i] < box[i][0]: return False
@@ -132,7 +144,7 @@ def pInBox(P, box):
 
 import re
 
-# move somewhere else
+
 def sorted_nicely(l):
     """ Sorts the given iterable in the way that is expected.
 
@@ -305,7 +317,8 @@ def gradientRecursion(X, struct, jacfac):
         REC[coord][nonzero] = np.prod(RR, axis=1)
     return REC
 
-def gradientRecurrenceFast(X, struct, jacfac, NNZ, sred):
+@jit(forceobj=True, parallel=True)
+def gradientRecursionFast(X, struct, jacfac, NNZ, sred):
     """
     X ... scaled point
     struct ... polynomial structure
@@ -819,7 +832,7 @@ class TuningObjective(object):
         if set_cache: self.setCache(x)
         xs = self._SCLR.scale(x)
         JF = self._SCLR.jacfac
-        GREC = gradientRecurrenceFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
+        GREC = gradientRecursionFast(xs, self._structure, self._SCLR.jacfac, self._NNZ, self._sred)
 
         Pprime = np.sum(self._PC[sel].reshape((self._PC[sel].shape[0], 1, self._PC[sel].shape[1])) * GREC, axis=2)
 
@@ -856,8 +869,14 @@ class TuningObjective(object):
 
     def gradient(self, x, sel=slice(None, None, None), unbiased=False):
         self.setCache(x)
+        # vals = np.sum(self._maxrec * self._PC[sel], axis=1)
         vals  = self.getVals( x, sel, set_cache=False)
         grads = self.getGrads(x, sel, set_cache=False)
+        # X = self._SCLR.scale(x)
+        # JF = self._SCLR.jacfac
+        # struct = self._structure
+        # GR = gradientRecursion(X, struct, JF)
+        # temp = np.sum(self._PC.reshape((self._PC.shape[0], 1, self._PC.shape[1])) * GR, axis=2)
 
         return fast_grad(self._W2[sel], self._Y[sel] - vals, self._E2[sel], grads)
 

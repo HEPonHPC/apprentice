@@ -6,6 +6,14 @@ import apprentice
 
 from apprentice.numba_ import jit, njit
 
+@jit
+def fast_robustObj(coeff, q_ipo, M, N):
+    s=0.0
+    for i in range(M, M + N):
+        s += coeff[i]*q_ipo[i-M]
+    return s
+
+
 """
 Print scipy model
 """
@@ -14,10 +22,13 @@ def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
     for index in range(trainingsize):
         p_ipo = ipop[index]
         q_ipo = ipoq[index]
+
         s += "(%f * ("%(Y[index])
         for i in range(M, M+N):
             if(i!=M): s+=" + "
             s += "coeff[%d]*%f"%(i+1,q_ipo[i-M])
+
+
         s+= ") - ("
         for i in range(M):
             if(i!=0): s+=" + "
@@ -36,11 +47,15 @@ def printscipymodel(trainingsize,ipop, ipoq, M, N, Y):
             s += "coeff[%d]*%f"%(i+1,q_ipo[i-M])
 
         s+=">=1;\n"
+
+
+
     print(s)
 
 @njit(fastmath=True, parallel=True)
 def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
     # c=""
+
     ret = np.zeros(trainingsize,dtype=np.float64)
     for ts in range(trainingsize):
         mysum = 0
@@ -53,53 +68,73 @@ def fast_robustSample_for_fmin_slsqp(coeff, trainingsize, ipop, ipoq, M, N, Y):
         ret[ts] = mysum - 1.0
     return ret
 
-def fast_robustSampleV(coeff, q_ipo, M, N):
-    return np.sum(coeff[M:M+N] * q_ipo, axis=1) - 1.0
-
+@njit(fastmath=True, parallel=True)
 def fast_robustSample(coeff, q_ipo, M, N):
-    return np.sum(coeff[M:M+N] * q_ipo) - 1.0
+    # c=""
+    mysum=0.0
+    for i in range(M, M+N):
+        mysum += coeff[i]*q_ipo[i-M]
+        # c+= " {}*coeff[{}]".format(q_ipo[i-M], i)
+    # c+=" -1"
+    # print(c)
+    return mysum - 1.0
 
+
+@njit(fastmath=True, parallel=True)
 def fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y):
-    return np.sum(np.square(Y * np.sum(coeff[M:M+N] * ipoq, axis=1) - np.sum(coeff[:M] * ipop, axis=1)))
+    mysum = 0.0
 
-def fast_jac(coeff, _, ipop, ipoq, M, N, Y):
-    """
-    Exact analytic gradient of fast_leastSqObj
-    """
-    core = Y * np.sum(coeff[M:M+N] * ipoq, axis=1) - np.sum(coeff[:M] * ipop, axis=1)
-    grads = np.empty_like(coeff)
+    # s=""
+    for index in range(trainingsize):
+        p_ipo = ipop[index]
+        q_ipo = ipoq[index]
 
-    pgrad = -2*np.sum(core[:,np.newaxis]                    *ipop, axis=0)
-    qgrad =  2*np.sum(core[:,np.newaxis] * Y[:,np.newaxis] * ipoq, axis=0)
+        # sp = ""
+        myP = 0.0
+        for i in range(M):
+            myP += coeff[i]*p_ipo[i]
+            # sp+= " + coeff[{}]*({})".format(i+1, p_ipo[i])
 
-    grads[:M]    = pgrad
-    grads[M:M+N] = qgrad
+        # sq = ""
+        myQ = 0.0
+        for i in range(M, M+N):
+            myQ += coeff[i]*q_ipo[i-M]
+            # sq+= " + coeff[{}]*({})".format(i+1, q_ipo[i-M])
 
-    return grads
+        mysum += (Y[index] * myQ - myP)**2
+        # s+= "({} * ({}) - ({}))**2".format(Y[index], sq, sp)
+    # print(s)
+    # import sys
+    # sys.exit(1)
+    return mysum
 
-def fast_jac2(coeff, trainingsize, ipop, ipoq, M, N, Y):
-    """
-    Forward difference gradient of fast_leastSqObj
-    """
-    f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
+@njit(fastmath=True, parallel=True)
+def fast_jac(coeff, trainingsize, ipop, ipoq, M, N, Y):
     h = 1.5e-8
     jac = np.zeros_like(coeff)
-
-    for num in range(len(coeff)):
-        temp=np.zeros_like(coeff)
-        temp[num]+=h
-        jac[num]=(fast_leastSqObj(coeff+temp, trainingsize, ipop, ipoq, M, N, Y) -f_0)/h
+    f_0 = fast_leastSqObj(coeff, trainingsize, ipop, ipoq, M, N, Y)
+    for i in range(len(coeff)):
+        x_d = np.copy(coeff)
+        x_d[i] += h
+        f_d = fast_leastSqObj(x_d, trainingsize, ipop, ipoq, M, N, Y)
+        jac[i] = (f_d - f_0) / h
     return jac
 
-def calculateNonLin(dim, n):
-    if(n==0): return 0
-    from apprentice import tools
-    N = tools.numCoeffsPoly(dim, n)
-    return N - (dim + 1)
+@njit(fastmath=True, parallel=True)
+def fast_jac_robo(coeff, q_ipo, M, N):
+    h = 1.5e-8
+    jac = np.zeros_like(coeff)
+    f_0 = fast_robustObj(coeff, q_ipo, M, N)
+    for i in range(len(coeff)):
+        x_d = np.copy(coeff)
+        x_d[i] += h
+        f_d = fast_robustObj(x_d, q_ipo, M, N)
+        jac[i] = (f_d - f_0) / h
+    return jac
 
 # from sklearn.base import BaseEstimator, RegressorMixin
 # class RationalApproximationSIP(BaseEstimator, RegressorMixin):
-class RationalApproximationSIP():
+class RationalApproximationSIPONB():
     def __init__(self, *args, **kwargs):
         """
         Multivariate rational approximation p(x)_m/q(x)_n
@@ -131,7 +166,6 @@ class RationalApproximationSIP():
             fitstrategy     --- strategy to perform the fitting (least squares and sparse) --- if omitted: auto 'scipy' used
                                 scipy: SLSQP optimization solver in scipy (scipy.SLSQP)
                                 filter: filterSQP solver through pyomo (REQUIRED: pyomo and filter executable in PATH)
-                                ipopt:  IPOPT solver through pyomo (REQUIRED: pyomo and ipopt executable in PATH)
             roboptstrategy  --- strategy to optimize robust objective --- if omitted: auto 'ms' used
                                 ss: single start algorithm using scipy.L-BFGS-B local optimizer
                                 ms: multistart algorithm (with 10 restarts at random points from the box) using scipy.L-BFGS-B local optimizer
@@ -149,7 +183,6 @@ class RationalApproximationSIP():
                                 required for strategy 1 and 2
 
         """
-        self._debug = kwargs["debug"] if kwargs.get("debug") is not None else  False
         import os
         if len(args) == 0:
             pass
@@ -165,10 +198,10 @@ class RationalApproximationSIP():
                 _scale_max   = kwargs["scalemax"] if kwargs.get("scalemax") is not None else  1
                 self._scaler = apprentice.Scaler(np.array(args[0], dtype=np.float64), a=_scale_min, b=_scale_max, pnames=_pnames)
                 self._X      = self._scaler.scaledPoints
+                # ONB in scaled world
+                self._ONB = apprentice.ONB(self._X)
                 self._dim = self._X[0].shape[0]
                 self._Y      = np.array(args[1], dtype=np.float64)
-                if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
-                else           : self.recurrence=apprentice.monomial.recurrence
                 self.mkFromData(kwargs=kwargs)
 
     @property
@@ -221,8 +254,6 @@ class RationalApproximationSIP():
         self._qcoeff        = np.array(pdict["qcoeff"])
         self._iterationinfo = pdict["iterationinfo"]
         self._dim           = pdict["dim"]
-        if self._dim==1: self.recurrence=apprentice.monomial.recurrence1D
-        else           : self.recurrence=apprentice.monomial.recurrence
         self._m             = pdict["m"]
         self._n             = pdict["n"]
         self._M             = pdict["M"]
@@ -258,18 +289,15 @@ class RationalApproximationSIP():
         self._M                 = tools.numCoeffsPoly(self.dim, self.m)
         self._N                 = tools.numCoeffsPoly(self.dim, self.n)
         self._strategy          = int(kwargs["strategy"]) if kwargs.get("strategy") is not None else 0
-        self._dumpaftereachiter = int(kwargs["dumpaftereachiter"]) if kwargs.get("dumpaftereachiter") is not None else  0
-        import uuid
-        self._uniqueid          = str(uuid.uuid4().fields[-1])
-
         self._roboptstrategy    = kwargs["roboptstrategy"] if kwargs.get("roboptstrategy") is not None else "ms"
         self._localoptsolver    = kwargs["localoptsolver"] if kwargs.get("localoptsolver") is not None else "scipy"
         self._fitstrategy       = kwargs["fitstrategy"] if kwargs.get("fitstrategy") is not None else "scipy"
 
-        self._fitpyomodebug = kwargs["fitpyomodebug"] if kwargs.get("fitpyomodebug") is not None else 0
-        if self._fitpyomodebug == 2:
+        self._filterpyomodebug = kwargs["filterpyomodebug"] if kwargs.get("filterpyomodebug") is not None else 0
+        if self._filterpyomodebug == 2:
             self._debugfolder      = kwargs["debugfolder"]
             self._fnname           = kwargs["fnname"]
+
 
         self._trainingscale = kwargs["trainingscale"] if kwargs.get("trainingscale") is not None else "1x"
         if(self.trainingscale == ".5x" or self.trainingscale == "0.5x"):
@@ -294,23 +322,26 @@ class RationalApproximationSIP():
         elif(self.strategy ==1 or self.strategy==2):
             raise Exception("Binary Penalty for denomintor equired for strategy 1 and 2")
 
-        self._struct_p      = apprentice.monomialStructure(self.dim, self.m)
-        self._struct_q      = apprentice.monomialStructure(self.dim, self.n)
+
+        # self._struct_p      = apprentice.monomialStructure(self.dim, self.m)
+        # self._struct_q      = apprentice.monomialStructure(self.dim, self.n)
 
         self._ipo            = np.empty((self.trainingsize,2), "object")
+
+        # Here we set up the recurrence relations
         for i in range(self.trainingsize):
-            self._ipo[i][0] = self.recurrence(self._X[i,:],self._struct_p)
-            self._ipo[i][1] = self.recurrence(self._X[i,:],self._struct_q)
+            self._ipo[i][0] = self._ONB._recurrence(self._X[i,:], self.M)
+            self._ipo[i][1] = self._ONB._recurrence(self._X[i,:], self.N)
         start = timer()
         self.fit()
         end = timer()
         self._fittime = end-start
 
+    """
+    Test function that uses fmin_slsqp for fitting. The function is slow  but
+    is good for debugging - Do not reomve
+    """
     def scipyfit2(self,coeffs0):
-        """
-        Test function that uses fmin_slsqp for fitting. The function is slow  but
-        is good for debugging - Do not remove
-        """
         from scipy.optimize import fmin_slsqp
         start = timer()
         ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
@@ -325,51 +356,49 @@ class RationalApproximationSIP():
         print(its,imode,smode)
         exit(1)
 
+    """
+    Callback function to print obj value per iteration - Do not remove
+    """
     def callbackF(self, coeff):
-        """
-        Callback function to print obj value per iteration - Do not remove
-        """
         ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
         ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
         #print '{0:4d}   {1: .6E}'.format(self.Nfeval, fast_leastSqObj(coeff, self.trainingsize, ipop, ipoq, self.M, self.N, self._Y))
         self.Nfeval += 1
 
-    def scipyfit(self, coeffs0, cons, maxiter=1001, ftol=1e-9, iprint=2):
+
+    def scipyfit(self, coeffs0, cons):
         start = timer()
-        ipop = np.array([self._ipo[i][0] for i in range(self.trainingsize)])
-        ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
+        ipop =[self._ipo[i][0] for i in range(self.trainingsize)]
+        ipoq =[self._ipo[i][1] for i in range(self.trainingsize)]
         ret = minimize(fast_leastSqObj, coeffs0 , args=(self.trainingsize, ipop, ipoq, self.M, self.N, self._Y),
                 jac=fast_jac, method = 'SLSQP', constraints=cons,
-                options={'maxiter': maxiter, 'ftol': ftol, 'disp': self._debug, 'iprint': iprint})
+                options={'maxiter': 100000, 'ftol': 1e-6, 'disp': False})
         end = timer()
         optstatus = {'message':ret.get('message'),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
-        return ret.get('x'), ret.get('fun'), optstatus
+
+        coeffs = ret.get('x')
+        leastSq = ret.get('fun')
+        return coeffs,leastSq,optstatus
 
     # Does 1 fitting for now
-    def pyomofit(self, iterationNo, solver='filter'):
+    def filterpyomofit(self,iterationNo):
         from pyomo import environ
 
         def lsqObjPyomo(model):
             sum = 0
-            sigma = self._penaltyparam
             for index in range(model.trainingsize):
                 p_ipo = model.pipo[index]
                 q_ipo = model.qipo[index]
 
                 P=0
-                coeffsump=0
                 for i in model.prange:
                     P += model.coeff[i]*p_ipo[i]
-                    coeffsump+=model.coeff[i]**2
 
                 Q=0
-                coeffsumq=0
                 for i in model.qrange:
                     Q += model.coeff[i]*q_ipo[i-model.M]
-                    coeffsumq+=model.coeff[i]**2
 
-                # sum += (model.Y[index] * Q - P)**2 # sigma = 0
-                sum += (model.Y[index] * Q - P)**2 + sigma*(coeffsump + coeffsumq)
+                sum += (model.Y[index] * Q - P)**2
             return sum
 
         def robustConstrPyomo(model,index):
@@ -378,7 +407,7 @@ class RationalApproximationSIP():
             Q=0
             for i in model.qrange:
                 Q += model.coeff[i]*q_ipo[i-model.M]
-            return Q >= 0.2
+            return Q >= 1
 
         if(self._strategy != 0):
             raise Exception("strategy %d for fitstrategy, %s not yet implemented"%(self.strategy, self.fitstrategy))
@@ -408,12 +437,11 @@ class RationalApproximationSIP():
 
         model.robustConstr = environ.Constraint(model.trainingsizerangeforconstr, rule=robustConstrPyomo)
 
-        opt = environ.SolverFactory(solver)
-        # opt = environ.SolverFactory('ipopt')
+        opt = environ.SolverFactory('filter')
         # opt.options['eps'] = 1e-10
         # opt.options['iprint'] = 1
 
-        pyomodebug = self._fitpyomodebug
+        pyomodebug = self._filterpyomodebug
         if(pyomodebug == 0):
             ret = opt.solve(model)
         elif(pyomodebug == 1):
@@ -425,15 +453,11 @@ class RationalApproximationSIP():
             model.pprint()
             ret.write()
         elif(pyomodebug==2):
-            if(solver == 'filter'):
-                opt.options['iprint'] = 1
-                opt.options['rho'] = 10**10
-                # opt.options['maxiter'] = 1
-                # opt.options['z_print'] = -1
+            opt.options['iprint'] = 1
             logfn = "%s/%s_p%d_q%d_ts%s_i%d.log"%(self._debugfolder,self._fnname,self.m,self.n,self.trainingscale,iterationNo)
-            self.printDebug("Starting %s"%(solver))
+            self.printDebug("Starting filter")
             ret = opt.solve(model,logfile=logfn)
-            #ret = opt.solve(model, logfile=logfn, keepfiles=True)
+
 
         optstatus = {'message':str(ret.solver.termination_condition),'status':str(ret.solver.status),'time':ret.solver.time,'error_rc':ret.solver.error_rc}
 
@@ -442,25 +466,33 @@ class RationalApproximationSIP():
 
         return coeffs,leastSq,optstatus
 
-    def fit(self, maxIterations=1000, maxRestarts=100, threshold=0.02):
+    def fit(self):
+        def calcualteNonLin(dim, n):
+            if(n==0):
+                return 0
+            N = tools.numCoeffsPoly(dim, n)
+
+            return N - (dim + 1)
         # Strategies:
         # 0: LSQ with SIP and without penalty
         # 1: LSQ with SIP and some coeffs set to 0 (using constraints)
         # 2: LSQ with SIP, penaltyParam > 0 and all or some coeffs in L1 term
 
-        p_penaltyIndex, q_penaltyIndex = [], []
+        p_penaltyIndex = []
+        q_penaltyIndex = []
         if(self.strategy ==1 or self.strategy == 2):
             p_penaltyIndex, q_penaltyIndex = self.createPenaltyIndexArr()
 
-        cons = np.empty(0, "object")
+        cons = np.empty(self.trainingsize, "object")
         coeffs0 = []
 
         if(self._fitstrategy == 'scipy'):
-            ipoq = np.array([self._ipo[i][1] for i in range(self.trainingsize)])
-            cons = np.append(cons, {'type': 'ineq', 'fun':fast_robustSampleV, 'args':(ipoq, self.M, self.N)})
+            for trainingIndex in range(self.trainingsize):
+                q_ipo = self._ipo[trainingIndex][1]
+                cons[trainingIndex] = {'type': 'ineq', 'fun':fast_robustSample, 'args':(q_ipo, self.M, self.N)}
+                # cons[trainingIndex] = {'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo,)}
 
             if(self.strategy == 0):
-                # TODO need to check if this is a feasible point!
                 coeffs0 = np.ones((self.M+self.N))
                 coeffs0[self.M] = 2
             elif(self.strategy == 1):
@@ -480,27 +512,20 @@ class RationalApproximationSIP():
             else:
                 raise Exception("strategy %i not implemented"%self.strategy)
 
+        maxIterations = 100 # hardcode for now. Param later?
+        maxRestarts = 100    # hardcode for now. Param later?
+        threshold = 0.02
         self._iterationinfo = []
-        for iter in range(1, maxIterations+1):
+        for iter in range(1,maxIterations+1):
             data = {}
             data['iterationNo'] = iter
             self.printDebug("Starting lsq for iter %d"%(iter))
 
             if(self._fitstrategy == 'scipy'):
-                coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
-                # This is a bit brutal trial and error,
-                # if the starting point was not good, we just try again with a random
-                # vector, otherwise coeffs is always the same and this loop does nothing
-                # but waste time
-                if optstatus['status']!=0:
-                    fixme=True
-                    while fixme:
-                        coeffs0 = np.random.random(coeffs0.shape)
-                        coeffs, leastSq, optstatus = self.scipyfit(coeffs0, cons)
-                        if optstatus['status']!=0:
-                            fixme=False
-            elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
-                coeffs, leastSq, optstatus = self.pyomofit(iter-1,self._fitstrategy)
+                coeffs,leastSq,optstatus = self.scipyfit(coeffs0, cons)
+                # coeffs,leastSq,optstatus = self.scipyfit2(coeffs0)
+            elif(self._fitstrategy == 'filter'):
+                coeffs,leastSq,optstatus = self.filterpyomofit(iter-1)
             else:raise Exception("fitstrategy %s not implemented"%self.fitstrategy)
 
             data['log'] = optstatus
@@ -508,17 +533,10 @@ class RationalApproximationSIP():
             data['pcoeff'] = coeffs[0:self.M].tolist()
             data['qcoeff'] = coeffs[self.M:self.M+self.N].tolist()
 
-            if(self.strategy == 2 or  self.strategy == 0):
+            if(self.strategy == 2):
                 lsqsplit = {}
-                l1term = 0
-                if(self.strategy == 2):
-                    l1term = self.computel1Term(coeffs,p_penaltyIndex,q_penaltyIndex)
-                elif(self.strategy == 0):
-                    l1term = self.computel1Term(coeffs)
-                if self.penaltyparam != 0:
-                    lsqsplit['l1term'] = l1term
-                else:
-                    lsqsplit['l1term'] = 0
+                l1term = self.computel1Term(coeffs,p_penaltyIndex,q_penaltyIndex)
+                lsqsplit['l1term'] = l1term
                 lsqsplit['l2term'] = leastSq - self.penaltyparam * l1term
                 data['leastSqSplit'] = lsqsplit
 
@@ -526,10 +544,12 @@ class RationalApproximationSIP():
             robO = 0
             x = []
             if(self._roboptstrategy == 'ss'):
+                maxRestarts = 1
                 self.printDebug("Starting ss")
-                x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs, 1, threshold)
+                x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
             elif(self._roboptstrategy == 'ms'):
+                maxRestarts = 100
                 self.printDebug("Starting ms")
                 x, robO, restartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 data['robOptInfo'] = {'robustArg':x.tolist(),'robustObj':robO,'info':restartInfo}
@@ -549,7 +569,7 @@ class RationalApproximationSIP():
                 self.printDebug("Starting msbarontime")
                 a = 9.12758564
                 b = 0.03065447
-                nnl = calculateNonLin(self.dim,self.n)
+                nnl = calcualteNonLin(self.dim,self.n)
                 time = a*np.exp(b * nnl)
                 x, robO, info = self.multipleRestartForTimeRobO(coeffs,time,threshold)
                 d = info[len(info)-1]
@@ -560,7 +580,8 @@ class RationalApproximationSIP():
             elif(self._roboptstrategy == 'ss_ms_so_ba'):
                 # ss
                 self.printDebug("Starting ss")
-                ssx, ssrobO, ssrestartInfo = self.multipleRestartForIterRobO(coeffs, 1, threshold)
+                maxRestarts = 1
+                ssx, ssrobO, ssrestartInfo = self.multipleRestartForIterRobO(coeffs,maxRestarts,threshold)
                 sstime = ssrestartInfo[0]['log']['time'] #in sec
 
                 # ba
@@ -632,31 +653,25 @@ class RationalApproximationSIP():
             else: raise Exception("rob opt strategy unknown")
 
             self._iterationinfo.append(data)
-            if self._dumpaftereachiter == 1:
-                self._pcoeff = np.array(["see pcoeff from last iter"])
-                self._qcoeff = np.array(["see qcoeff from last iter"])
-                self._fittime = 0
-                self.save("/tmp/"+self._uniqueid+".json")
-                self.printDebug("Output written to: /tmp/"+self._uniqueid+".json")
-
             if(robO >= threshold):
                 break
 
             q_ipo_new = self.recurrence(x,self._struct_q)
             if(self._fitstrategy == 'scipy'):
                 cons = np.append(cons,{'type': 'ineq', 'fun':self.robustSample, 'args':(q_ipo_new,)})
-            elif(self._fitstrategy == 'filter' or self._fitstrategy == 'ipopt'):
+            elif(self._fitstrategy == 'filter'):
                 self._ipo = np.vstack([self._ipo, np.empty((1,2),"object")])
                 self._ipo[self.trainingsize+iter-1][1] = q_ipo_new
 
         if(len(self._iterationinfo) == maxIterations and self._iterationinfo[maxIterations-1]['robOptInfo']["robustObj"]<threshold):
-            import json
-            j = json.dumps(self._iterationinfo,indent=4, sort_keys=True)
+            print("Final robo: {}".format(robO))
+            # import json
+            # j = json.dumps(self._iterationinfo,indent=4, sort_keys=True)
             raise Exception(j+"\nCould not find a robust objective")
         self._pcoeff = np.array(self._iterationinfo[len(self._iterationinfo)-1]["pcoeff"])
         self._qcoeff = np.array(self._iterationinfo[len(self._iterationinfo)-1]["qcoeff"])
 
-    def solveForTimeRobO(self, coeff, maxTime=5, threshold=0.2):
+    def solveForTimeRobO(self, coeff, maxTime=5,threshold=0.2):
         info = []
         minx = []
         minq = np.inf
@@ -839,7 +854,7 @@ class RationalApproximationSIP():
         restartInfo.append({'log':{'time':totaltime, 'noRestarts':r}})
         return minx, minrobO, restartInfo
 
-    def multipleRestartForIterRobO(self, coeffs, maxRestarts=10, threshold=0.2):
+    def multipleRestartForIterRobO(self, coeffs, maxRestarts = 10,threshold=0.2):
         minx = []
         restartInfo = []
         minrobO = np.inf
@@ -879,6 +894,7 @@ class RationalApproximationSIP():
                 x0[d] = np.random.rand()*(self.box[d][1]-self.box[d][0])+self.box[d][0]
         start = timer()
         ret = minimize(self.robustObj, x0, bounds=self.box, args = (coeffs,),method = solver, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
+        # ret = minimize(self.robustObj, x0, jac=fast_jac_robo, bounds=self.box, args = (coeffs,),method = solver, options={'maxiter': 1000,'ftol': 1e-4, 'disp': False})
         end = timer()
         optstatus = {'message':ret.get('message').decode(),'status':ret.get('status'),'noOfIterations':ret.get('nit'),'time':end-start}
 
@@ -910,15 +926,6 @@ class RationalApproximationSIP():
                 l1Term += term
         return l1Term
 
-    def computel1Term(self,coeff):
-        coeffsump = 0
-        for i in range(self.M):
-            coeffsump += coeff[i]**2
-        coeffsumq = 0
-        for i in range(self.M,self.M+self.N):
-            coeffsumq += coeff[i]**2
-        return (coeffsump + coeffsumq)
-
     def leastSqObjWithPenalty(self,coeff,p_penaltyIndexs=np.array([]), q_penaltyIndexs=np.array([])):
         sum = self.leastSqObj(coeff)
         l1Term = self.penaltyparam * self.computel1Term(coeff, p_penaltyIndexs, q_penaltyIndexs)
@@ -948,8 +955,8 @@ class RationalApproximationSIP():
             ret = coeff[self.M+index]
         return ret
 
-    def robustSample(self, coeff, q_ipo):
-        return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)]) - 1
+    def robustSample(self,coeff, q_ipo):
+        return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])-1
 
     def robustObjWithGrad(self, x, grad, coeff):
         if grad.size > 0:
@@ -961,9 +968,11 @@ class RationalApproximationSIP():
         res = np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
         return res
 
-    def robustObj(self, x, coeff):
-        q_ipo = self.recurrence(x, self._struct_q)
-        return np.dot(coeff[self.M:], q_ipo)
+    def robustObj(self,x,coeff):
+        # q_ipo = self.recurrence(x,self._struct_q)
+        q_ipo = self._ONB._recurrence(x, self.N)
+        return fast_robustObj(coeff, q_ipo, self.M, self.N)
+        # return np.sum([coeff[i]*q_ipo[i-self.M] for i in range(self.M,self.M+self.N)])
 
     def createPenaltyIndexArr(self):
         p_penaltyBinArr = self.ppenaltybin
@@ -1015,7 +1024,9 @@ class RationalApproximationSIP():
         Return the prediction of the RationalApproximation at X.
         """
         X=self._scaler.scale(np.array(X))
-        return self.numer(X)/self.denom(X)
+        recNum = self._ONB._recurrence(X, len(self._pcoeff))
+        recDen = self._ONB._recurrence(X, len(self._qcoeff))
+        return float(np.dot(recNum,self._pcoeff)/np.dot(recDen,self._qcoeff))
 
     def predictOverArray(self, Xarr):
         """
@@ -1037,32 +1048,30 @@ class RationalApproximationSIP():
         d={}
         d['pcoeff']                 = self._pcoeff.tolist()
         d['qcoeff']                 = self._qcoeff.tolist()
+        d['iterationinfo']    = self._iterationinfo
         d['dim']              = self._dim
         d['m'] = self._m
         d['n'] = self._n
+        d['M'] = self._M
+        d['N'] = self._N
+        d["log"] = {"fittime":self._fittime}
+        d['strategy'] = self._strategy
+        d['roboptstrategy'] = self._roboptstrategy
+        if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
+            d['localoptsolver'] = self._localoptsolver
+        else: d['localoptsolver'] = "N/A"
+        d['fitstrategy'] = self._fitstrategy
+        d['trainingscale'] = self._trainingscale
+        d['trainingsize'] = self._trainingsize
+
+        if(self.strategy ==1 or self.strategy==2):
+            d['chosenppenalty'] = self._ppenaltybin
+            d['chosenqpenalty'] = self._qpenaltybin
+
+
+        if(self.strategy==2):
+            d['lambda'] = self._penaltyparam
         d["scaler"] = self._scaler.asDict
-        if self._debug:
-            d['M'] = self._M
-            d['N'] = self._N
-            d['iterationinfo']    = self._iterationinfo
-            d["log"] = {"fittime":self._fittime}
-            d['strategy'] = self._strategy
-            d['uniqueid'] = self._uniqueid
-            d['roboptstrategy'] = self._roboptstrategy
-            if self._roboptstrategy in ['ss','ms','msbarontime','ss_ms_so_ba']:
-                d['localoptsolver'] = self._localoptsolver
-            else: d['localoptsolver'] = "N/A"
-            d['fitstrategy'] = self._fitstrategy
-            d['trainingscale'] = self._trainingscale
-            d['trainingsize'] = self._trainingsize
-
-            if(self.strategy ==1 or self.strategy==2):
-                d['chosenppenalty'] = self._ppenaltybin
-                d['chosenqpenalty'] = self._qpenaltybin
-
-
-            if(self.strategy==2 or self.strategy==0):
-                d['lambda'] = self._penaltyparam
         return d
 
     @property
@@ -1081,80 +1090,38 @@ class RationalApproximationSIP():
 
     def printDebug(self, msg):
         import datetime
-        if self._debug: print("[d%d p%d q%d ts%s] [[%s]] %s"%(self._dim,self._m,self._n,self._trainingscale, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), msg))
+        print("[d%d p%d q%d ts%s] [[%s]] %s"%(self._dim,self._m,self._n,self._trainingscale, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), msg))
 
 if __name__=="__main__":
     import sys
-    infilePath11 = sys.argv[1]#"benchmarkdata/f16.txt"
+    infilePath11 = "../benchmarkdata/f16.txt"
     # infilePath1 = "../benchmarkdata/f1_noise_0.1.txt"
     X, Y = tools.readData(infilePath11)
-    print(X.shape)
-    for i in range(int(sys.argv[2])):
-        r = RationalApproximationSIP(X, Y, m=2, n=3, trainingscale="Cp", roboptstrategy='ss', localoptsolver='scipy',
-                                     fitstrategy='scipy', strategy=0)
-    # print(r.asJSON)
-    exit(0)
-    r = RationalApproximationSIP(X,Y,
+    r = RationalApproximationSIPONB(X,Y,
                                 m=2,
                                 n=3,
-                                trainingscale="1x",
-                                roboptstrategy = 'ms',
-                                localoptsolver = 'scipy',
-                                fitstrategy = 'scipy',
-                                strategy=0,
-                                penaltyparam=10**-1,
-                                ppenaltybin=[1,0,0],
-                                qpenaltybin=[1,0,0,0]
-    )
-    rf = RationalApproximationSIP(X,Y,
-                                m=2,
-                                n=3,
-                                trainingscale="1x",
+                                trainingscale="Cp",
                                 roboptstrategy = 'ms',
                                 localoptsolver = 'scipy',
                                 fitstrategy = 'filter',
                                 strategy=0,
-                                penaltyparam=10**-1,
-                                ppenaltybin=[1,0,0],
-                                qpenaltybin=[1,0,0,0]
     )
-    # print(r.predictOverArray(X))
-    # r.save("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
 
-    # r2 = RationalApproximationSIP(r.asDict)
-    # print(r.asJSON)
-    # print(r2.pcoeff, r2.qcoeff,r2.box,r2.ppenaltybin,r2.qpenaltybin, r2.dim)
-    # print(r2(X[0:4,:])) #calls predict
+    r2 = apprentice.RationalApproximationSIP(X,Y,
+                                m=2,
+                                n=3,
+                                trainingscale="Cp",
+                                roboptstrategy = 'ms',
+                                localoptsolver = 'scipy',
+                                fitstrategy = 'filter',
+                                strategy=0,
+    )
 
-    # r1 = RationalApproximationSIP("/Users/mkrishnamoorthy/Desktop/pythonRASIP.json")
-    print(r.asJSON)
-    #
-    # import pylab
-    # pylab.plot(X, Y, marker="*", linestyle="none", label="Data")
-    # TX = sorted(X)
-    # YW = [r(p) for p in TX]
-    # YF = [rf(p) for p in TX]
+    M  = sum([abs(r(x)-y) for x,y in zip(X,Y)])
+    M2 = sum([abs(r2(x)-y) for x,y in zip(X,Y)])
 
-    # pylab.plot(TX, YW, label="Rational approximation")
-    # pylab.plot(TX, YF, label="Rational approximation filter")
+    print("{} vs {}".format(M,M2))
 
-    # # Store the last and restore immediately, plot to see if all is good
-    # r.save("siptest.json")
-    # r=RationalApproximationSIP("siptest.json")
-    # YW = [r(p) for p in TX]
-    # pylab.plot(TX, YW, "m--", label="Restored approx.")
-    # pylab.legend()
-    # pylab.xlabel("x")
-    # pylab.ylabel("f(x)")
-    # pylab.savefig("demoSIP.pdf")
-
-    # sys.exit(0)
-
-
-
-
-
-
-
-
+    # from IPython import embed
+    # embed()
 # END

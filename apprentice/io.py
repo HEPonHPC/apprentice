@@ -19,7 +19,7 @@ def readInputDataH5(fname, wfile=None):
         pnames      = app.io.readPnamesH5(fname, xfield="params")
         observables = list(set(app.io.readObs(wfile))) if wfile is not None else app.io.readObsNamesH5(fname)
         im          = app.io.indexMapH5(fname, observables)
-        IDX         = list(np.sort(np.concatenate(list(im.values()))))
+        IDX         = np.sort(np.concatenate(list(im.values())))
         binids      = app.io.readIndexH5(fname)
 
         with h5py.File(fname, "r") as f:
@@ -175,11 +175,10 @@ def readInputDataYODA(dirnames, parFileName="params.dat", wfile=None, storeAsH5=
                 xmin.append(_histos[hn][goodrun][nb][0])
                 xmax.append(_histos[hn][goodrun][nb][1])
                 USE = np.where((~np.isinf(vals)) & (~np.isnan(vals)) & (~np.isinf(errs)) & (~np.isnan(errs)))
-                # xg=X[USE,:]
-                # if len(xg.shape)==3:
-                    # xg=xg.reshape(xg.shape[1:])
-                # _data.append([xg, np.array(vals)[USE], np.array(errs)[USE]])
-                _data.append([X, np.array(vals), np.array(errs)])
+                xg=X[USE,:]
+                if len(xg.shape)==3:
+                    xg=xg.reshape(xg.shape[1:])
+                _data.append([xg, np.array(vals)[USE], np.array(errs)[USE]])
 
         if storeAsH5 is not None:
             writeInputDataSetH5(storeAsH5, _data, runs, BNAMES, pnames, xmin, xmax)
@@ -214,18 +213,14 @@ def writeInputDataSetH5(fname, data, runs, BNAMES, pnames, xmin, xmax, compressi
     import numpy as np
     f = h5py.File(fname, "w")
 
-    f.create_dataset("runs",          data=np.array(runs, dtype=bytes),   compression=compression)
-    f.create_dataset("index",         data=np.array(BNAMES, dtype=bytes), compression=compression)
-    pset = f.create_dataset("params", data=data[0][0],                    compression=compression)
+    # TODO change encoding to fixed size ascii
+    # https://github.com/h5py/h5py/issues/892
+    f.create_dataset("runs",  data=np.char.encode(runs,   encoding='utf8'),  compression=compression)
+    f.create_dataset("index", data=np.char.encode(BNAMES, encoding='utf8'),  compression=compression)
+    pset = f.create_dataset("params", data=data[0][0], compression=compression)
     pset.attrs["names"] = [x.encode('utf8') for x in pnames]
 
-    V = np.zeros((len(data), len(runs)))
-    E = np.zeros((len(data), len(runs)))
-    for num, dt in enumerate(data):
-        V[num] = dt[1]
-        E[num] = dt[2]
-
-    f.create_dataset("values", data=np.array([d[1] for d in data], dtype='f'), compression=compression)
+    f.create_dataset("values", data=np.array([d[1] for d in data]), compression=compression)
     f.create_dataset("errors", data=np.array([d[2] for d in data]), compression=compression)
     f.create_dataset("xmin", data=xmin, compression=compression)
     f.create_dataset("xmax", data=xmax, compression=compression)
@@ -236,20 +231,10 @@ def read_histos(path):
     """
     Load histograms from a YODA-supported file type, into a dict of path -> yoda.Histo[DataBin]
     """
-    try:
-        import yoda
-    except Exception as e:
-        print("YODA not available --- check environment or visit yoda.hepforge.org.")
-        import sys
-        sys.exit(1)
-
-    try:
-        from packaging import version
-        if version.Version(yoda.__version__.decode()) < version.parse("1.8.0"):
-            return read_yoda_pre180(path)
-    except Exception as e:
-        print("Unable to get YODA version --- silently assuming >=1.8.0:", e)
-        pass
+    import yoda
+    from packaging import version
+    if version.Version(yoda.__version__.decode()) < version.parse("1.8.0"):
+        return read_yoda_pre180(path)
 
     histos = {}
     s2s, types = [], []

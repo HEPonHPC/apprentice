@@ -5,15 +5,16 @@ setup(
   description = 'The apprentice',
   url = 'https://computing.fnal.gov/hep-on-hpc/',
   author = 'Mohan Krishnamoorthy, Holger Schulz',
-  author_email = 'mkrishnamoorthy@anl.gov, iamholger@gmail.com',
+  author_email = 'mkrishnamoorthy@anl.gov, iamholger@gmail.com, mrenna@fnal.gov',
    packages = find_packages(),
   include_package_data = True,
  install_requires = [
    'numpy>=1.15.0',
    'scipy>=1.7.2',
-   'pyomo>=6.4.0',
+   'scikit-learn',
    # 'h5py>=2.8.0',
    'matplotlib>=3.0.0',
+   'pyDOE2>=1.3.0'
    # 'GPy>=1.9.9'
    # 'mpi4py>=3.0.0',
  ],
