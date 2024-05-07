@@ -11,7 +11,7 @@ setup(
  install_requires = [
    'numpy>=1.15.0',
    'scipy>=1.3.0',
-   'sklearn',
+   'scikit-learn',
    'numba>=0.40.0',
    'h5py>=2.8.0',
    'mpi4py>=3.0.0',
