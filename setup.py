@@ -10,7 +10,8 @@ setup(
   include_package_data = True,
  install_requires = [
    'numpy>=1.15.0',
-   'scipy>=1.7.2',
+   'scipy>=1.9.2',
+   'scipy<1.12.0',
    'pyomo>=6.4.0',
    # 'h5py>=2.8.0',
    'matplotlib>=3.0.0',

@@ -72,14 +72,16 @@ class PointMatcher(object):
         if not self.indextype:
             accept = True
         elif self.indextype == "#":
-            if type(self.index) is float:
+            #if type(self.index) is float:
+            if isinstance(self.index,float):
                 accept = (p == int(self.index))
             else:
                 accept = (p >= self.index[0] and p < self.index[1])
         elif self.indextype == "@":
             if low is None or up is None:
                 raise Exception("upper and lower edges cannot be None")
-            if type(self.index) is float:
+            #if type(self.index) is float:
+            if isinstance(self.index,float):
                 accept = (self.index >= low and self.index < up)
             else:
                 accept = (up > self.index[0] and low <= self.index[1])

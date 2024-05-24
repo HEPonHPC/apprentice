@@ -34,7 +34,6 @@ class GeneratorTuning(LeastSquares):
         :type binup: list
 
         """
-
         super(GeneratorTuning, self).__init__(dim, fnspace, data, s_val, errors, weights, e_val, **kwargs) # bounds and fixed go in kwargs
 
         self.binids_  = binids
@@ -85,8 +84,9 @@ class GeneratorTuning(LeastSquares):
 
         """
         weights = []
-        for hn in self._hnames: weights.append(wdict[hn])
-        self._W2 = np.array([w * w for w in np.array(weights)], dtype=np.float64)
+        #for hn in self._hnames: weights.append(wdict[hn])
+        for hn in self.binids_: weights.append(wdict[hn])
+        self.prf2_ = np.array([w * w for w in np.array(weights)], dtype=np.float64)
 
     def mkReduced(self, keep, **kwargs):
         """

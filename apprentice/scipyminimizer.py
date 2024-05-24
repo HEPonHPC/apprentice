@@ -84,12 +84,18 @@ class ScipyMinimizer(Minimizer):
 
         """
         from scipy import optimize
+        def callback(x):
+            print(x)
+            pass
         res = optimize.minimize(
                 lambda x: self.function_(x),
                 x0,
                 bounds=self.bounds_,
-                jac=None if self.gradient_ is None else lambda x:self.gradient_(x),
-                method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
+                jac=lambda x:self.gradient_(x),
+                #jac=None if self.gradient_ is None else lambda x:self.gradient_(x),
+                method="TNC", tol=tol, options={'maxfun':1000, 'accuracy':tol},
+                callback=callback)
+                #method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
         return res
 
     def minimiseLBFGSB(self, x0, tol=1e-6):
