@@ -70,17 +70,22 @@ class PolySet(object):
         # TODO here we want to check that the surrogates are either polynomials or rationals
         # NOTE it is imperative that all polynomials have the same function_space when computing the
         # hessian due to the jacobian and the way we use it
+        isList = False
         for r in surr:
             if r.order_numerator > omax_p: omax_p = r.order_numerator
             if hasattr(r, "n") and r.order_denominator > omax_q: omax_q = r.order_denominator
             if r.function_space != fnspace:
                 raise Exception("Scalers must be identical") # Implicitly checks dimension
+            if isinstance(r.coeff_numerator,list): isList = True
 
         # Set coefficient arrays
         # Need maximum extends of coefficients
         lmax = Util.num_coeffs_poly(dim, max(omax_p, omax_q))
         PC = np.zeros((len(surr), lmax), dtype=np.float64)
-        for num, r in enumerate(surr): PC[num][:r.coeff_numerator.shape[0]] = r.coeff_numerator
+        if isList:
+            for num, r in enumerate(surr): PC[num][:np.array(r.coeff_numerator).shape[0]] = np.array(r.coeff_numerator)
+        else:
+            for num, r in enumerate(surr): PC[num][:r.coeff_numerator.shape[0]] = r.coeff_numerator
 
         # Denominator
         if omax_q > 0:

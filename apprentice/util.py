@@ -123,9 +123,32 @@ class Util(object):
 
         return REC
 
+#    from numba import jit
+#    @jit(forceobj=True)#, parallel=True)
+    def prime1(GREC, COEFF, dim, NNZ):
+        ret = np.zeros((len(COEFF), dim))
+        for i in range(dim):
+            for k in NNZ[i]:
+                ret[:,i] += COEFF[:,k] * GREC[i, k]
+        return ret
+
+#    @jit(forceobj=True)#, parallel=True)
+    def prime(GREC, COEFF, dim, NNZ):
+        ret_transpose = np.zeros((dim, len(COEFF)))
+        COEFF_transpose = np.copy(COEFF.T, order='C')
+        for i in range(dim):
+            for k in NNZ[i]:
+                ret_transpose[i,:] += COEFF_transpose[k,:] * GREC[i,k]
+        return ret_transpose.T
+
+    def prime2(GREC, COEFF, dim, NNZ):
+        ret = np.empty((len(COEFF), dim))
+        for i in range(dim):
+            ret[:,i] = np.sum(COEFF[:,NNZ[i]] * GREC[i,NNZ[i]], axis=-1)
+        return ret
 
     @staticmethod
-    def prime(GREC, COEFF, dim, NNZ):
+    def primeOld(GREC, COEFF, dim, NNZ):
         ret = np.zeros((len(COEFF), dim))
         for i in range(dim):
             for j in range(len(COEFF)):

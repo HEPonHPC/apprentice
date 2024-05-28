@@ -2,6 +2,7 @@ import numpy as np
 import apprentice
 from apprentice.surrogatemodel import SurrogateModel
 from apprentice.space import Space
+from apprentice.tools import gradientRecursion
 import pprint
 
 # https://medium.com/pythonhive/python-decorator-to-measure-the-execution-time-of-methods-fa04cb6bb36d
@@ -443,7 +444,6 @@ class PolynomialApproximation(SurrogateModel):
 
         """
 
-        import numpy as np
         struct = np.array(self.struct_p_, dtype=float)
         X = self.function_space.scale(np.array(X))
 
@@ -451,7 +451,6 @@ class PolynomialApproximation(SurrogateModel):
             struct[1:] = self.function_space.jacfac[0] * struct[1:] * np.power(X, struct[1:] - 1)
             return np.dot(np.atleast_2d(struct), self.coeff_numerator)
 
-        from apprentice.tools import gradientRecursion
         GREC = gradientRecursion(X, struct, self.function_space.jacfac)
 
         return np.sum(GREC * self.coeff_numerator, axis=1)
@@ -467,7 +466,6 @@ class PolynomialApproximation(SurrogateModel):
         :rtype: list
 
         """
-        import numpy as np
         X = self.function_space.scale(np.array(X))
         S = self.struct_p_
 
