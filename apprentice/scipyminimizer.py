@@ -58,9 +58,12 @@ class ScipyMinimizer(Minimizer):
         # MPI this
         for sp in startpoints:
 
-            if   method=="tnc":    res = self.minimiseTNC(   sp, tol=tol)
-            elif method=="lbfgsb": res = self.minimiseLBFGSB(sp, tol=tol)
-            else: raise Exception("Unknown minimizer {}".format(method))
+            if   method=="tnc":    res = self.minimizeTNC(   sp, tol=tol)
+            elif method=="lbfgsb": res = self.minimizeLBFGSB(sp, tol=tol)
+            elif method=="ncg": res = self.minimizeNCG(sp, tol=tol)
+            elif method=="trust": res = self.minimizeTrust(sp, tol=tol)
+            #elif method=="slsqp": res = self.minimizeSLSQP(sp, tol=tol)
+            else: raise Exception("Unknown minimizer {} does not match tnc, lbfgsb, ncg or trust".format(method))
 
             if res["fun"] < minobj:
                 minobj = res["fun"]
@@ -70,7 +73,7 @@ class ScipyMinimizer(Minimizer):
         return finalres
 
 
-    def minimiseTNC(self, x0, tol=1e-6):
+    def minimizeTNC(self, x0, tol=1e-6):
         """
 
         Minimize using Truncated Newton (TNC) algorithm
@@ -98,7 +101,7 @@ class ScipyMinimizer(Minimizer):
                 #method="TNC", tol=tol, options={'maxiter':1000, 'accuracy':tol})
         return res
 
-    def minimiseLBFGSB(self, x0, tol=1e-6):
+    def minimizeLBFGSB(self, x0, tol=1e-6):
         """
 
         Minimize using L-BFGS-B algorithm
@@ -120,7 +123,7 @@ class ScipyMinimizer(Minimizer):
                 method="L-BFGS-B", tol=tol)
         return res
 
-    def minimiseSLSQP(self, x0, tol=1e-6):
+    def minimizeSLSQP(self, x0, tol=1e-6):
         """
 
         Minimize using Sequential Least Squares Programming (SLSQP)
@@ -139,7 +142,8 @@ class ScipyMinimizer(Minimizer):
                 x0,
                 bounds=self.bounds_,
                 jac=None if self.gradient_ is None else lambda x:self.gradient_(x),
-                method="SLSQP", tol=tol, constraints=self.constraints_, options={'maxiter':1000, 'accuracy':tol})
+            
+                method="SLSQP", tol=tol, constraints=self.constraints_, options={'maxiter':1000 })
         return res
 
     def minimizeNCG(self, x0, sel=slice(None, None, None), tol=1e-6):
@@ -161,8 +165,20 @@ class ScipyMinimizer(Minimizer):
         res = optimize.minimize(
                 lambda x: self.function_(x),
                 x0,
-                jac=None if self.gradient_ is  None else lambda x:self.gradient_(x, sel=sel),
-                hess=None if self.hessian_ is  None else lambda x:self.hessian_(x, sel=sel),
+                jac=None if self.gradient_ is  None else lambda x:self.gradient_(x),
+                hess=None if self.hessian_ is  None else lambda x:self.hessian_(x),
+                #hess=None if self.hessian_ is  None else lambda x:self.hessian_(x, sel=sel),
                 method="Newton-CG")
         return res
+
+    def minimizeTrust(self, x0, sel=slice(None, None, None), tol=1e-6):
+        from scipy import optimize
+        res = optimize.minimize(
+                lambda x: self.function_(x),
+                x0,
+                jac=lambda x:self.gradient_(x),
+                hess=lambda x:self.hessian_(x),
+                method="trust-exact")
+        return res
+
 
