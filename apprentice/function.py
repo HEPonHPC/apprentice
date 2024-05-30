@@ -207,7 +207,7 @@ class Function(object):
 
         Compute the function objective at a free indices at a new data point
 
-        :param x: a new x point, an araay of size :math:`dim` where :math:`dim` is the parameter dimension
+        :param x: a new x point, an array of size :math:`dim` where :math:`dim` is the parameter dimension
         :type x: list
         :return: objective value of the function at the new point
         :rtype: float

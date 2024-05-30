@@ -106,5 +106,3 @@ class GeneratorTuning(LeastSquares):
         W2 = self._W2[keep]
         from apprentice.appset import TuningObjective2
         return TuningObjective2(AS, EAS, Y, E, W2, **kwargs)
-
-

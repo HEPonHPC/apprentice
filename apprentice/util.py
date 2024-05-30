@@ -141,6 +141,22 @@ class Util(object):
                 ret_transpose[i,:] += COEFF_transpose[k,:] * GREC[i,k]
         return ret_transpose.T
 
+    def prime3(GREC, COEFF, dim, NNZ):
+        # GREC must have shape (dim, irrelevant)
+        # COEFF must have shape (j_length, irrelevant)
+        # NNZ must have shape (dim, k_length)
+        COEFF_submatrix = COEFF[:, NNZ]    # shape: (j_length, dim, k_length)
+        GREC_submatrix = np.take_along_axis(arr=GREC, indices=NNZ, axis=1)    # shape: (dim, k_length)
+        ret = np.sum(COEFF_submatrix * GREC_submatrix, axis=-1)    # shape: (j_length, dim)
+        return ret
+
+    def prime0(GREC, COEFF, dim, NNZ):
+        ret_transpose = np.empty((dim, len(COEFF)))
+        COEFF_transpose = np.copy(COEFF.T, order='C')
+        for i in range(dim):
+            ret_transpose[i,:] = np.sum( COEFF_transpose[NNZ[i],:] * GREC[i,NNZ[i],np.newaxis] ,axis=0)
+        return ret_transpose.T
+
     def prime2(GREC, COEFF, dim, NNZ):
         ret = np.empty((len(COEFF), dim))
         for i in range(dim):

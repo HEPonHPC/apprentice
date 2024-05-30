@@ -58,7 +58,7 @@ class LeastSquares(Function):
         else:
             self.evals     = None
 
-    def objective(self, x):
+    def objective(self, x, unbiased=False):
         """
 
         Compute least squares objective function value at new data point x
@@ -69,9 +69,11 @@ class LeastSquares(Function):
         :rtype: float
 
         """
-        nom   = self.prf2_ * ( np.array( self.vals(x) ) - self.data_ )**2
-        denom = 1*self.err2_
-        if self.evals is not None:  denom += np.array( self.evals(x) )**2
+        nom   = self.prf2_ * ( np.array(self.vals(x))  - self.data_ )**2
+        if unbiased:
+            nom   = ( np.array(self.vals(x))  - self.data_ )**2
+        denom = np.array(self.err2_)
+        if self.evals is not None:  denom += np.array(self.evals(x))**2
         return np.sum(nom/denom)
 
 
@@ -138,7 +140,8 @@ class LeastSquares(Function):
             ehess  = np.zeros_like(hess)
 
         # Some useful definitions
-        E2=1./self.err2_
+        #E2=1./self.err2_
+        E2=np.array(self.err2_)
         lbd = E2 + err*err
         kap = vals - self.data_
         G1 = 2./lbd
