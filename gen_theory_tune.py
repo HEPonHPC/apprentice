@@ -270,15 +270,18 @@ class TheoryErrorTuning(GeneratorTuning):
 
         sigma_u = self.theoryerr_ * np.array( self.vals(x) )
         u     = np.zeros_like( eps )
+        theta = np.zeros_like( eps )
+        u_term = np.zeros_like( eps )
 
         #theta = self.theta_profile( np.array( self.vals(x) ), self.data_, u, sigma_u, denom, eps)
         #theta = np.array([self.theta_profile(self.vals(x)[i], self.data_[i], u[i], sigma_u[i], denom[i], eps[i]) for i in range(len(self.data_))])
-        theta = self.theta_profile_vec( np.array( self.vals(x) ), self.data_, u, sigma_u, denom, eps)
+        if self.theoryerr_ > 0 :
+            theta = self.theta_profile_vec( np.array( self.vals(x) ), self.data_, u, sigma_u, denom, eps)
+            u_term = (1. + 1./(2*eps**2)) * np.log(1.+2.*eps**2*(u - theta)**2/sigma_u**2)
 
         #theta = self.theta_profile_vec_simple( np.array( self.vals(x) ), self.data_, u, sigma_u, denom, eps)
 
         y_term = ( self.data_ - np.array(self.vals(x)) -theta)**2 / denom 
-        u_term = (1. + 1./(2*eps**2)) * np.log(1.+2.*eps**2*(u - theta)**2/sigma_u**2)
 
         return np.sum(y_term + u_term) if unbiased else np.sum( np.sqrt(self.prf2_) *( y_term + u_term) )
 
@@ -420,6 +423,7 @@ if __name__ == "__main__":
     op.add_option("--mode", dest="MODE", default="sip", help="Base algorithm  --- la |sip|lasip --- (default: %default)")
     op.add_option("--log", dest="ISLOG", action='store_true', default=False, help="input data is logarithmic --- affects how we filter (default: %default)")
     op.add_option("--ftol", dest="FTOL", type=float, default=1e-9, help="ftol for SLSQP (default: %default)")
+    op.add_option("--tol", dest="TOL", type=float, default=-1, help="tol for most minimizers (default: %default)")
     op.add_option("--rparam", dest="RPARAM", type=float, default=0, help="error on theory error (default: %default)")
     op.add_option("--therr",  dest="THERR", type=float, default=0, help="error on theory, currently a percentage of prediction (default: %default)")
     opts,args = op.parse_args() 
@@ -572,7 +576,7 @@ if __name__ == "__main__":
     if opts.RESTART > 1 : x0 = None
 
     t0 = time.time()
-    res = SC.minimize(x0, method = opts.ALGO, nrestart = opts.RESTART )
+    res = SC.minimize(x0, method = opts.ALGO, nrestart = opts.RESTART , tol = opts.TOL)
     t1 = time.time()
     print(res)
 
@@ -582,9 +586,12 @@ if __name__ == "__main__":
     chi2 = GG.objective(res.x, unbiased = True)
     ndf = len(WGT) - len(x0.flatten()) + 1
 
+    import scipy
+
     meta  = "# Objective value at best fit point: %.2f (%.2f without weights)\n"%(res.fun, chi2)
     meta += "# Degrees of freedom: {}\n".format(ndf)
     meta += "# phi2/ndf: %.3f\n"%(chi2/ndf)
+    meta += "# Goodnest of fit: %.4f\n"%(scipy.stats.chi2.sf(chi2, df=ndf))
     meta += "# Minimisation took {} seconds\n".format(t1-t0)
     meta += "# Command line: {}\n".format(" ".join(sys.argv))
     meta += "# Best fit point:"
