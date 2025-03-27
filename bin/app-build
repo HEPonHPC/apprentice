@@ -159,7 +159,13 @@ if __name__ == "__main__":
         JD["__xmax"]=xmax
 
         import json
-        with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4)
+        class NumpyFloatValuesEncoder(json.JSONEncoder):
+           def default(self, obj):
+              if isinstance(obj, np.float32):
+                 return float(obj)
+              return json.JSONEncoder.default(self, obj)
+
+        with open(opts.OUTPUT, "w") as f: json.dump(JD, f, indent=4, cls=NumpyFloatValuesEncoder)
 
         print("Done --- {} approximations written to {}".format(len(JD), opts.OUTPUT))
 
