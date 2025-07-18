@@ -260,7 +260,9 @@ def read_histos(path):
             if os.path.basename(ao.path()).startswith("_"): continue
             if "/RAW/" in ao.path(): continue
             types.append(ao.type())
-            s2s.append(ao.mkScatter())
+            tmp = ao.mkScatter()
+            if tmp.path() == '/': tmp.setPath(ao.path())
+            s2s.append(tmp)
         del aos
         for s2, tp in zip(s2s, types):
             if s2.dim()!=2: continue
