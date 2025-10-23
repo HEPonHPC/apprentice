@@ -1,3 +1,12 @@
+Description
+-------
+
+Apprentice was [presented](https://indico.cern.ch/event/948465/contributions/4324130/)
+at [vCHEP2021](https://indico.cern.ch/event/948465).
+See the [slides](https://indico.cern.ch/event/948465/contributions/4324130/attachments/2244886/3808671/vCHEP2021_PPT.pdf)
+and associated [proceedings](https://inspirehep.net/literature/1850936)
+for a description.
+
 Acknowledgements
 -------
 This material is based upon work supported by the U.S. Department
