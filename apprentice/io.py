@@ -179,8 +179,11 @@ def writeInputDataSetH5(fname, data, runs, BNAMES, pnames, xmin, xmax, compressi
 
     # TODO change encoding to fixed size ascii
     # https://github.com/h5py/h5py/issues/892
-    f.create_dataset("runs",  data=np.char.encode(runs,   encoding='utf8'),  compression=compression)
-    f.create_dataset("index", data=np.char.encode(BNAMES, encoding='utf8'),  compression=compression)
+    # np.char.encode fails on object arrays in newer NumPy; encode manually
+    runs_enc   = np.array([r.encode('utf8') if isinstance(r, str) else r for r in runs])
+    bnames_enc = np.array([b.encode('utf8') if isinstance(b, str) else b for b in BNAMES])
+    f.create_dataset("runs",  data=runs_enc,   compression=compression)
+    f.create_dataset("index", data=bnames_enc, compression=compression)
     pset = f.create_dataset("params", data=data[0][0], compression=compression)
     pset.attrs["names"] = [x.encode('utf8') for x in pnames]
 
@@ -201,7 +204,7 @@ def read_histos(path):
         return read_yoda_pre180(path)
 
     histos = {}
-    s2s, types = [], []
+    s2s, types, paths = [], [], []
     aos = yoda.read(path, asdict=False)
     try:
         for ao in aos:
@@ -209,12 +212,13 @@ def read_histos(path):
             if os.path.basename(ao.path()).startswith("_"): continue
             if "/RAW/" in ao.path(): continue
             types.append(ao.type())
+            paths.append(ao.path())   # preserve path before mkScatter() loses it
             s2s.append(ao.mkScatter())
         del aos
-        for s2, tp in zip(s2s, types):
+        for s2, tp, aopath in zip(s2s, types, paths):
             if s2.dim()!=2: continue
             bins = [(p.xMin(), p.xMax(), p.y(), p.yErrAvg()) for p in s2.points()] # This stores the bin heights as y-values
-            histos[s2.path()] = bins
+            histos[aopath] = bins   # use original AO path, not s2.path()
         del s2s
     except Exception as e:
         print("read_histos --- Can't load histos from file '%s': %s" % (path, e))
